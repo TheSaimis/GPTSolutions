@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+body {
+  background: #F8FAFC;
+  color: #0F172A;
+}
+
+.buttons {
+  background-color: #22C55E;
+}

@@ -1,0 +1,14 @@
+.inputField {
+  display: flex;
+  flex-direction: column;
+}
+.inputField h2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.inputField input {
+  width: 100%;
+  border-radius: 5px;
+  padding: 5px;
+}/*# sourceMappingURL=inputFields.module.css.map */
