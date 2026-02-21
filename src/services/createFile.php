@@ -61,7 +61,8 @@ final class CreateFile
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $baseName . '_' . $code . '.docx';
+        // this will ensure already existing files wont get overwritten
+        $outputName = $baseName . '_' . $code . '_' . date('Ymd_His') . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
 
         $processor = new TemplateProcessor($templatePath);

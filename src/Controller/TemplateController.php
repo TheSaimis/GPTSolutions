@@ -30,7 +30,7 @@ final class TemplateController extends AbstractController
         }
 
         return new JsonResponse([
-            'templates' => $this->scanDirectory($dir),
+            $this->scanDirectory($dir)
         ]);
     }
 
@@ -72,60 +72,67 @@ final class TemplateController extends AbstractController
     public function create(Request $request): JsonResponse|BinaryFileResponse
     {
         $data = json_decode($request->getContent(), true);
-
-        if (empty($data['company']) || empty($data['code'])) {
-            return new JsonResponse(['error' => 'Fields "company" and "code" are required'], 400);
+    
+        if (!is_array($data)) {
+            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
         }
-
-        // Jei atsiųstas "managerFullName" – skaldome į vardą ir pavardę
-        $firstName = $data['managerFirstName'] ?? '';
-        $lastName  = $data['managerLastName'] ?? '';
-        if (empty($firstName) && empty($lastName) && !empty($data['managerFullName'])) {
-            $parts     = explode(' ', trim($data['managerFullName']), 2);
-            $firstName = $parts[0] ?? '';
-            $lastName  = $parts[1] ?? '';
+    
+        // ── Mandatory fields ───────────────────────────────────────────────────────
+        $required = ['company', 'code', 'role', 'instructionDate', 'directory'];
+        foreach ($required as $field) {
+            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
+                return new JsonResponse(['error' => sprintf('Field "%s" is required', $field)], 400);
+            }
         }
-
-        $gender = $this->resolveGender($data['managerType'] ?? '');
-
-        // ── 1. Persist requisites to DB ──
-        $req = new CompanyRequisite();
-        $req->setCompanyName($data['company']);
-        $req->setCode($data['code']);
-        $req->setCompanyType($data['companyType'] ?? null);
-        $req->setCategory($data['category'] ?? null);
-        $req->setAddress($data['address'] ?? null);
-        $req->setCityOrDistrict($data['cityOrDistrict'] ?? null);
-        $req->setManagerType($data['managerType'] ?? null);
-        $req->setManagerFirstName($firstName ?: null);
-        $req->setManagerLastName($lastName ?: null);
-        $req->setDocumentDate($data['instructionDate'] ?? null);
-        $req->setRole($data['role'] ?? null);
-        $req->setDirectory($data['directory'] ?? null);
-        $req->setCreatedAt(new \DateTimeImmutable());
-
-        $this->em->persist($req);
-        $this->em->flush();
-
-        // ── 2. Sukurti Word failą per CreateFile servisą ──
-        $pathToDocx = $this->createFile->createWordDocument([
-            'directory'        => $data['directory'] ?? '',
-            'template'         => $data['template'] ?? '0 rekvizitai.docx',
-            'company'          => $data['company'],
-            'code'             => $data['code'],
-            'instructionDate'  => $data['instructionDate'] ?? '',
-            'role'             => $data['role'] ?? '',
-        ]);
-        $outputName = basename($pathToDocx);
-        $outputPath = $pathToDocx;
-
-        // ── 3. Return the filled file ──
-        $response = new BinaryFileResponse($outputPath);
+    
+        $company = trim((string) $data['company']);
+        $code    = trim((string) $data['code']);
+        $role    = trim((string) $data['role']);
+        $instructionDate = trim((string) $data['instructionDate']);
+    
+        // "directory" arrives WITH filename, e.g. "4 Tvarkos/3 Mobingo Tvarka 2023.docx"
+        $dirWithFile = trim((string) $data['directory']);
+    
+        // Normalize slashes (support Windows "\" too)
+        $dirWithFile = str_replace('\\', '/', $dirWithFile);
+    
+        $template = basename($dirWithFile);          // filename.ext
+        $directory = trim(dirname($dirWithFile));    // folder path or "."
+    
+        if ($directory === '.' || $directory === '/') {
+            $directory = ''; // template is directly under /templates
+        }
+    
+        // Optional sanity: ensure template looks like a doc file
+        // if (!preg_match('/\.docx?$/i', $template)) {
+        //     return new JsonResponse(['error' => 'directory must include a .doc/.docx filename'], 400);
+        // }
+    
+        // ── Create Word document ───────────────────────────────────────────────────
+        try {
+            $pathToDocx = $this->createFile->createWordDocument([
+                'directory'       => $directory,
+                'template'        => $template,
+                'company'         => $company,
+                'code'            => $code,
+                'instructionDate' => $instructionDate, // CreateFile expects instructionDate key
+                'role'            => $role,
+            ]);
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'error' => 'Failed to create document',
+                'details' => $e->getMessage(),
+            ], 500);
+        }
+    
+        // ── Return the generated file ──────────────────────────────────────────────
+        $response = new BinaryFileResponse($pathToDocx);
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $outputName
+            basename($pathToDocx)
         );
-
+    
         return $response;
     }
 
