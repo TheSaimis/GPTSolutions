@@ -1,0 +1,19 @@
+.templates {
+    padding: 20px;
+
+    .templatesList {
+        display: flex;
+        gap: 10px;
+        flex-direction: column;
+        flex-wrap: wrap;
+
+        .template {
+            display: flex;
+            justify-content: space-between;
+            .templateButton {
+                text-align: center;
+            }
+        }
+    }
+
+}
