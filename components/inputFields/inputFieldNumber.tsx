@@ -1,21 +1,54 @@
 import styles from "./styles/inputFields.module.css";
 
 type Props = {
-    value: any;
+    value: string;
     placeholder?: string;
-    onChange: (next: number) => void;
+    onChange: (next: string) => void;
+    regex?: RegExp;        // optional
+    type?: "text" | "number";
 }
 
-export default function InputFieldNumber({value, placeholder, onChange}: Props) {
+export default function InputField({
+    value,
+    placeholder,
+    onChange,
+    regex,
+    type = "text"
+}: Props) {
+
+    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+
+        const val = e.target.value;
+
+        // always allow empty
+        if (val === "") {
+            onChange(val);
+            return;
+        }
+
+        // if regex exists → validate with regex
+        if (regex) {
+            if (regex.test(val)) {
+                onChange(val);
+            }
+            return;
+        }
+
+        // if no regex → allow normal number/text input
+        onChange(val);
+    }
+
     return (
         <div className={styles.inputField}>
             <h2>{placeholder}</h2>
-            <input type="text" min="0" step="1" value={value} placeholder={placeholder} onChange={(e) => {
-                        const value = e.target.value;
-                        if (/^\d*([.,]\d{0,2})?$/.test(value)) {
-                            onChange(Number(value.replace(",", ".")));
-                        }
-                    }}/>
+
+            <input
+                type={type}
+                value={value}
+                placeholder={placeholder}
+                onChange={handleChange}
+            />
+
         </div>
-    )
+    );
 }

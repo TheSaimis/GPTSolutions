@@ -1,0 +1,47 @@
+.templateList {
+    gap: 10px;
+    padding: 10px;
+
+    .itemContainer {
+        display: flex;
+        max-width: 500px;
+        justify-content: space-between;
+
+        .item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            .collapsed.arrow {
+                transform: rotate(180deg);
+            }
+
+            .arrow {
+                transition: 0.3s;
+            }
+
+            .file {
+                width: 15px;
+                margin-right: 5px;
+            }
+        }
+    }
+
+    .collapsed.child {
+        max-height: 0px;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .child {
+        max-height: 1000px;
+        transition: 0.3s;
+        border-left: 1px solid;
+        display: flex;
+        flex-direction: column;
+        margin-left: 15px;
+        gap: 10px;
+    }
+
+}
