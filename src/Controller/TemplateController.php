@@ -11,11 +11,13 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Services\CreateFile;
 
 final class TemplateController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
+        private CreateFile $createFile,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -105,50 +107,19 @@ final class TemplateController extends AbstractController
         $this->em->persist($req);
         $this->em->flush();
 
-        // ── 2. Resolve the source template ──
-        $templateFile = $data['template'] ?? '0 rekvizitai.docx';
-        $templatePath = $this->resolveTemplatePath($templateFile, $data);
-
-        if (!$templatePath || !file_exists($templatePath)) {
-            return new JsonResponse(['error' => "Template \"$templateFile\" not found"], 404);
-        }
-
-        // ── 3. Create company output directory ──
-        $companyDir = $this->getGeneratedDir() . '/' . $data['code'];
-        if (!is_dir($companyDir)) {
-            mkdir($companyDir, 0775, true);
-        }
-
-        $outputName = pathinfo($templateFile, PATHINFO_FILENAME) . '_' . $data['code'] . '.docx';
-        $outputPath = $companyDir . '/' . $outputName;
-
-        // ── 4. Fill template ──
-        // Placeholder'iai atitinka "0 rekvizitai.docx" žymes:
-        //   ${company}, ${companyType}, ${address}, ${CityOrDistrict},
-        //   ${code}, ${managerFirstName}, ${managerLastName},
-        //   ${documentDate}, ${gender}, ${role}
-        $processor = new TemplateProcessor($templatePath);
-
-        $placeholders = [
-            'company'          => $data['company'] ?? '',
-            'companyType'      => $data['companyType'] ?? '',
-            'address'          => $data['address'] ?? '',
-            'CityOrDistrict'   => $data['cityOrDistrict'] ?? '',
-            'code'             => $data['code'] ?? '',
-            'managerFirstName' => $firstName,
-            'managerLastName'  => $lastName,
-            'documentDate'     => $data['instructionDate'] ?? '',
-            'gender'           => $gender,
+        // ── 2. Sukurti Word failą per CreateFile servisą ──
+        $pathToDocx = $this->createFile->createWordDocument([
+            'directory'        => $data['directory'] ?? '',
+            'template'         => $data['template'] ?? '0 rekvizitai.docx',
+            'company'          => $data['company'],
+            'code'             => $data['code'],
+            'instructionDate'  => $data['instructionDate'] ?? '',
             'role'             => $data['role'] ?? '',
-        ];
+        ]);
+        $outputName = basename($pathToDocx);
+        $outputPath = $pathToDocx;
 
-        foreach ($placeholders as $key => $value) {
-            $processor->setValue($key, $value);
-        }
-
-        $processor->saveAs($outputPath);
-
-        // ── 5. Return the filled file ──
+        // ── 3. Return the filled file ──
         $response = new BinaryFileResponse($outputPath);
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
