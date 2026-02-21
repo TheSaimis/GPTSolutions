@@ -1,0 +1,25 @@
+Kad paleisti dev serverį reikia atsisiųsti Symfony, Composer ir pan. (Žiūrėk Symfony dokumentaciją arba paklausk ChatGPT, arba atsisiųsk Docker ir paleisk per Docker.)
+Prieš viską darant susikurk .env failą toje pačioje vietoje kaip šitas txt failas ir surašyk ten visus duomenis (Discorde kažkur sukelsiu). Tada į terminalą rašyk: composer install
+
+Jei paleidi serverį per Symfony (terminalą – jei dev reikalai, geriau per terminalą; žodžiu visada naudok terminalą), reikia susikurti private.pem ir public.pem failus į config/jwt (apačioje parašiau komandą).
+
+======================= TERMINALO KOMANDOS =======================
+
+php bin/console lexik:jwt:generate-keypair - Sukuria private.pem ir public.pem failus
+php bin/console app:create-user - paleis src/Command/CreateUserCommand.php faila ir sukurs nauja admin vartotoja (Testavimui)
+
+php bin/console make:entity - Sukuria naują arba atnaujina entity. Naudok kai yra pakeitimai duomenų bazėje (Class name = lentelės pavadinimas iš DB, Symfony UX Turbo? = no, property name = stulpelio pavadinimas, field type = tipas DB)
+    Jei labai didelė duomenų bazė bus (ch, kad nebus), geriau įkelk SQL failą į ChatGPT ir paprašyk kad sukurtų copy-paste entity failus.
+
+symfony server:start - Įjungti serverį
+symfony server:stop - Išjungti serverį (jei išjungsi terminalą neįvedęs šitos komandos, serveris vistiek veiks – tikriausiai)
+
+===================================================================
+
+src/Entity - duomenų bazė (entity)
+src/Controller - duomenų bazės valdiklis (visi API route'ai)
+src/Command - komanda, su kuria gali sukurti admin vartotoją testavimo reikalams
+config/packages/security.yaml - JWT konfigas
+
+Kartais būna kad pasibugina Symfony ant Windows ir meta kokias teisių klaidas (ChatGPT paklausk kaip pataisyt – kelios terminalo komandos), bet ant production serverio taip nebūna.
+Žodžiu, pagrinde darbas bus tarp src/Entity ir src/Controller failų. Aišku dar visas atsisiuntimas ir pasileidimas serverio kol pradėsi – gali uztrukt.

@@ -1,8 +1,0 @@
-Colors
-
-Purpose	Color	Hex
-Primary	Teal	#43B17E
-Background	Light	#F1F5F9
-Text primary	Dark	#0F172A
-Success	Green	#22C55E
-
