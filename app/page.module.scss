@@ -1,27 +1,109 @@
-.dashboardContainer {
-    padding: 15px;
-    .dashboard {
+$primary: #EF2629;
+$primary-light: rgba(239, 38, 41, 0.08);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
 
-        justify-content: center;
-        align-items: center;
+.page {
+    min-height: calc(100vh - 64px - 60px);
+    background: $bg;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+}
 
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+.hero {
+    text-align: center;
+    margin-bottom: 40px;
 
+    .heroTitle {
+        font-size: 2rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+    }
 
-        .button {
-            display: flex;
-            flex-direction: column;
-            text-align: center;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            cursor: pointer;
-            border: 1px solid black;
-            transition: 0.3s;
-            padding: 10px;
-            width: 100px;
+    .heroSubtitle {
+        font-size: 1.05rem;
+        color: $text-muted;
+        margin: 0;
+    }
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+    cursor: pointer;
+
+    &:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.06);
+        transform: translateY(-2px);
+
+        .cardArrow {
+            opacity: 1;
+            transform: translateX(2px);
         }
+
+        .cardIcon {
+            background: $primary;
+            color: #fff;
+        }
+    }
+
+    .cardIcon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: $primary-light;
+        color: $primary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .cardContent {
+        flex: 1;
+        min-width: 0;
+
+        .cardTitle {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: $text-dark;
+            margin: 0 0 4px;
+        }
+
+        .cardDescription {
+            font-size: 0.85rem;
+            color: $text-muted;
+            margin: 0;
+            line-height: 1.4;
+        }
+    }
+
+    .cardArrow {
+        color: $text-muted;
+        opacity: 0;
+        flex-shrink: 0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
     }
 }

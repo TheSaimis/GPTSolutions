@@ -1,8 +1,45 @@
 .header {
     background-color: #EF2629;
     color: white;
-    padding: 15px;
-    h1 {
-        font-weight: bold;
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: white;
+        text-decoration: none;
+        letter-spacing: -0.01em;
+
+        .logoAccent {
+            font-weight: 800;
+        }
+    }
+
+    .nav {
+        display: flex;
+        gap: 8px;
+
+        .navLink {
+            color: rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 8px;
+            transition: background-color 0.15s ease, color 0.15s ease;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.15);
+                color: #fff;
+            }
+        }
     }
 }

@@ -24,13 +24,16 @@ export default function Login() {
 
     return (
         <div className={styles.templates}>
-            <div className={styles.templatesList}>
-
-                {templateList.map((template) => (
-                    <FileList key={template.name} name={template.name} type={template.type} children={template.children} directory={template.name} />
-                ))}
-
-
+            <div className={styles.header}>
+                <h1 className={styles.title}>Šablonai</h1>
+                <p className={styles.subtitle}>Pasirinkite šabloną dokumentui sukurti</p>
+            </div>
+            <div className={styles.card}>
+                <div className={styles.templatesList}>
+                    {templateList.map((template) => (
+                        <FileList key={template.name} name={template.name} type={template.type} children={template.children} directory={template.name} />
+                    ))}
+                </div>
             </div>
         </div>
     );

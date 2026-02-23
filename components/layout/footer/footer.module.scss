@@ -1,8 +1,12 @@
 .footer {
-    background-color: #EF2629;
-    color: white;
-    padding: 15px;
-    h1 {
-        font-weight: bold;
+    background-color: #0F172A;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 20px 32px;
+    text-align: center;
+
+    .text {
+        margin: 0;
+        font-size: 0.813rem;
+        font-weight: 400;
     }
 }

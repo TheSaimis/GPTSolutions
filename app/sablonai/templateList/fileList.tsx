@@ -33,9 +33,12 @@ export default function FileList({ name, type, children, directory }: List) {
         <div className={styles.templateList}>
             <div className={styles.itemContainer}>
                 <div className={styles.item} onClick={clicked}>
-                    {type === "directory" &&
-                        <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
-                    }
+                    {type === "directory" && (
+                        <>
+                            <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
+                            <Folder size={16} />
+                        </>
+                    )}
                     {type === "file" &&
                         <File className={styles.file} />
                     }

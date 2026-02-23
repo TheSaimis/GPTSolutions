@@ -1,45 +1,53 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { Building2, File, Archive } from "lucide-react";
+import { Building2, FileText, Archive, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
 
 export default function Home() {
 
-  const router = useRouter()
+  const cards = [
+    {
+      href: "/sablonai",
+      icon: FileText,
+      title: "Šablonų katalogas",
+      description: "Peržiūrėkite ir naudokite dokumentų šablonus",
+    },
+    {
+      href: "/imones",
+      icon: Building2,
+      title: "Pridėti įmonę",
+      description: "Registruokite naują įmonę sistemoje",
+    },
+    {
+      href: "/atsisiusti",
+      icon: Archive,
+      title: "Atsisiųsti katalogą",
+      description: "Parsisiųskite visą dokumentų katalogą",
+    },
+  ];
 
   return (
-    <div className={styles.dashboardContainer}>
-
-      <div className={styles.dashboard}>
-
-        <Link href={"/sablonai"} className={styles.button}>
-          <File />
-          <p>
-            Šablonų katalogas
-          </p>
-        </Link>
-
-        <Link href={"/imones"} className={styles.button}>
-          <Building2 />
-          <p>
-            Pridėti įmonę
-          </p>
-        </Link>
-
-
-        <Link href={"/atsisiusti"} className={styles.button}>
-          <Archive />
-          <p>
-            Atsisiusti katalogą
-          </p>
-        </Link>
-
-
+    <div className={styles.page}>
+      <div className={styles.hero}>
+        <h1 className={styles.heroTitle}>Sveiki atvykę</h1>
+        <p className={styles.heroSubtitle}>Pasirinkite veiksmą, kurį norite atlikti</p>
       </div>
 
+      <div className={styles.grid}>
+        {cards.map((card) => (
+          <Link key={card.href} href={card.href} className={styles.card}>
+            <div className={styles.cardIcon}>
+              <card.icon size={28} />
+            </div>
+            <div className={styles.cardContent}>
+              <h2 className={styles.cardTitle}>{card.title}</h2>
+              <p className={styles.cardDescription}>{card.description}</p>
+            </div>
+            <ArrowRight size={18} className={styles.cardArrow} />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
