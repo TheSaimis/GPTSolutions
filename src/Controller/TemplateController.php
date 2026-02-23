@@ -32,9 +32,9 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Templates directory not found'], 500);
         }
 
-        return new JsonResponse([
+        return new JsonResponse(
             $this->scanDirectory($dir)
-        ]);
+        );
     }
 
     // ───── GET  /api/templates/{category} ─────
@@ -71,7 +71,7 @@ final class TemplateController extends AbstractController
      * Form data: directory (string), template (file .doc/.docx)
      * Return: { "status": "SUCCESS" } arba { "status": "FAIL" }
      */
-    #[Route('/api/template/fillFile', name: 'api_template_fill_file', methods: ['POST'])]
+    #[Route('/api/template/create', name: 'api_template_fill_file', methods: ['POST'])]
     public function fillFile(Request $request): JsonResponse
     {
         $directory = $request->request->get('directory');
@@ -96,7 +96,7 @@ final class TemplateController extends AbstractController
     //          managerType (vadovas|vadovė|direktorius|direktorė),
     //          managerFirstName?, managerLastName?, managerFullName?,
     //          instructionDate?, role? }
-    #[Route('/api/template/create', name: 'api_template_create', methods: ['POST'])]
+    #[Route('/api/template/fillFile', name: 'api_template_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse|BinaryFileResponse
     {
         $data = json_decode($request->getContent(), true);
