@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import styles from "./styles/inputFields.module.css";
+import styles from "./styles/inputFields.module.scss";
 
 type Props = {
     value: any;

@@ -1,16 +1,48 @@
+$primary: #EF2629;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+$border-focus: #EF2629;
+$bg-input: #F8FAFC;
+
 .inputField {
     display: flex;
     flex-direction: column;
-    
+    gap: 6px;
+
     h2 {
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: $text-dark;
+        margin: 0;
+
+        .icon {
+            color: $text-muted;
+        }
     }
 
     input {
         width: 100%;
-        border-radius: 5px;
-        padding: 5px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        color: $text-dark;
+        background: $bg-input;
+        border: 1.5px solid $border;
+        border-radius: 10px;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+        &::placeholder {
+            color: #94A3B8;
+        }
+
+        &:focus {
+            border-color: $border-focus;
+            box-shadow: 0 0 0 3px rgba(239, 38, 41, 0.1);
+            background: #fff;
+        }
     }
 }
