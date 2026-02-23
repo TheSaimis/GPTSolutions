@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import styles from "./fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
-import { ChevronDown, File, Folder } from "lucide-react";
+import { ChevronDown, File, Folder, ArrowUpToLine } from "lucide-react";
 
 type List = {
     name: string;
@@ -35,14 +35,14 @@ export default function FileList({ name, type, children, directory }: List) {
                 <div className={styles.item} onClick={clicked}>
                     {type === "directory" && (
                         <>
+                        
                             <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
                             <Folder size={16} />
                         </>
                     )}
-                    {type === "file" &&
-                        <File className={styles.file} />
-                    }
+                    {type === "file" && <File className={styles.file} />}
                     <p>{name}</p>
+                    { type === "directory" && <ArrowUpToLine size={16}/>}
                 </div>
                 {type === "file" &&
                     <button className={`${styles.button} buttons`}>Peržiūrėti šabloną</button>
@@ -51,7 +51,7 @@ export default function FileList({ name, type, children, directory }: List) {
 
             <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
                 {children && children.map((child) => (
-                    <FileList key={child.name} name={child.name} children={child.children} type={child.type} directory={name + "/" + child.name}/>
+                    <FileList key={child.name} name={child.name} children={child.children} type={child.type} directory={name + "/" + child.name} />
                 ))}
             </div>
         </div>

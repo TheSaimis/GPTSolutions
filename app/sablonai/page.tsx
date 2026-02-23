@@ -18,7 +18,7 @@ export default function Login() {
 
     async function getTemplateList() {
         const data: TemplateList[] = await TemplateApi.getAll();
-        setTemplateList(data[0]);
+        setTemplateList(data);
     }
 
 

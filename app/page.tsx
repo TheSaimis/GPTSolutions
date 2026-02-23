@@ -1,10 +1,13 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { Building2, FileText, Archive, ArrowRight } from "lucide-react";
+import { Building2, FileText, Archive, ArrowRight, Download } from "lucide-react";
+import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import Link from "next/link";
 
 export default function Home() {
+
+
 
   const cards = [
     {
@@ -19,13 +22,26 @@ export default function Home() {
       title: "Pridėti įmonę",
       description: "Registruokite naują įmonę sistemoje",
     },
-    {
-      href: "/atsisiusti",
-      icon: Archive,
-      title: "Atsisiųsti katalogą",
-      description: "Parsisiųskite visą dokumentų katalogą",
-    },
+    // {
+    //   href: "/atsisiusti",
+    //   icon: Archive,
+    //   title: "Atsisiųsti katalogą",
+    //   description: "Parsisiųskite visą dokumentų katalogą",
+    // },
   ];
+
+  async function getGeneratedFiles() {
+    const { blob, filename } = await GeneratedFilesApi.getAll();
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "generated.zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className={styles.page}>
@@ -47,6 +63,18 @@ export default function Home() {
             <ArrowRight size={18} className={styles.cardArrow} />
           </Link>
         ))}
+
+        <button className={styles.card} onClick={getGeneratedFiles}>
+          <div className={styles.cardIcon}>
+            <Archive/>
+          </div>
+          <div className={styles.cardContent}>
+            <h2 className={styles.cardTitle}>Atsisiųsti katalogą</h2>
+            <p className={styles.cardDescription}>Parsisiųskite visą dokumentų katalogą</p>
+          </div>
+          <Download size={18} className={styles.cardArrow} />
+        </button>
+
       </div>
     </div>
   );

@@ -90,6 +90,9 @@ export const api = {
   get: <T>(path: string, options: Omit<RequestInit, "method" | "body"> = {}) =>
     request<T>(path, { ...options, method: "GET" }),
 
+  getBlob: (path: string, options: Omit<RequestInit, "method" | "body"> = {}) =>
+    requestBlob(path, { ...options, method: "GET" }),
+
   post: <T>(path: string, body?: Json, options: Omit<RequestInit, "method" | "body"> = {}) =>
     request<T>(path, { ...options, method: "POST", body }),
 
