@@ -8,9 +8,11 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 
 final class TemplateController extends AbstractController
@@ -18,6 +20,7 @@ final class TemplateController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private CreateFile $createFile,
+        private AddWordDocument $addWordDocument,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -60,6 +63,31 @@ final class TemplateController extends AbstractController
         return new JsonResponse([
             'templates' => $this->scanDirectory($dir),
         ]);
+    }
+
+    /**
+     * POST /api/template/fillFile
+     * Įkelia šabloną (.docx) į templates/{directory}/.
+     * Form data: directory (string), template (file .doc/.docx)
+     * Return: { "status": "SUCCESS" } arba { "status": "FAIL" }
+     */
+    #[Route('/api/template/fillFile', name: 'api_template_fill_file', methods: ['POST'])]
+    public function fillFile(Request $request): JsonResponse
+    {
+        $directory = $request->request->get('directory');
+        if ($directory === null || trim((string) $directory) === '') {
+            return new JsonResponse(['status' => 'FAIL'], 400);
+        }
+        $directory = trim((string) $directory);
+
+        $file = $request->files->get('template');
+        if (!$file instanceof UploadedFile) {
+            return new JsonResponse(['status' => 'FAIL'], 400);
+        }
+
+        $status = $this->addWordDocument->addWordDocument($file, $directory);
+
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
     // ───── POST /api/template/create ─────
