@@ -12,12 +12,14 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Services\CreateFile;
+use App\Services\GetPDF;
 
 final class TemplateController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
         private CreateFile $createFile,
+        private GetPDF $getPDF,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -133,6 +135,31 @@ final class TemplateController extends AbstractController
             basename($pathToDocx)
         );
     
+        return $response;
+    }
+
+    /**
+     * GET /api/templates/pdf/{path}
+     * Konvertuoja šabloną į PDF ir grąžina naršyklei peržiūrai.
+     */
+    #[Route('/api/templates/pdf/{path}', name: 'api_templates_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function previewPdf(string $path): JsonResponse|BinaryFileResponse
+    {
+        try {
+            $pdfPath = $this->getPDF->convertToPdf($path);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'PDF generavimas nepavyko: ' . $e->getMessage()], 500);
+        }
+
+        $response = new BinaryFileResponse($pdfPath);
+        $response->headers->set('Content-Type', 'application/pdf');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            pathinfo($path, PATHINFO_FILENAME) . '.pdf'
+        );
+
         return $response;
     }
 

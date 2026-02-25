@@ -4,7 +4,8 @@ FROM php:8.2-apache
 # Install system dependencies (MySQL + PostgreSQL for DB options)
 RUN apt-get update && apt-get install -y \
     git zip unzip libpng-dev libzip-dev \
-    default-mysql-client libpq-dev
+    default-mysql-client libpq-dev \
+    libreoffice-writer-nogui
 
 RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql zip gd
 
