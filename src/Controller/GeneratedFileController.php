@@ -19,7 +19,7 @@ final class GeneratedFileController extends AbstractController
      * GET /api/generated/{directory}/zip
      * Suarchyvuoja nurodytą katalogą iš var/generated/ ir grąžina .zip failą.
      */
-    #[Route('/api/generated/{directory}/zip', name: 'api_generated_zip', methods: ['GET'])]
+    #[Route('/api/generated/zip/{directory}', name: 'api_generated_zip', methods: ['GET'])]
     public function filterFilesByApp(string $directory): JsonResponse|BinaryFileResponse
     {
         try {

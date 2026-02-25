@@ -8,9 +8,11 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 use App\Services\GetPDF;
 
@@ -20,6 +22,7 @@ final class TemplateController extends AbstractController
         private EntityManagerInterface $em,
         private CreateFile $createFile,
         private GetPDF $getPDF,
+        private AddWordDocument $addWordDocument,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -31,9 +34,9 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Templates directory not found'], 500);
         }
 
-        return new JsonResponse([
+        return new JsonResponse(
             $this->scanDirectory($dir)
-        ]);
+        );
     }
 
     // ───── GET  /api/templates/{category} ─────
@@ -64,13 +67,38 @@ final class TemplateController extends AbstractController
         ]);
     }
 
+    /**
+     * POST /api/template/fillFile
+     * Įkelia šabloną (.docx) į templates/{directory}/.
+     * Form data: directory (string), template (file .doc/.docx)
+     * Return: { "status": "SUCCESS" } arba { "status": "FAIL" }
+     */
+    #[Route('/api/template/create', name: 'api_template_fill_file', methods: ['POST'])]
+    public function fillFile(Request $request): JsonResponse
+    {
+        $directory = $request->request->get('directory');
+        if ($directory === null || trim((string) $directory) === '') {
+            return new JsonResponse(['status' => 'FAIL'], 400);
+        }
+        $directory = trim((string) $directory);
+
+        $file = $request->files->get('template');
+        if (!$file instanceof UploadedFile) {
+            return new JsonResponse(['status' => 'FAIL'], 400);
+        }
+
+        $status = $this->addWordDocument->addWordDocument($file, $directory);
+
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
     // ───── POST /api/template/create ─────
     //  Body: { directory?, subcategory?, template?, company, code,
     //          companyType?, address?, cityOrDistrict?,
     //          managerType (vadovas|vadovė|direktorius|direktorė),
     //          managerFirstName?, managerLastName?, managerFullName?,
     //          instructionDate?, role? }
-    #[Route('/api/template/create', name: 'api_template_create', methods: ['POST'])]
+    #[Route('/api/template/fillFile', name: 'api_template_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse|BinaryFileResponse
     {
         $data = json_decode($request->getContent(), true);
