@@ -1,38 +1,40 @@
 .header {
-    background-color: #EF2629;
+    background-color: #D42225;
     color: white;
-    padding: 0 32px;
-    height: 64px;
+    padding: 0 40px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 
     .logo {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: white;
+        display: flex;
+        align-items: center;
         text-decoration: none;
-        letter-spacing: -0.01em;
 
-        .logoAccent {
-            font-weight: 800;
+        .logoImage {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
         }
     }
 
     .nav {
         display: flex;
-        gap: 8px;
+        gap: 4px;
 
         .navLink {
             color: rgba(255, 255, 255, 0.85);
             text-decoration: none;
             font-size: 0.875rem;
             font-weight: 500;
-            padding: 6px 14px;
+            padding: 8px 16px;
             border-radius: 8px;
             transition: background-color 0.15s ease, color 0.15s ease;
 

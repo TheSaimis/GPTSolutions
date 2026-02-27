@@ -1,35 +1,16 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { Building2, FileText, Archive, ArrowRight, Download } from "lucide-react";
+import { Building2, FileText, Download, ArrowRight, User } from "lucide-react";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function Home() {
 
-
-
-  const cards = [
-    {
-      href: "/sablonai",
-      icon: FileText,
-      title: "Šablonų katalogas",
-      description: "Peržiūrėkite ir naudokite dokumentų šablonus",
-    },
-    {
-      href: "/imones",
-      icon: Building2,
-      title: "Pridėti įmonę",
-      description: "Registruokite naują įmonę sistemoje",
-    },
-    // {
-    //   href: "/atsisiusti",
-    //   icon: Archive,
-    //   title: "Atsisiųsti katalogą",
-    //   description: "Parsisiųskite visą dokumentų katalogą",
-    // },
-  ];
-
+  const [role, setRole] = useState<string>("");
+  useEffect(() => setRole(localStorage.getItem("role") || ""), []);
+  
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAll();
 
@@ -47,34 +28,64 @@ export default function Home() {
     <div className={styles.page}>
       <div className={styles.hero}>
         <h1 className={styles.heroTitle}>Sveiki atvykę</h1>
-        <p className={styles.heroSubtitle}>Pasirinkite veiksmą, kurį norite atlikti</p>
+        <p className={styles.heroSubtitle}>Pasirinkite veiksmą, kurį norite atlikti šiandien</p>
       </div>
 
       <div className={styles.grid}>
-        {cards.map((card) => (
-          <Link key={card.href} href={card.href} className={styles.card}>
-            <div className={styles.cardIcon}>
-              <card.icon size={28} />
-            </div>
-            <div className={styles.cardContent}>
-              <h2 className={styles.cardTitle}>{card.title}</h2>
-              <p className={styles.cardDescription}>{card.description}</p>
-            </div>
-            <ArrowRight size={18} className={styles.cardArrow} />
-          </Link>
-        ))}
-
-        <button className={styles.card} onClick={getGeneratedFiles}>
+        <Link href="/sablonai" className={`${styles.card} ${styles.cardLarge}`}>
           <div className={styles.cardIcon}>
-            <Archive/>
+            <FileText size={28} />
           </div>
-          <div className={styles.cardContent}>
-            <h2 className={styles.cardTitle}>Atsisiųsti katalogą</h2>
-            <p className={styles.cardDescription}>Parsisiųskite visą dokumentų katalogą</p>
-          </div>
-          <Download size={18} className={styles.cardArrow} />
-        </button>
+          <h2 className={styles.cardTitle}>Šablonų katalogas</h2>
+          <p className={styles.cardDescription}>
+            Peržiūrėkite ir naudokite dokumentų šablonus. Raskite tinkamą šabloną savo verslui ir atsisiųskite jį vienu paspaudimu.
+          </p>
+          <span className={styles.cardButton}>
+            Peržiūrėti šablonus <ArrowRight size={16} />
+          </span>
+        </Link>
 
+        <div className={styles.rightColumn}>
+          <Link href="/imones" className={styles.card}>
+            <div className={styles.cardIcon}>
+              <Building2 size={28} />
+            </div>
+            <h2 className={styles.cardTitle}>Pridėti įmonę</h2>
+            <p className={styles.cardDescription}>
+              Registruokite naują įmonę sistemoje ir pradėkite naudotis paslaugomis.
+            </p>
+            <span className={styles.cardButton}>
+              Registruoti įmonę <ArrowRight size={16} />
+            </span>
+          </Link>
+
+          {role == "ROLE_ADMIN" && (
+            <Link href={"/naudotojai"} className={styles.card}>
+              <div className={styles.cardIcon}>
+                <User size={28} />
+              </div>
+              <h2 className={styles.cardTitle}>Pridėti naudotoją</h2>
+              <p className={styles.cardDescription}>
+                Registruokite naują naudotoją sistemoje.
+              </p>
+              <span className={styles.cardButton}>
+                Registruoti naudotoją <ArrowRight size={16} />
+              </span>
+            </Link>
+          )}
+          <button className={styles.card} onClick={getGeneratedFiles}>
+            <div className={styles.cardIcon}>
+              <Download size={28} />
+            </div>
+            <h2 className={styles.cardTitle}>Atsisiųsti katalogą</h2>
+            <p className={styles.cardDescription}>
+              Parsisiųskite visą dokumentų katalogą .ZIP formatu ir naudokite offline.
+            </p>
+            <span className={styles.cardButton}>
+              Atsisiųsti .ZIP <ArrowRight size={16} />
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

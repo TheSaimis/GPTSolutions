@@ -1,6 +1,6 @@
 .login {
     display: flex;
-    height: 50vh;
+    flex: 1;
     h1 {
         font-weight: bold;
     }
@@ -24,7 +24,7 @@
             width: 100%;
         }
     }
-    button {
+    .button {
         width: 100%;
         cursor: pointer;
     }

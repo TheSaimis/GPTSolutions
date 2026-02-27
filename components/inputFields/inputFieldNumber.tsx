@@ -43,6 +43,7 @@ export default function InputField({
             <h2>{placeholder}</h2>
 
             <input
+                className={styles.input}
                 type={type}
                 value={value}
                 placeholder={placeholder}

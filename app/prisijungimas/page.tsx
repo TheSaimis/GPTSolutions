@@ -33,7 +33,7 @@ export default function Login() {
           <InputFieldPassword value={password} placeholder="Slaptažodis" onChange={setPassword} icon={Lock} />
         </div>
 
-        <button className="buttons" onClick={login}>Prisijungti</button>
+        <button className={`${styles.button} buttons`} onClick={login}>Prisijungti</button>
       </div>
     </div>
   );

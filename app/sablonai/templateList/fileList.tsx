@@ -3,8 +3,13 @@
 import { useRouter } from "next/navigation";
 import styles from "./fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
-import { useEffect, useState } from "react";
+import { TemplateApi } from "@/lib/api/templates";
+import { useRef, useEffect, useState } from "react";
 import { ChevronDown, File, Folder, ArrowUpToLine } from "lucide-react";
+import Directory from "./types/directory";
+import Files from "./types/file";
+import InputFieldFile from "@/components/inputFields/inputFieldFile";
+import DropZone from "@/components/inputFields/dropZone";
 
 type List = {
     name: string;
@@ -15,45 +20,48 @@ type List = {
 
 export default function FileList({ name, type, children, directory }: List) {
 
-    const [collapsed, setCollapsed] = useState<string>("");
-    const router = useRouter();
+    // const [collapsed, setCollapsed] = useState<string>("");
+    // const [file, setFile] = useState<File | null>(null);
+    const [childNodes, setChildNodes] = useState<TemplateList[]>(children ?? []);
+    // const fileInputRef = useRef<HTMLInputElement>(null);
+    // const router = useRouter();
 
-    function clicked() {
-        switch (type) {
-            case "file":
-                router.push(`/sablonai/${directory}`);
-                break;
-            case "directory":
-                setCollapsed(collapsed === "" ? "collapsed" : "")
-                break;
-        }
-    }
+    // function clicked() {
+    //     switch (type) {
+    //         case "file":
+    //             router.push(`/sablonai/${directory}`);
+    //             break;
+    //         case "directory":
+    //             setCollapsed(collapsed === "" ? "collapsed" : "")
+    //             break;
+    //     }
+    // }
+
+    // useEffect(() => {
+    //     if (file?.name && file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    //         TemplateApi.createTemplate(file, directory ?? "").then((res) => {
+    //             if (res.status === "SUCCESS" && childNodes.find((child) => child.name === file.name) === undefined) {
+    //                 setChildNodes(prev => [
+    //                     ...prev,
+    //                     {
+    //                         name: file.name,
+    //                         type: "file"
+    //                     }
+    //                 ]);
+    //             }
+    //             setFile(null);
+    //         })
+    //     }
+    // }, [file])
 
     return (
         <div className={styles.templateList}>
-            <div className={styles.itemContainer}>
-                <div className={styles.item} onClick={clicked}>
-                    {type === "directory" && (
-                        <>
-                        
-                            <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
-                            <Folder size={16} />
-                        </>
-                    )}
-                    {type === "file" && <File className={styles.file} />}
-                    <p>{name}</p>
-                    { type === "directory" && <ArrowUpToLine size={16}/>}
-                </div>
-                {type === "file" &&
-                    <button className={`${styles.button} buttons`}>Peržiūrėti šabloną</button>
-                }
-            </div>
-
-            <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
-                {children && children.map((child) => (
-                    <FileList key={child.name} name={child.name} children={child.children} type={child.type} directory={name + "/" + child.name} />
-                ))}
-            </div>
+            {type === "file" && (
+                <Files name={name} directory={directory} type={""} />
+            )}
+            {type === "directory" && (
+                <Directory name={name} type={""} children={childNodes} directory={directory} />
+            )}
         </div>
     );
 }

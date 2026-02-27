@@ -1,0 +1,10 @@
+.dropZone {
+    transition: all 0.15s ease;
+    outline: 2px dashed #4da3ff00;
+}
+
+.dragOver {
+    background-color: rgba(77, 163, 255, 0.08); // soft blue tint
+    outline: 2px dashed #4da3ff;
+    border-radius: 8px;
+}

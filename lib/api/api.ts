@@ -1,110 +1,152 @@
+// api.ts
+const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL!;
 
-// Make sure .env has "NEXT_PUBLIC_BACKEND_API_URL="the url of the backend""
-const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+export type Json =
+  | null
+  | boolean
+  | number
+  | string
+  | Json[]
+  | { [key: string]: Json };
 
-type Json = Record<string, unknown> | unknown[] | string | number | boolean | null;
-type DownloadResult = { blob: Blob; filename: string };
+export type DownloadResult = {
+  blob: Blob;
+  filename: string;
+};
+
+type ResponseType = "json" | "blob";
+
+type RequestConfig = {
+  method: string;
+  path: string;
+  body?: Json | File | FormData;
+  responseType?: ResponseType;
+  fallbackFilename?: string;
+};
 
 async function getClientToken(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
 }
 
-async function request<T>(
-  path: string,
-  options: Omit<RequestInit, "body"> & { body?: Json }
-): Promise<T> {
-  if (!BASE) throw new Error("Missing NEXT_PUBLIC_BACKEND_API_URL");
-
-  const token = await getClientToken();
-  const url = `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
-
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || `API error ${res.status}`);
-  }
-
-  // Handle endpoints that return no content (common for DELETE)
-  if (res.status === 204) return undefined as T;
-
-  return (await res.json()) as T;
-}
-
-function filenameFromDisposition(disposition: string | null, fallback: string) {
+function filenameFromDisposition(
+  disposition: string | null,
+  fallback: string
+) {
   if (!disposition) return fallback;
 
-  // filename*=UTF-8''... (preferred)
+  // filename*=UTF-8''...
   const star = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
-  if (star?.[1]) return decodeURIComponent(star[1].replace(/["']/g, ""));
+
+  if (star?.[1])
+    return decodeURIComponent(star[1].replace(/["']/g, ""));
 
   // filename="..."
   const normal = disposition.match(/filename\s*=\s*("?)([^";]+)\1/i);
-  if (normal?.[2]) return normal[2];
+
+  if (normal?.[2])
+    return normal[2];
 
   return fallback;
 }
 
-async function requestBlob(
-  path: string,
-  options: Omit<RequestInit, "body"> & { body?: Json },
-  fallbackFilename = "document.docx"
-): Promise<DownloadResult> {
-  if (!BASE) throw new Error("Missing NEXT_PUBLIC_BACKEND_API_URL");
+async function request<T>({
+  method,
+  path,
+  body,
+  responseType = "json",
+  fallbackFilename = "document.docx",
+}: RequestConfig): Promise<T | DownloadResult> {
 
   const token = await getClientToken();
-  const url = `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  const headers: HeadersInit = {};
+
+  let finalBody: BodyInit | undefined;
+
+  if (body instanceof FormData) {
+
+    finalBody = body;
+
+  } else if (body instanceof File || body instanceof Blob) {
+
+    const form = new FormData();
+
+    form.append("file", body);
+
+    finalBody = form;
+
+  } else if (body !== undefined) {
+
+    headers["Content-Type"] = "application/json";
+
+    finalBody = JSON.stringify(body);
+
+  }
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    body: finalBody,
   });
 
   if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || `API error ${res.status}`);
+
+    throw new Error(await res.text());
+
   }
 
-  const disposition = res.headers.get("content-disposition");
-  const filename = filenameFromDisposition(disposition, fallbackFilename);
+  if (res.status === 204) return undefined as T;
 
-  const blob = await res.blob();
-  return { blob, filename };
+  if (responseType === "blob") {
+
+    const disposition = res.headers.get("content-disposition");
+
+    const filename = filenameFromDisposition(
+      disposition,
+      fallbackFilename
+    );
+
+    return {
+      blob: await res.blob(),
+      filename,
+    };
+
+  }
+
+  return await res.json();
 }
 
 export const api = {
-  get: <T>(path: string, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    request<T>(path, { ...options, method: "GET" }),
 
-  getBlob: (path: string, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    requestBlob(path, { ...options, method: "GET" }),
+  get: <T>(path: string) =>
+    request<T>({
+      method: "GET",
+      path,
+      responseType: "json",
+    }),
 
-  post: <T>(path: string, body?: Json, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    request<T>(path, { ...options, method: "POST", body }),
+  getBlob: (path: string) =>
+    request({
+      method: "GET",
+      path,
+      responseType: "blob",
+    }),
 
-  postBlob: (path: string, body?: Json, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    requestBlob(path, { ...options, method: "POST", body }),
+post: <T>(path: string, body?: Json | FormData) =>
+  request<T>({
+    method: "POST",
+    path,
+    body,
+    responseType: "json",
+  }),
 
-  put: <T>(path: string, body?: Json, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    request<T>(path, { ...options, method: "PUT", body }),
-
-  patch: <T>(path: string, body?: Json, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    request<T>(path, { ...options, method: "PATCH", body }),
-
-  delete: <T>(path: string, options: Omit<RequestInit, "method" | "body"> = {}) =>
-    request<T>(path, { ...options, method: "DELETE" }),
+  postBlob: (path: string, body?: Json | File | FormData) =>
+    request({
+      method: "POST",
+      path,
+      body,
+      responseType: "blob",
+    }),
 };

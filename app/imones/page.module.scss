@@ -93,6 +93,16 @@ $border: #E2E8F0;
     margin-bottom: 28px;
 }
 
+.row {
+    display: flex;
+    gap: 16px;
+
+    > * {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
 .submitButton {
     display: inline-flex;
     align-items: center;
