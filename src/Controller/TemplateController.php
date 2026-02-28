@@ -21,7 +21,7 @@ final class TemplateController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private CreateFile $createFile,
-        private GetPDF $getPDF,
+        // private GetPDF $getPDF,
         private AddWordDocument $addWordDocument,
     ) {}
 
