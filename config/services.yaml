@@ -29,5 +29,17 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\Services\CreateCatalogue:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Services\UpdateCatalogue:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Services\DeleteCatalogue:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

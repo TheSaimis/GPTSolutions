@@ -50,4 +50,59 @@ final class ZipFiles
 
         return $zipPath;
     }
+
+    /**
+     * Suarchyvuoja templates/{directory}/ į .zip.
+     *
+     * @param string $directory Kelias po templates/ (pvz. "4 Tvarkos" arba "4 Tvarkos/3 Mobingo")
+     * @return string Pilnas kelias iki sukurto .zip failo
+     * @throws \InvalidArgumentException Jei katalogas nerastas
+     */
+    public function zipTemplatesDirectory(string $directory): string
+    {
+        $templatesDir = $this->projectDir . '/templates';
+        $sourceDir = $directory !== '' ? $templatesDir . '/' . $directory : $templatesDir;
+
+        if (!is_dir($sourceDir)) {
+            throw new \InvalidArgumentException("Katalogas nerastas: {$directory}");
+        }
+
+        $safeName = str_replace(['/', '\\'], '_', $directory) ?: 'templates';
+        $zipPath = $this->projectDir . '/var/' . $safeName . '.zip';
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException("Nepavyko sukurti ZIP failo: {$zipPath}");
+        }
+
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        $added = 0;
+        foreach ($files as $file) {
+            if (!$file->isFile()) continue;
+
+            $name = $file->getFilename();
+            if (str_starts_with($name, '~') || $name === 'desktop.ini') continue;
+
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['doc', 'docx'], true)) continue;
+
+            $filePath = $file->getRealPath();
+            $relativePath = substr($filePath, strlen($sourceDir) + 1);
+            $zip->addFile($filePath, $relativePath);
+            $added++;
+        }
+
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($zipPath);
+            throw new \InvalidArgumentException("Kataloge nėra .doc/.docx failų: {$directory}");
+        }
+
+        return $zipPath;
+    }
 }

@@ -59,4 +59,59 @@ final class AddWordDocument
             return self::FAIL;
         }
     }
+
+    /**
+     * Sukuria naują katalogą templates/{directory}/.
+     *
+     * @param string $directory Kelias po templates/ (pvz. "4 Tvarkos" arba "4 Tvarkos/Naujas")
+     * @return 'SUCCESS'|'FAIL'
+     */
+    public function createFolder(string $directory): string
+    {
+        $directory = trim(str_replace('\\', '/', $directory));
+        if ($directory === '' || $directory === '.') {
+            return self::FAIL;
+        }
+
+        $templatesDir = $this->projectDir . '/templates';
+        $targetDir = $templatesDir . '/' . $directory;
+
+        try {
+            if (is_dir($targetDir)) {
+                return self::SUCCESS;
+            }
+            return mkdir($targetDir, 0775, true) ? self::SUCCESS : self::FAIL;
+        } catch (\Throwable) {
+            return self::FAIL;
+        }
+    }
+
+    /**
+     * Masinis šablonų įkėlimas į templates/{directory}/.
+     *
+     * @param UploadedFile[] $files
+     * @return array{status: 'SUCCESS'|'FAIL', results: array<array{file: string, status: 'SUCCESS'|'FAIL'}>}
+     */
+    public function addWordDocumentsBulk(array $files, string $directory): array
+    {
+        $results = [];
+        $allSuccess = true;
+
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $filename = $file->getClientOriginalName() ?: 'unknown';
+            $status = $this->addWordDocument($file, $directory);
+            $results[] = ['file' => $filename, 'status' => $status];
+            if ($status === self::FAIL) {
+                $allSuccess = false;
+            }
+        }
+
+        return [
+            'status' => $allSuccess ? self::SUCCESS : self::FAIL,
+            'results' => $results,
+        ];
+    }
 }
