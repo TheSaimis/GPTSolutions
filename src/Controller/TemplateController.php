@@ -68,12 +68,34 @@ final class TemplateController extends AbstractController
     }
 
     /**
+     * POST /api/template/createFolder
+     * Sukuria naują katalogą templates/{directory}/.
+     * Body: { "directory": "4 Tvarkos/Naujas" }
+     * Return: { "status": "SUCCESS" } arba { "status": "FAIL" }
+     */
+    #[Route('/api/template/createFolder', name: 'api_template_create_folder', methods: ['POST'])]
+    public function createFolder(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $directory = is_array($data) ? ($data['directory'] ?? null) : null;
+
+        if ($directory === null || trim((string) $directory) === '') {
+            return new JsonResponse(['status' => 'FAIL'], 400);
+        }
+        $directory = trim((string) $directory);
+
+        $status = $this->addWordDocument->createFolder($directory);
+
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
+    /**
      * POST /api/template/fillFile
      * Įkelia šabloną (.docx) į templates/{directory}/.
      * Form data: directory (string), template (file .doc/.docx)
      * Return: { "status": "SUCCESS" } arba { "status": "FAIL" }
      */
-    #[Route('/api/template/create', name: 'api_template_fill_file', methods: ['POST'])]
+    #[Route('/api/template/fillFile', name: 'api_template_fill_file', methods: ['POST'])]
     public function fillFile(Request $request): JsonResponse
     {
         $directory = $request->request->get('directory');
@@ -92,13 +114,41 @@ final class TemplateController extends AbstractController
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
+    /**
+     * POST /api/template/fillFileBulk
+     * Masinis šablonų įkėlimas į templates/{directory}/.
+     * Form data: directory (string), templates[] (multiple .doc/.docx files)
+     * Return: { "status": "SUCCESS"|"FAIL", "results": [{ "file": "x.docx", "status": "SUCCESS" }, ...] }
+     */
+    #[Route('/api/template/fillFileBulk', name: 'api_template_fill_file_bulk', methods: ['POST'])]
+    public function fillFileBulk(Request $request): JsonResponse
+    {
+        $directory = $request->request->get('directory');
+        if ($directory === null || trim((string) $directory) === '') {
+            return new JsonResponse(['status' => 'FAIL', 'results' => []], 400);
+        }
+        $directory = trim((string) $directory);
+
+        $files = $request->files->get('templates', []);
+        if (!is_array($files)) {
+            $files = $files ? [$files] : [];
+        }
+
+        $result = $this->addWordDocument->addWordDocumentsBulk($files, $directory);
+
+        return new JsonResponse(
+            $result,
+            $result['status'] === 'SUCCESS' ? 200 : 500
+        );
+    }
+
     // ───── POST /api/template/create ─────
     //  Body: { directory?, subcategory?, template?, companyName, code,
     //          companyType?, address?, cityOrDistrict?,
     //          managerType (vadovas|vadovė|direktorius|direktorė),
     //          managerFirstName?, managerLastName?, managerFullName?,
     //          documentDate?, role? }
-    #[Route('/api/template/fillFile', name: 'api_template_create', methods: ['POST'])]
+    #[Route('/api/template/create', name: 'api_template_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse|BinaryFileResponse
     {
         $data = json_decode($request->getContent(), true);
