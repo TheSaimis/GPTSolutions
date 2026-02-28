@@ -93,11 +93,11 @@ final class TemplateController extends AbstractController
     }
 
     // ───── POST /api/template/create ─────
-    //  Body: { directory?, subcategory?, template?, company, code,
+    //  Body: { directory?, subcategory?, template?, companyName, code,
     //          companyType?, address?, cityOrDistrict?,
     //          managerType (vadovas|vadovė|direktorius|direktorė),
     //          managerFirstName?, managerLastName?, managerFullName?,
-    //          instructionDate?, role? }
+    //          documentDate?, role? }
     #[Route('/api/template/fillFile', name: 'api_template_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse|BinaryFileResponse
     {
@@ -108,17 +108,17 @@ final class TemplateController extends AbstractController
         }
     
         // ── Mandatory fields ───────────────────────────────────────────────────────
-        $required = ['company', 'code', 'role', 'instructionDate', 'directory'];
+        $required = ['companyName', 'code', 'role', 'documentDate', 'directory'];
         foreach ($required as $field) {
             if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
                 return new JsonResponse(['error' => sprintf('Field "%s" is required', $field)], 400);
             }
         }
     
-        $company = trim((string) $data['company']);
-        $code    = trim((string) $data['code']);
-        $role    = trim((string) $data['role']);
-        $instructionDate = trim((string) $data['instructionDate']);
+        $companyName  = trim((string) $data['companyName']);
+        $code         = trim((string) $data['code']);
+        $role         = trim((string) $data['role']);
+        $documentDate = trim((string) $data['documentDate']);
     
         // "directory" arrives WITH filename, e.g. "4 Tvarkos/3 Mobingo Tvarka 2023.docx"
         $dirWithFile = trim((string) $data['directory']);
@@ -141,12 +141,12 @@ final class TemplateController extends AbstractController
         // ── Create Word document ───────────────────────────────────────────────────
         try {
             $pathToDocx = $this->createFile->createWordDocument([
-                'directory'       => $directory,
-                'template'        => $template,
-                'company'         => $company,
-                'code'            => $code,
-                'instructionDate' => $instructionDate, // CreateFile expects instructionDate key
-                'role'            => $role,
+                'directory'    => $directory,
+                'template'    => $template,
+                'companyName' => $companyName,
+                'code'        => $code,
+                'documentDate'=> $documentDate,
+                'role'        => $role,
             ]);
         } catch (\Throwable $e) {
             return new JsonResponse([
