@@ -9,12 +9,12 @@ use PhpOffice\PhpWord\TemplateProcessor;
 /**
  * Sukuria Word (.docx) failą iš šablono, pakeičiant žymes duotais duomenimis.
  *
- * Duomenys (data):
+ * Duomenys (data) – atitinka companies lentelės stulpelius:
  *   - directory: string      – šablonų kategorija (pvz. "4 Tvarkos")
  *   - template: string       – šablono failo pavadinimas (pvz. "Tvarka.docx")
- *   - company: string        – įmonės pavadinimas
+ *   - companyName: string    – įmonės pavadinimas
  *   - code: string           – įmonės/instrukcijos kodas
- *   - instructionDate: string – instrukcijos data
+ *   - documentDate: string   – dokumento data
  *   - role: string           – vaidmuo / pareigos
  */
 final class CreateFile
@@ -29,9 +29,9 @@ final class CreateFile
      * @param array{
      *     directory: string,
      *     template: string,
-     *     company: string,
+     *     companyName: string,
      *     code: string,
-     *     instructionDate: string,
+     *     documentDate: string,
      *     role: string
      * } $data
      *
@@ -43,12 +43,12 @@ final class CreateFile
     {
         $this->validateData($data);
 
-        $directory       = $data['directory'] ?? '';
-        $template        = $data['template'] ?? '';
-        $company         = $data['company'] ?? '';
-        $code            = $data['code'] ?? '';
-        $instructionDate = $data['instructionDate'] ?? '';
-        $role            = $data['role'] ?? '';
+        $directory    = $data['directory'] ?? '';
+        $template     = $data['template'] ?? '';
+        $companyName  = $data['companyName'] ?? '';
+        $code         = $data['code'] ?? '';
+        $documentDate = $data['documentDate'] ?? '';
+        $role         = $data['role'] ?? '';
 
         $templatePath = $this->resolveTemplatePath($directory, $template);
         if ($templatePath === null || !is_readable($templatePath)) {
@@ -67,10 +67,9 @@ final class CreateFile
 
         $processor = new TemplateProcessor($templatePath);
 
-        $processor->setValue('company', $company);
+        $processor->setValue('companyName', $companyName);
         $processor->setValue('code', $code);
-        $processor->setValue('documentDate', $instructionDate);
-        $processor->setValue('instructionDate', $instructionDate);
+        $processor->setValue('documentDate', $documentDate);
         $processor->setValue('role', $role);
 
         $processor->saveAs($outputPath);
@@ -80,7 +79,7 @@ final class CreateFile
 
     private function validateData(array $data): void
     {
-        $required = ['template', 'company', 'code'];
+        $required = ['template', 'companyName', 'code'];
         foreach ($required as $key) {
             if (empty($data[$key]) || !is_string($data[$key])) {
                 throw new \InvalidArgumentException("Būtinas laukas \"{$key}\" turi būti ne tuščias string.");

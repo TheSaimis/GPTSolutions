@@ -95,6 +95,34 @@ final class GeneratedFileController extends AbstractController
     }
 
     /**
+     * GET /api/templates/zip/{path}
+     * Suarchyvuoja templates/{path}/ ir grąžina .zip su statusu.
+     * Return: zip failas + X-Status: SUCCESS, arba JSON { "status": "FAIL" }
+     */
+    #[Route('/api/templates/zip/{path}', name: 'api_templates_directory_zip', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function templatesDirectoryZip(string $path): JsonResponse|BinaryFileResponse
+    {
+        try {
+            $zipPath = $this->zipFiles->zipTemplatesDirectory($path);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nepavyko sukurti ZIP: ' . $e->getMessage()], 500);
+        }
+
+        $safeName = str_replace(['/', '\\'], '_', $path) . '.zip';
+        $response = new BinaryFileResponse($zipPath);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->headers->set('X-Status', 'SUCCESS');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $safeName
+        );
+
+        return $response;
+    }
+
+    /**
      * GET /api/templates/zip
      * Suarchyvuoja visus šablonus iš templates/ katalogo ir grąžina templates.zip.
      */
