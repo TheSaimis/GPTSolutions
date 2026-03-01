@@ -27,20 +27,20 @@ final class CompanyController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
         }
 
-        if (empty($data['companyName']) || empty($data['code'])) {
+        if (empty($data['company_name']) || empty($data['code'])) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'companyName and code are required'], 400);
         }
 
         $company = new CompanyRequisite();
-        $company->setCompanyName($data['companyName']);
+        $company->setCompanyName($data['company_name']);
         $company->setCode($data['code']);
-        $company->setCompanyType($data['companyType'] ?? null);
+        $company->setCompanyType($data['company_type'] ?? null);
         $company->setCategory($data['category'] ?? null);
         $company->setAddress($data['address'] ?? null);
         $company->setCityOrDistrict($data['cityOrDistrict'] ?? null);
-        $company->setManagerType($data['managerType'] ?? null);
-        $company->setManagerFirstName($data['managerFirstName'] ?? null);
-        $company->setManagerLastName($data['managerLastName'] ?? null);
+        $company->setManagerType($data['manager_type'] ?? null);
+        $company->setManagerFirstName($data['manager_first_name'] ?? null);
+        $company->setManagerLastName($data['manager_last_name'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
         $company->setDirectory($data['directory'] ?? null);
@@ -60,6 +60,18 @@ final class CompanyController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
+        $companies = $repo->findAll();
+        $result = [];
+        foreach ($companies as $company) {
+            $result[] = $this->toArray($company);
+        }
+
+        return new JsonResponse($result);
+    }
+
+    #[Route('/companies', name: 'api_company_get', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function getCompanies(CompanyRequisiteRepository $repo): JsonResponse
+    {
         $companies = $repo->findAll();
         $result = [];
         foreach ($companies as $company) {

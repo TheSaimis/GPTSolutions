@@ -1,27 +1,27 @@
 <?php
-
 namespace App\Controller;
 
-use App\Entity\CompanyRequisite;
-use Doctrine\ORM\EntityManagerInterface;
-use PhpOffice\PhpWord\TemplateProcessor;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
-use Symfony\Component\Routing\Annotation\Route;
 use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 use App\Services\GetPDF;
+use App\Services\ZipFiles;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\CompanyRequisite;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\Routing\Annotation\Route;
 
 final class TemplateController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
         private CreateFile $createFile,
-        // private GetPDF $getPDF,
+        private readonly ZipFiles $zipFiles,
+        private GetPDF $getPDF,
         private AddWordDocument $addWordDocument,
     ) {}
 
@@ -30,7 +30,7 @@ final class TemplateController extends AbstractController
     public function all(): JsonResponse
     {
         $dir = $this->getTemplatesDir();
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return new JsonResponse(['error' => 'Templates directory not found'], 500);
         }
 
@@ -44,7 +44,7 @@ final class TemplateController extends AbstractController
     public function byCategory(string $category): JsonResponse
     {
         $dir = $this->getTemplatesDir() . '/' . $category;
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return new JsonResponse(['error' => 'Category not found'], 404);
         }
 
@@ -54,18 +54,18 @@ final class TemplateController extends AbstractController
     }
 
     // ───── GET  /api/templates/{category}/{subcategory} ─────
-    #[Route('/api/templates/{category}/{subcategory}', name: 'api_templates_subcategory', methods: ['GET'])]
-    public function bySubcategory(string $category, string $subcategory): JsonResponse
-    {
-        $dir = $this->getTemplatesDir() . '/' . $category . '/' . $subcategory;
-        if (!is_dir($dir)) {
-            return new JsonResponse(['error' => 'Subcategory not found'], 404);
-        }
+    // #[Route('/api/templates/{category}/{subcategory}', name: 'api_templates_subcategory', methods: ['GET'])]
+    // public function bySubcategory(string $category, string $subcategory): JsonResponse
+    // {
+    //     $dir = $this->getTemplatesDir() . '/' . $category . '/' . $subcategory;
+    //     if (!is_dir($dir)) {
+    //         return new JsonResponse(['error' => 'Subcategory not found'], 404);
+    //     }
 
-        return new JsonResponse([
-            'templates' => $this->scanDirectory($dir),
-        ]);
-    }
+    //     return new JsonResponse([
+    //         'templates' => $this->scanDirectory($dir),
+    //     ]);
+    // }
 
     /**
      * POST /api/template/createFolder
@@ -76,7 +76,7 @@ final class TemplateController extends AbstractController
     #[Route('/api/template/createFolder', name: 'api_template_create_folder', methods: ['POST'])]
     public function createFolder(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        $data      = json_decode($request->getContent(), true);
         $directory = is_array($data) ? ($data['directory'] ?? null) : null;
 
         if ($directory === null || trim((string) $directory) === '') {
@@ -105,7 +105,7 @@ final class TemplateController extends AbstractController
         $directory = trim((string) $directory);
 
         $file = $request->files->get('template');
-        if (!$file instanceof UploadedFile) {
+        if (! $file instanceof UploadedFile) {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
@@ -121,99 +121,155 @@ final class TemplateController extends AbstractController
      * Return: { "status": "SUCCESS"|"FAIL", "results": [{ "file": "x.docx", "status": "SUCCESS" }, ...] }
      */
     #[Route('/api/template/fillFileBulk', name: 'api_template_fill_file_bulk', methods: ['POST'])]
-    public function fillFileBulk(Request $request): JsonResponse
-    {
-        $directory = $request->request->get('directory');
-        if ($directory === null || trim((string) $directory) === '') {
-            return new JsonResponse(['status' => 'FAIL', 'results' => []], 400);
-        }
-        $directory = trim((string) $directory);
+    public function fillFileBulk(
+        Request $request,
+        EntityManagerInterface $em,
+    ): JsonResponse | BinaryFileResponse {
 
-        $files = $request->files->get('templates', []);
-        if (!is_array($files)) {
-            $files = $files ? [$files] : [];
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
         }
 
-        $result = $this->addWordDocument->addWordDocumentsBulk($files, $directory);
+        $companyId = $data['companyId'] ?? null;
+        $templates = $data['templates'] ?? null;
 
-        return new JsonResponse(
-            $result,
-            $result['status'] === 'SUCCESS' ? 200 : 500
+        if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
+            return new JsonResponse(['error' => 'companyId is required'], 400);
+        }
+        $companyId = (int) $companyId;
+
+        if (! is_array($templates) || count($templates) === 0) {
+            return new JsonResponse(['error' => 'templates[] is required'], 400);
+        }
+
+        /** @var CompanyRequisite|null $company */
+        $company = $em->getRepository(CompanyRequisite::class)->find($companyId);
+        if (! $company) {
+            return new JsonResponse(['error' => 'Company not found'], 404);
+        }
+
+        // Map DB -> placeholders your CreateFile expects (adjust getters if needed)
+        $companyName  = (string) $company->getCompanyName();
+        $code         = (string) $company->getCode();
+        $role         = method_exists($company, 'getRole') ? (string) $company->getRole() : '';
+        $documentDate = (new \DateTimeImmutable())->format('Y-m-d');
+
+        $results        = [];
+        $generatedFiles = [];
+
+        foreach ($templates as $tplPath) {
+            if (! is_string($tplPath) || trim($tplPath) === '') {
+                $results[] = ['template' => (string) $tplPath, 'status' => 'FAIL', 'error' => 'Invalid template path'];
+                continue;
+            }
+
+            $tplPath = str_replace('\\', '/', urldecode(trim($tplPath)));
+
+            // Security: must be relative inside /templates
+            if (str_contains($tplPath, '..') || str_starts_with($tplPath, '/')) {
+                $results[] = ['template' => $tplPath, 'status' => 'FAIL', 'error' => 'Invalid path'];
+                continue;
+            }
+
+            $directory = dirname($tplPath);
+            if ($directory === '.') {
+                $directory = '';
+            }
+            $template = basename($tplPath);
+
+            try {
+                $generatedPath = $this->createFile->createWordDocument([
+                    'directory'    => $directory,
+                    'template'     => $template,
+                    'companyName'  => $companyName,
+                    'code'         => $code,
+                    'documentDate' => $documentDate,
+                    'role'         => $role,
+                ]);
+
+                $generatedFiles[] = $generatedPath;
+
+                $results[] = [
+                    'template' => $tplPath,
+                    'status'   => 'SUCCESS',
+                    'output'   => basename($generatedPath),
+                ];
+            } catch (\Throwable $e) {
+                $results[] = [
+                    'template' => $tplPath,
+                    'status'   => 'FAIL',
+                    'error'    => $e->getMessage(),
+                ];
+            }
+        }
+
+        if (count($generatedFiles) === 0) {
+            return new JsonResponse(['status' => 'FAIL', 'results' => $results], 500);
+        }
+
+        if (count($generatedFiles) === 1) {
+            $docxPath = $generatedFiles[0];
+
+            $response = new BinaryFileResponse($docxPath);
+            $response->headers->set(
+                'Content-Type',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            );
+            $response->setContentDisposition(
+                ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+                basename($docxPath)
+            );
+
+            // Optional: delete generated file after sending
+            // $response->deleteFileAfterSend(true);
+
+            return $response;
+        }
+
+        try {
+            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $code);
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'status'  => 'FAIL',
+                'error'   => 'Failed to zip generated documents: ' . $e->getMessage(),
+                'results' => $results,
+            ], 500);
+        }
+
+        $response = new BinaryFileResponse($zipPath);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            'generated_' . $code . '.zip'
         );
-    }
+        $response->deleteFileAfterSend(true);
 
+        return $response;
+    }
     // ───── POST /api/template/create ─────
     //  Body: { directory?, subcategory?, template?, companyName, code,
     //          companyType?, address?, cityOrDistrict?,
     //          managerType (vadovas|vadovė|direktorius|direktorė),
     //          managerFirstName?, managerLastName?, managerFullName?,
     //          documentDate?, role? }
-    #[Route('/api/template/create', name: 'api_template_create', methods: ['POST'])]
-    public function create(Request $request): JsonResponse|BinaryFileResponse
+    #[Route('/api/template/create', name: 'api_template_upload', methods: ['POST'])]
+    public function upload(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-    
-        if (!is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+        $directory = (string) $request->request->get('directory', '');
+        $file      = $request->files->get('template');
+
+        if (! $file) {
+            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
         }
-    
-        // ── Mandatory fields ───────────────────────────────────────────────────────
-        $required = ['companyName', 'code', 'role', 'documentDate', 'directory'];
-        foreach ($required as $field) {
-            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
-                return new JsonResponse(['error' => sprintf('Field "%s" is required', $field)], 400);
-            }
+
+        $status = $this->addWordDocument->addWordDocument($file, $directory);
+
+        if ($status !== 'SUCCESS') {
+            return new JsonResponse(['error' => 'Upload failed (invalid file type or save error)'], 400);
         }
-    
-        $companyName  = trim((string) $data['companyName']);
-        $code         = trim((string) $data['code']);
-        $role         = trim((string) $data['role']);
-        $documentDate = trim((string) $data['documentDate']);
-    
-        // "directory" arrives WITH filename, e.g. "4 Tvarkos/3 Mobingo Tvarka 2023.docx"
-        $dirWithFile = trim((string) $data['directory']);
-    
-        // Normalize slashes (support Windows "\" too)
-        $dirWithFile = str_replace('\\', '/', $dirWithFile);
-    
-        $template = basename($dirWithFile);          // filename.ext
-        $directory = trim(dirname($dirWithFile));    // folder path or "."
-    
-        if ($directory === '.' || $directory === '/') {
-            $directory = ''; // template is directly under /templates
-        }
-    
-        // Optional sanity: ensure template looks like a doc file
-        // if (!preg_match('/\.docx?$/i', $template)) {
-        //     return new JsonResponse(['error' => 'directory must include a .doc/.docx filename'], 400);
-        // }
-    
-        // ── Create Word document ───────────────────────────────────────────────────
-        try {
-            $pathToDocx = $this->createFile->createWordDocument([
-                'directory'    => $directory,
-                'template'    => $template,
-                'companyName' => $companyName,
-                'code'        => $code,
-                'documentDate'=> $documentDate,
-                'role'        => $role,
-            ]);
-        } catch (\Throwable $e) {
-            return new JsonResponse([
-                'error' => 'Failed to create document',
-                'details' => $e->getMessage(),
-            ], 500);
-        }
-    
-        // ── Return the generated file ──────────────────────────────────────────────
-        $response = new BinaryFileResponse($pathToDocx);
-        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        $response->setContentDisposition(
-            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            basename($pathToDocx)
-        );
-    
-        return $response;
+
+        return new JsonResponse(['status' => 'SUCCESS']);
     }
 
     /**
@@ -221,7 +277,7 @@ final class TemplateController extends AbstractController
      * Konvertuoja šabloną į PDF ir grąžina naršyklei peržiūrai.
      */
     #[Route('/api/templates/pdf/{path}', name: 'api_templates_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
-    public function previewPdf(string $path): JsonResponse|BinaryFileResponse
+    public function previewPdf(string $path): JsonResponse | BinaryFileResponse
     {
         try {
             $pdfPath = $this->getPDF->convertToPdf($path);

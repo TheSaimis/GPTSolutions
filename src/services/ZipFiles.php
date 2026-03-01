@@ -1,12 +1,12 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services;
 
-use ZipArchive;
-use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ZipArchive;
 
 final class ZipFiles
 {
@@ -22,7 +22,7 @@ final class ZipFiles
     {
         $sourceDir = $this->projectDir . '/var/generated/' . $directory;
 
-        if (!is_dir($sourceDir)) {
+        if (! is_dir($sourceDir)) {
             throw new \InvalidArgumentException("Katalogas nerastas: {$directory}");
         }
 
@@ -51,6 +51,46 @@ final class ZipFiles
         return $zipPath;
     }
 
+    public function zipFiles(array $absolutePaths, string $zipBaseName = 'generated'): string
+    {
+        $zipDir = $this->projectDir . '/var/zips';
+        if (! is_dir($zipDir)) {
+            mkdir($zipDir, 0775, true);
+        }
+
+        $zipPath = $zipDir . '/' . $zipBaseName . '_' . date('Ymd_His') . '.zip';
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException("Nepavyko sukurti ZIP failo: {$zipPath}");
+        }
+
+        $added = 0;
+
+        foreach ($absolutePaths as $filePath) {
+            if (! is_string($filePath) || $filePath === '') {
+                continue;
+            }
+
+            if (! file_exists($filePath) || ! is_readable($filePath)) {
+                continue;
+            }
+
+            // name inside zip
+            $zip->addFile($filePath, basename($filePath));
+            $added++;
+        }
+
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($zipPath);
+            throw new \InvalidArgumentException("Nė vienas failas nepridėtas į ZIP.");
+        }
+
+        return $zipPath;
+    }
+
     /**
      * Suarchyvuoja templates/{directory}/ į .zip.
      *
@@ -61,14 +101,14 @@ final class ZipFiles
     public function zipTemplatesDirectory(string $directory): string
     {
         $templatesDir = $this->projectDir . '/templates';
-        $sourceDir = $directory !== '' ? $templatesDir . '/' . $directory : $templatesDir;
+        $sourceDir    = $directory !== '' ? $templatesDir . '/' . $directory : $templatesDir;
 
-        if (!is_dir($sourceDir)) {
+        if (! is_dir($sourceDir)) {
             throw new \InvalidArgumentException("Katalogas nerastas: {$directory}");
         }
 
         $safeName = str_replace(['/', '\\'], '_', $directory) ?: 'templates';
-        $zipPath = $this->projectDir . '/var/' . $safeName . '.zip';
+        $zipPath  = $this->projectDir . '/var/' . $safeName . '.zip';
 
         $zip = new ZipArchive();
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -82,15 +122,21 @@ final class ZipFiles
 
         $added = 0;
         foreach ($files as $file) {
-            if (!$file->isFile()) continue;
+            if (! $file->isFile()) {
+                continue;
+            }
 
             $name = $file->getFilename();
-            if (str_starts_with($name, '~') || $name === 'desktop.ini') continue;
+            if (str_starts_with($name, '~') || $name === 'desktop.ini') {
+                continue;
+            }
 
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (!in_array($ext, ['doc', 'docx'], true)) continue;
+            if (! in_array($ext, ['doc', 'docx'], true)) {
+                continue;
+            }
 
-            $filePath = $file->getRealPath();
+            $filePath     = $file->getRealPath();
             $relativePath = substr($filePath, strlen($sourceDir) + 1);
             $zip->addFile($filePath, $relativePath);
             $added++;
