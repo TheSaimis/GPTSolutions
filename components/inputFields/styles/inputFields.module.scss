@@ -48,7 +48,7 @@ $bg-input: #F8FAFC;
     .select {
         position: relative;
         width: 100%;
-    
+        cursor: pointer;
         .selected {
             display: flex;
             align-items: center;
@@ -83,9 +83,7 @@ $bg-input: #F8FAFC;
             z-index: 100;
             opacity: 0;
             transform: translateY(-5px);
-    
             pointer-events: none;
-    
             transition:
             opacity 0.15s ease,
             transform 0.15s ease;
@@ -102,13 +100,37 @@ $bg-input: #F8FAFC;
             margin: 0;
             padding: 10px 14px;
             font-size: 0.875rem;
-            cursor: pointer;
             transition: background 0.15s ease;
         }
         .options p:hover {
             background: #d6d6d6;
         }
 
+    }
+}
+
+.checkBox {
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    outline: 2.5px solid #b8b8b8;
+    opacity: 0.7;
+    aspect-ratio: 1;
+    .icon {
+        color: white;
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
+}
+.checkBox.checked {
+    background-color: #EF2629;
+    opacity: 1;
+    outline: #EF2629 solid 2.5px;
+    .icon {
+        opacity: 1;
     }
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./styles/dropZone.module.scss";
+import { MessageStore } from "@/lib/globalVariables/messages";
 
 type Props = {
     onFile: (file: File) => void;
@@ -22,10 +23,7 @@ export default function DropZone({
 
       function isAccepted(file: File) {
         if (!accept) return true;
-
-        // supports ".docx,.pdf"
         const exts = accept.split(",").map(e => e.trim().toLowerCase());
-
         return exts.some(ext =>
           file.name.toLowerCase().endsWith(ext)
         );
@@ -49,12 +47,10 @@ export default function DropZone({
         e.preventDefault();
         e.stopPropagation();
         setDragOver(false);
-
         const file = e.dataTransfer.files?.[0];
-        if (!file) return;
-
-        onFile(file);
+        if (file && isAccepted(file)) { onFile(file) } else { MessageStore.push({ title: "Netinkamas failas", message: `Šis failo formatas netinka. Naudokite ${accept} failus` }) };
     }
+
 
     return (
         <div

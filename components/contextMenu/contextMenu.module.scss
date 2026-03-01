@@ -1,0 +1,31 @@
+.menu {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    z-index: 10000;
+    padding: 5px;
+    box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+
+    .menuItems {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding-block: 5px;
+        border-top: 1px solid rgb(207, 207, 207);
+        padding-top: 5px;
+    }
+    .menuItems:first-child {
+        border: 0;
+    }
+
+    .button {
+        text-align: left;
+        cursor: default;
+    }
+    .button:hover {
+        background-color: rgb(207, 207, 207);
+    }
+
+}

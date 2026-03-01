@@ -3,7 +3,8 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.scss";
 import Header from "@/components/layout/header/header";
 import Footer from "@/components/layout/footer/footer";
-
+import MessagePanel from "../components/messages/messagePanel";
+import PdfViewer from "@/components/pdfViewer/pdfViewer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
+        <PdfViewer />
         <Header />
+        
+        <MessagePanel />
         {children}
         <Footer />
       </body>

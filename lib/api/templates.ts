@@ -9,6 +9,9 @@ export const TemplateApi = {
   getTemplatePDF: (path: string) =>
     api.getBlob(`/api/templates/pdf/${path}`),
 
+  getTemplatesZip: () =>
+    api.getBlob("/api/templates/zip"),
+
   createTemplate: (file: File, directory: string) => {
     const form = new FormData();
     form.append("template", file);
@@ -16,7 +19,7 @@ export const TemplateApi = {
     return api.post<{ status: string }>("/api/template/create", form);
   },
 
-  createDocument: (document: Document) =>
-    api.postBlob("/api/template/fillFile", document),
+  createDocument: (companyId: number, templates: string[]) =>
+    api.postBlob("/api/template/fillFileBulk", { companyId, templates }),
 
 };

@@ -9,8 +9,13 @@ import { useEffect, useState } from "react";
 export default function Home() {
 
   const [role, setRole] = useState<string>("");
-  useEffect(() => setRole(localStorage.getItem("role") || ""), []);
+  useEffect(() => { 
+    setRole(localStorage.getItem("role") || "");
+    document.title = "Pagrindinis";
+  }, 
   
+  []);
+
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAll();
 

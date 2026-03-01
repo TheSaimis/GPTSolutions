@@ -1,0 +1,13 @@
+.directoryMenu {
+    display: flex;
+    gap: 10px;
+    position: fixed;
+    bottom: -10%;
+    opacity: 0;
+    transition: 0.3s ease;
+}
+
+.directoryMenu.selected {
+    opacity: 1;
+    bottom: 10%;
+}

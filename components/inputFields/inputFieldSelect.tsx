@@ -2,8 +2,18 @@ import { LucideIcon, ChevronDown } from "lucide-react";
 import styles from "./styles/inputFields.module.scss";
 import { useEffect, useRef, useState } from "react";
 
+
+
+type Option =
+  | string
+  | {
+      value?: string;
+      label: string;
+    };
+
+
 type Props = {
-    options: any[];
+    options: Option[];
     selected?: any;
     placeholder?: string;
     onChange: (v: string) => void;
@@ -16,7 +26,14 @@ export default function InputFieldSelect({ options, selected, placeholder, onCha
 
     const [visible, setVisible] = useState(false);
     const [option, setOption] = useState(selected || placeholder || options[0]);
+    const [search, setSearch] = useState("");
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const normalizedOptions = options.map(o =>
+        typeof o === "string"
+          ? { value: o, label: o }
+          : { value: o.value ?? o.label, label: o.label }
+      );
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -39,15 +56,15 @@ export default function InputFieldSelect({ options, selected, placeholder, onCha
                     <ChevronDown size={18} className={styles.icon} />
                 </div>
                 <div className={`${visible ? styles.visible : ""} ${styles.options}`}>
-                    {options.map((v) => (
+                    {normalizedOptions.map((v) => (
                         <p
-                            key={v}
+                            key={v.value ?? v.label}
                             onClick={() => {
-                                setOption(v);
-                                onChange(v);
+                                setOption(v.label);
+                                onChange(v.value || v.label);
                             }}
                         >
-                            {v}
+                            {v.label}
                         </p>
                     ))}
                 </div>

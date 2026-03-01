@@ -1,32 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { FileText, Download, ArrowLeft } from "lucide-react";
+import { DirectoryStore, useDirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import Link from "next/link";
-import styles from "./page.module.scss";
+import styles from "../[...template]/page.module.scss";
 
 export default function TemplatePage() {
 
-    const { template } = useParams();
-    const templatePath = Array.isArray(template) ? template.join("/") : template;
-    const fileName = Array.isArray(template) ? template.at(-1) : template;
-    const [directory, setDirectory] = useState(decodeURIComponent(templatePath));
-    const [documentName, setDocumentName] = useState(fileName);
 
+    const [directory, setDirectory] = useState([] as string[]);
     const [companies, setCompanies] = useState([]);
+    const selectedDirectories = useDirectoryStore((state) => state.selected);
     const [company, setCompany] = useState("");
 
     useEffect(() => {
         getCompanies();
-        const decoded = decodeURIComponent(templatePath);
-        const decodedFileName = decodeURIComponent(fileName);
-        setDocumentName(decodedFileName);
-        setDirectory(decoded);
-        document.title = decodedFileName;
+        setDirectory(selectedDirectories);
+        document.title = "Sukurti dokumentus";
     }, []);
 
     function downloadBlob(blob: Blob, filename: string) {
@@ -62,7 +56,7 @@ export default function TemplatePage() {
     }
 
     async function createDocument() {
-        const { blob, filename } = await TemplateApi.createDocument(Number(company), [directory]);
+        const { blob, filename } = await TemplateApi.createDocument(Number(company), directory);
         downloadBlob(blob, filename);
     }
 
@@ -76,15 +70,19 @@ export default function TemplatePage() {
             </div>
 
             <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                    <div className={styles.fileIcon}>
-                        <FileText size={24} />
+
+
+                { selectedDirectories.map(d => (
+                    <div key={d} className={styles.cardHeader}>
+                        <div className={styles.fileIcon}>
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <h1 className={styles.title}>{d.split("/").pop()}</h1>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className={styles.title}>{documentName}</h1>
-                        <p className={styles.subtitle}>Pasirinkite Įmone ir sugeneruokite dokumentą</p>
-                    </div>
-                </div>
+                ))
+                }
 
                 <div className={styles.divider} />
 

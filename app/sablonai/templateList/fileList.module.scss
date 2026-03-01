@@ -6,6 +6,20 @@ $text-muted: #64748B;
 $border: #E2E8F0;
 
 .templateList {
+
+    .files {
+        transition: 0.3s;
+        margin-block: 2px;
+        border-radius: 5px;
+    }
+    .files.selected {
+        background-color: #FDE8E8;
+    }
+
+    &:hover {
+        background-color: $primary-light;
+    }
+
     .itemContainer {
         display: flex;
         align-items: center;
@@ -14,9 +28,6 @@ $border: #E2E8F0;
         border-radius: 10px;
         transition: background-color 0.15s ease;
 
-        &:hover {
-            background-color: $primary-light;
-        }
 
         .item {
             display: flex;
@@ -54,6 +65,12 @@ $border: #E2E8F0;
                 color: $primary;
                 flex-shrink: 0;
             }
+        }
+
+        .inputContainer {
+            gap: 12px;
+            display: flex;
+            align-items: center;
         }
 
         .button {
