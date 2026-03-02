@@ -27,6 +27,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $lastName = null;
 
+    #[ORM\Column(length: 255, nullable: true, unique: true)]
+    private ?string $email = null;
+
     #[ORM\Column(type: 'json')]
     private array $roles = [];
 
@@ -76,6 +79,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getLastName(): ?string { return $this->lastName; }
     public function setLastName(?string $lastName): static { $this->lastName = $lastName; return $this; }
+
+    public function getEmail(): ?string { return $this->email; }
+    public function setEmail(?string $email): static { $this->email = $email; return $this; }
 
     public function eraseCredentials(): void
     {

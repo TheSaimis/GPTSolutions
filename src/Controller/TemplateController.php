@@ -149,11 +149,22 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Company not found'], 404);
         }
 
-        // Map DB -> placeholders your CreateFile expects (adjust getters if needed)
-        $companyName  = (string) $company->getCompanyName();
-        $code         = (string) $company->getCode();
-        $role         = method_exists($company, 'getRole') ? (string) $company->getRole() : '';
-        $documentDate = (new \DateTimeImmutable())->format('Y-m-d');
+        $documentDate = $company->getDocumentDate()
+            ?? (new \DateTimeImmutable())->format('Y-m-d');
+
+        $code = (string) $company->getCode();
+        $companyData = [
+            'companyName'      => (string) $company->getCompanyName(),
+            'code'             => $code,
+            'documentDate'     => (string) $documentDate,
+            'role'             => (string) ($company->getRole() ?? ''),
+            'companyType'      => (string) ($company->getCompanyType() ?? ''),
+            'category'         => (string) ($company->getCategory() ?? ''),
+            'address'          => (string) ($company->getAddress() ?? ''),
+            'managerType'      => (string) ($company->getManagerType() ?? ''),
+            'managerFirstName' => (string) ($company->getManagerFirstName() ?? ''),
+            'managerLastName'  => (string) ($company->getManagerLastName() ?? ''),
+        ];
 
         $results        = [];
         $generatedFiles = [];
@@ -179,14 +190,10 @@ final class TemplateController extends AbstractController
             $template = basename($tplPath);
 
             try {
-                $generatedPath = $this->createFile->createWordDocument([
-                    'directory'    => $directory,
-                    'template'     => $template,
-                    'companyName'  => $companyName,
-                    'code'         => $code,
-                    'documentDate' => $documentDate,
-                    'role'         => $role,
-                ]);
+                $generatedPath = $this->createFile->createWordDocument(array_merge($companyData, [
+                    'directory' => $directory,
+                    'template'  => $template,
+                ]));
 
                 $generatedFiles[] = $generatedPath;
 
