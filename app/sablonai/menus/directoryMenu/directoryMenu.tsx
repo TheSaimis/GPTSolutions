@@ -19,8 +19,8 @@ export default function DirectoryMenu() {
 
     return (
         <div className={`${styles.directoryMenu} ${hasSelection && styles.selected}`}>
-            <button className="buttons" disabled={!hasSelection} onClick={clicked}>Kurti dokumentus</button>
-            <button className="buttons" onClick={() => DirectoryStore.clear()}>Išvalyti pasirinkimą</button>
+            <button type="button" disabled={!hasSelection} onClick={clicked}>Kurti dokumentus</button>
+            <button type="button" onClick={() => DirectoryStore.clear()}>Išvalyti pasirinkimą</button>
         </div>
     );
 }  

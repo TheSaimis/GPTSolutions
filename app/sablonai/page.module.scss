@@ -7,8 +7,18 @@
     align-items: center;
 
     .header {
-        text-align: center;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        width: 100%;
+        max-width: 720px;
         margin-bottom: 32px;
+
+        .headerText {
+            text-align: left;
+        }
 
         .title {
             font-size: 2rem;
@@ -22,6 +32,28 @@
             font-size: 1rem;
             color: #64748B;
             margin: 0;
+        }
+
+        .downloadCatalogButton {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 22px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #EF2629;
+            background: #fff;
+            border: 1.5px solid #EF2629;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+
+            &:hover {
+                background: #EF2629;
+                color: #fff;
+                box-shadow: 0 4px 14px rgba(239, 38, 41, 0.25);
+            }
         }
     }
 

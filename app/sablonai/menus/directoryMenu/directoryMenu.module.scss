@@ -1,13 +1,61 @@
 .directoryMenu {
     display: flex;
-    gap: 10px;
+    gap: 14px;
     position: fixed;
-    bottom: -10%;
+    left: 50%;
+    transform: translateX(-50%) translateY(120%);
+    bottom: 32px;
     opacity: 0;
-    transition: 0.3s ease;
+    visibility: hidden;
+    transition: transform 0.3s ease, opacity 0.25s ease, visibility 0.25s ease;
+    z-index: 100;
+    padding: 14px 24px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #E2E8F0;
+    align-items: center;
 }
 
 .directoryMenu.selected {
     opacity: 1;
-    bottom: 10%;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.directoryMenu button {
+    padding: 10px 20px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+    border: none;
+    white-space: nowrap;
+}
+
+.directoryMenu button:first-child {
+    background: #EF2629;
+    color: #fff;
+}
+
+.directoryMenu button:first-child:hover:not(:disabled) {
+    background: #d91f22;
+}
+
+.directoryMenu button:first-child:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.directoryMenu button:last-child {
+    background: transparent;
+    color: #64748B;
+    border: 1.5px solid #E2E8F0;
+}
+
+.directoryMenu button:last-child:hover {
+    background: #F8FAFC;
+    color: #0F172A;
+    border-color: #cbd5e1;
 }

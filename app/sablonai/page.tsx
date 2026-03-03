@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import FileList from "./templateList/fileList";
 import DirectoryMenu from "./menus/directoryMenu/directoryMenu";
 import styles from "./page.module.scss";
+import { Download } from "lucide-react";
 
 export default function TemplatePage() {
 
@@ -39,13 +40,16 @@ export default function TemplatePage() {
         <div className={styles.templates}>
             <DirectoryMenu/>
             <div className={styles.header}>
-                <h1 className={styles.title}>Šablonai</h1>
-                <p className={styles.subtitle}>Pasirinkite šabloną dokumentui sukurti</p>
+                <div className={styles.headerText}>
+                    <h1 className={styles.title}>Šablonai</h1>
+                    <p className={styles.subtitle}>Pasirinkite šabloną dokumentui sukurti</p>
+                </div>
+                <button type="button" onClick={downloadTemplates} className={styles.downloadCatalogButton}>
+                    <Download size={18} />
+                    Atsisiųsti šablonų katalogą
+                </button>
             </div>
             <div className={styles.card}>
-
-                <button onClick={downloadTemplates} className={`${styles.button} buttons`}>Atsiusti šablonų katalogą</button>
-
                 <div className={styles.templatesList}>
                     {templateList.map((template) => (
                         <FileList key={template.name} name={template.name} type={template.type} children={template.children} directory={template.name} />
