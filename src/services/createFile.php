@@ -9,20 +9,24 @@ use PhpOffice\PhpWord\TemplateProcessor;
 /**
  * Sukuria Word (.docx) failą iš šablono, pakeičiant žymes duotais duomenimis.
  *
- * Tikėtini $data raktai:
- *   - directory: string      – šablonų kategorija (pvz. "4 Tvarkos")
- *   - template: string       – šablono failo pavadinimas (pvz. "Tvarka.docx")
- *   - kompanija: string      – įmonės pavadinimas
- *   - kodas: string          – įmonės/instrukcijos kodas
- *   - data: string           – dokumento data
- *   - role: string           – vaidmuo / pareigos
- *   - vardas: string
- *   - pavarde: string
- *   - tipas: string          – trumpinys (UAB, AB, MB, ĮI, IND V, VŠĮ)
+ * Tikėtini $data raktai (lietuviškai arba anglų):
+ *   - directory, template – šablono kelias
+ *   - kompanija / companyName – įmonės pavadinimas
+ *   - kodas / code – įmonės kodas
+ *   - data / documentDate – dokumento data
+ *   - role – pareigos
+ *   - vardas / managerFirstName – vadovo vardas
+ *   - pavarde / managerLastName – vadovo pavardė
+ *   - tipas / companyType – įmonės tipas (UAB, AB, MB, ĮI, IND V, VŠĮ)
+ *   - tipasPilnas / category – pilna kategorija
+ *   - adresas / address – adresas
+ *   - managerType – vadovo tipas (lyčiai: vadovas/vadovė, direktorius/direktorė)
  *
- * Šablone gali naudoti žymes:
- *   ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde}, ${tipas},
- *   ${tipasPilnas} arba ${TIPASPILNAS}
+ * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
+ * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis}
+ *
+ * Savavališki pakeitimai (replacements): objektas arba masyvas porų.
+ * Randa šablone ${placeholder} ir pakeičia į nurodytą vertę.
  */
 final class CreateFile
 {
@@ -42,15 +46,19 @@ final class CreateFile
 
         $directory    = (string)($data['directory'] ?? '');
         $template     = (string)($data['template'] ?? '');
-        $companyName  = (string)($data['kompanija'] ?? '');
-        $code         = (string)($data['kodas'] ?? '');
-        $documentDate = (string)($data['data'] ?? '');
+        $companyName  = (string)($data['kompanija'] ?? $data['companyName'] ?? '');
+        $code         = (string)($data['kodas'] ?? $data['code'] ?? '');
+        $documentDate = (string)($data['data'] ?? $data['documentDate'] ?? '');
         $role         = (string)($data['role'] ?? '');
-        $vardas       = (string)($data['vardas'] ?? '');
-        $pavarde      = (string)($data['pavarde'] ?? '');
-        $tipas        = (string)($data['tipas'] ?? '');
+        $vardas       = (string)($data['vardas'] ?? $data['managerFirstName'] ?? '');
+        $pavarde      = (string)($data['pavarde'] ?? $data['managerLastName'] ?? '');
+        $tipas        = (string)($data['tipas'] ?? $data['companyType'] ?? '');
+        $tipasPilnas  = (string)($data['tipasPilnas'] ?? $data['category'] ?? '');
+        $adresas      = (string)($data['adresas'] ?? $data['address'] ?? '');
 
-        $tipasPilnas = $this->mapTipasPilnas($tipas);
+        if ($tipasPilnas === '') {
+            $tipasPilnas = $this->mapTipasPilnas($tipas);
+        }
 
         $templatePath = $this->resolveTemplatePath($directory, $template);
         if ($templatePath === null || !is_readable($templatePath)) {
@@ -63,28 +71,32 @@ final class CreateFile
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        // Užtikrina, kad neperrašytų jau esančių failų
         $outputName = $baseName . '_' . $code . '_' . date('Ymd_His') . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
 
         $processor = new TemplateProcessor($templatePath);
 
-        // Pagrindiniai laukai
         $processor->setValue('kompanija', $companyName);
         $processor->setValue('kodas', $code);
         $processor->setValue('data', $documentDate);
         $processor->setValue('role', $role);
-
-        // Papildomi laukai
         $processor->setValue('vardas', $vardas);
         $processor->setValue('pavarde', $pavarde);
-
-        // Tipas (trumpinys) + pilnas pavadinimas
         $processor->setValue('tipas', $tipas);
-
-        // Kad veiktų šablonuose, kur žymė yra ${tipasPilnas} IR kur yra ${TIPASPILNAS}
         $processor->setValue('tipasPilnas', $tipasPilnas);
         $processor->setValue('TIPASPILNAS', $tipasPilnas);
+        $processor->setValue('adresas', $adresas);
+        $processor->setValue('vadovas', $this->formatManagerFullName(
+            $data['managerFirstName'] ?? $data['vardas'] ?? null,
+            $data['managerLastName'] ?? $data['pavarde'] ?? null
+        ));
+        $processor->setValue('lytis', $this->resolveGender((string)($data['managerType'] ?? '')));
+
+        $processor->setValue('companyName', $companyName);
+        $processor->setValue('code', $code);
+        $processor->setValue('documentDate', $documentDate);
+
+        $this->applyReplacements($processor, $data['replacements'] ?? []);
 
         $processor->saveAs($outputPath);
 
@@ -96,12 +108,17 @@ final class CreateFile
      */
     private function validateData(array $data): void
     {
-        $required = ['template', 'kompanija', 'kodas'];
-
-        foreach ($required as $key) {
-            if (!isset($data[$key]) || !is_string($data[$key]) || trim($data[$key]) === '') {
-                throw new \InvalidArgumentException("Būtinas laukas \"{$key}\" turi būti ne tuščias string.");
-            }
+        $companyName = $data['kompanija'] ?? $data['companyName'] ?? '';
+        $code        = $data['kodas'] ?? $data['code'] ?? '';
+        $required    = ['template'];
+        if (empty($companyName) || !is_string($companyName) || trim($companyName) === '') {
+            throw new \InvalidArgumentException('Būtinas laukas "kompanija" arba "companyName"');
+        }
+        if (empty($code) || !is_string($code) || trim($code) === '') {
+            throw new \InvalidArgumentException('Būtinas laukas "kodas" arba "code"');
+        }
+        if (empty($data['template']) || !is_string($data['template']) || trim($data['template']) === '') {
+            throw new \InvalidArgumentException('Būtinas laukas "template"');
         }
     }
 
@@ -137,8 +154,6 @@ final class CreateFile
     private function mapTipasPilnas(string $tipas): string
     {
         $t = mb_strtoupper(trim($tipas));
-
-        // normalizuojam taškus ir dvigubus tarpus
         $t = str_replace('.', '', $t);
         $t = preg_replace('/\s+/', ' ', $t) ?? $t;
 
@@ -146,17 +161,54 @@ final class CreateFile
             'UAB' => 'Uždaroji akcinė bendrovė',
             'AB'  => 'Akcinė bendrovė',
             'MB'  => 'Mažoji bendrija',
-
-            // kartais rašo II vietoje ĮI
             'IĮ', 'II' => 'Individuali įmonė',
-
-            // skirtingi įvedimai
             'IND V', 'INDV', 'IV' => 'Individuali veikla',
-
-            // kartais be diakritikų
             'VŠĮ', 'VSĮ', 'VSI' => 'Viešoji įstaiga',
-
             default => $tipas,
         };
+    }
+
+    private function formatManagerFullName(?string $firstName, ?string $lastName): string
+    {
+        $parts = array_filter([trim((string) $firstName), trim((string) $lastName)]);
+        return implode(' ', $parts);
+    }
+
+    private function resolveGender(string $managerType): string
+    {
+        $type = mb_strtolower(trim($managerType));
+        $female = ['vadovė', 'direktorė'];
+        $male   = ['vadovas', 'direktorius'];
+        if (in_array($type, $female, true)) return 'Moteris';
+        if (in_array($type, $male, true)) return 'Vyras';
+        if (str_ends_with($type, 'ė')) return 'Moteris';
+        return 'Vyras';
+    }
+
+    /**
+     * Pritaiko savavališkus pakeitimus iš $replacements.
+     *
+     * @param array<string, string>|array<int, array{0: string, 1: string}> $replacements
+     */
+    private function applyReplacements(TemplateProcessor $processor, mixed $replacements): void
+    {
+        if (!is_array($replacements)) {
+            return;
+        }
+
+        $pairs = [];
+        foreach ($replacements as $key => $value) {
+            if (is_int($key) && is_array($value) && count($value) >= 2) {
+                $pairs[(string) $value[0]] = (string) $value[1];
+            } elseif (is_string($key)) {
+                $pairs[$key] = (string) $value;
+            }
+        }
+
+        foreach ($pairs as $placeholder => $replacement) {
+            if (trim($placeholder) !== '') {
+                $processor->setValue($placeholder, $replacement);
+            }
+        }
     }
 }

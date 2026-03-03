@@ -154,17 +154,21 @@ final class TemplateController extends AbstractController
 
         $code = (string) $company->getCode();
         $companyData = [
-            'kompanija'      => (string) $company->getCompanyName(),
-            'kodas'             => $code,
-            'data'     => (string) $documentDate,
-            'role'             => (string) ($company->getRole() ?? ''),
-            'tipas'      => (string) ($company->getCompanyType() ?? ''),
-            'kategorija'         => (string) ($company->getCategory() ?? ''),
-            'addresas'          => (string) ($company->getAddress() ?? ''),
-            'managerType'      => (string) ($company->getManagerType() ?? ''),
-            'vardas' => (string) ($company->getManagerFirstName() ?? ''),
-            'pavarde'  => (string) ($company->getManagerLastName() ?? ''),
+            'kompanija'   => (string) $company->getCompanyName(),
+            'kodas'       => $code,
+            'data'        => (string) $documentDate,
+            'role'        => (string) ($company->getRole() ?? ''),
+            'tipas'       => (string) ($company->getCompanyType() ?? ''),
+            'tipasPilnas' => (string) ($company->getCategory() ?? ''),
+            'adresas'     => (string) ($company->getAddress() ?? ''),
+            'managerType' => (string) ($company->getManagerType() ?? ''),
+            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
         ];
+
+        if (isset($data['replacements']) && is_array($data['replacements'])) {
+            $companyData['replacements'] = $data['replacements'];
+        }
 
         $results        = [];
         $generatedFiles = [];
