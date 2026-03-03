@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { Building2, FileText, Download, ArrowRight, User } from "lucide-react";
+import { Building2, FileText, Download, ArrowRight, User, CircleQuestionMark } from "lucide-react";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -9,12 +9,12 @@ import { useEffect, useState } from "react";
 export default function Home() {
 
   const [role, setRole] = useState<string>("");
-  useEffect(() => { 
+  useEffect(() => {
     setRole(localStorage.getItem("role") || "");
     document.title = "Pagrindinis";
-  }, 
-  
-  []);
+  },
+
+    []);
 
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAll();
@@ -90,6 +90,22 @@ export default function Home() {
               Atsisiųsti .ZIP <ArrowRight size={16} />
             </span>
           </button>
+
+          <Link href="/kaip-naudotis" className={styles.card}>
+
+            <div className={styles.cardIcon}>
+              <CircleQuestionMark size={28} />
+            </div>
+            <h2 className={styles.cardTitle}>Kaip naudotis?</h2>
+            <p className={styles.cardDescription}>
+              Kaip sukurti šabloną ir naudotis sistema.
+            </p>
+            <span className={styles.cardButton}>
+              Kaip naudotis <ArrowRight size={16} />
+            </span>
+
+          </Link>
+
         </div>
       </div>
     </div>
