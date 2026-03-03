@@ -154,16 +154,16 @@ final class TemplateController extends AbstractController
 
         $code = (string) $company->getCode();
         $companyData = [
-            'companyName'      => (string) $company->getCompanyName(),
-            'code'             => $code,
-            'documentDate'     => (string) $documentDate,
+            'kompanija'      => (string) $company->getCompanyName(),
+            'kodas'             => $code,
+            'data'     => (string) $documentDate,
             'role'             => (string) ($company->getRole() ?? ''),
-            'companyType'      => (string) ($company->getCompanyType() ?? ''),
-            'category'         => (string) ($company->getCategory() ?? ''),
-            'address'          => (string) ($company->getAddress() ?? ''),
+            'tipas'      => (string) ($company->getCompanyType() ?? ''),
+            'kategorija'         => (string) ($company->getCategory() ?? ''),
+            'addresas'          => (string) ($company->getAddress() ?? ''),
             'managerType'      => (string) ($company->getManagerType() ?? ''),
-            'managerFirstName' => (string) ($company->getManagerFirstName() ?? ''),
-            'managerLastName'  => (string) ($company->getManagerLastName() ?? ''),
+            'vardas' => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'  => (string) ($company->getManagerLastName() ?? ''),
         ];
 
         $results        = [];
