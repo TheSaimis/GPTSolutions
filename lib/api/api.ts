@@ -1,5 +1,6 @@
 // api.ts
 import { MessageStore } from "@/lib/globalVariables/messages";
+import { TemplateList } from "../types/TemplateList";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL!;
 
@@ -14,6 +15,8 @@ export type Json =
 export type DownloadResult = {
   blob: Blob;
   filename: string;
+  status?: string;
+
 };
 
 type ResponseType = "json" | "blob";
@@ -145,8 +148,8 @@ export const api = {
       responseType: "json",
     }),
 
-  getBlob: (path: string) =>
-    request({
+  getBlob: (path: string): Promise<DownloadResult> =>
+    request<never>({
       method: "GET",
       path,
       responseType: "blob",

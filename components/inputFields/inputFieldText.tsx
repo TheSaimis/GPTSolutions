@@ -1,3 +1,6 @@
+"use client";
+
+import React, { forwardRef } from "react";
 import styles from "./styles/inputFields.module.scss";
 import { LucideIcon } from "lucide-react";
 
@@ -6,44 +9,58 @@ type Props = {
   regex?: RegExp;
   placeholder?: string;
   onChange: (v: string) => void;
+  onFocus?: (b: boolean) => void;
+  onKeyDown?: Record<string, () => void>;
   type?: string;
   icon?: LucideIcon;
 };
 
-export default function InputFieldText({
-  value,
-  placeholder,
-  onChange,
-  type,
-  icon: Icon,
-  regex,
-}: Props) {
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
+const InputFieldText = forwardRef<HTMLInputElement, Props>(
+  (
+    { value, placeholder, onChange, type, icon: Icon, regex, onFocus, onKeyDown },
+    ref
+  ) => {
+    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+      const val = e.target.value;
 
-    if (val === "") {
+      if (val === "") {
+        onChange(val);
+        return;
+      }
+
+      if (regex && !regex.test(val)) return;
+
       onChange(val);
-      return;
     }
 
-    if (regex) {
-      if (regex.test(val)) onChange(val);
-      return;
-    }
+    return (
+      <div className={styles.inputField}>
+        <h2>
+          {Icon && <Icon size={18} className={styles.icon} />} {placeholder}
+        </h2>
 
-    onChange(val);
+        <input
+          ref={ref}
+          className={styles.input}
+          type={type || "text"}
+          value={value}
+          placeholder={placeholder}
+          onChange={handleChange}
+          onFocus={(e) => {
+            e.target.select();
+            onFocus?.(true);
+          }}
+          onBlur={() => onFocus?.(false)}
+          onKeyDown={(e) => {
+            const fn = onKeyDown?.[e.key];
+            if (!fn) return;
+            e.preventDefault();
+            fn();
+          }}
+        />
+      </div>
+    );
   }
+);
 
-  return (
-    <div className={styles.inputField}>
-      <h2>{Icon && <Icon size={18} className={styles.icon} />} {placeholder}</h2>
-      <input
-        className={styles.input}
-        type={type || "text"}
-        value={value}
-        placeholder={placeholder}
-        onChange={handleChange}
-      />
-    </div>
-  );
-}
+export default InputFieldText;

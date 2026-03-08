@@ -18,6 +18,8 @@ export default function KaipNaudotiPage() {
         { kodas: "${kodas}", aprasymas: "Įmonės kodas" },
         { kodas: "${data}", aprasymas: "Įsakymo arba dokumento data" },
         { kodas: "${vadovas}", aprasymas: "Įmonės vadovo vardas ir pavardė" },
+        { kodas: "${vardas}", aprasymas: "Vadovo vardas" },
+        { kodas: "${pavarde}", aprasymas: "Vadovo pavardė" },
         { kodas: "${role}", aprasymas: "Pasirašančio asmens pareigos" },
     ];
 

@@ -22,4 +22,7 @@ export const TemplateApi = {
   createDocument: (companyId: number, templates: string[]) =>
     api.postBlob("/api/template/fillFileBulk", { companyId, templates }),
 
+  renameTemplate : (directory: string, name: string) =>
+    api.post<{ status: string }>("/api/template/rename", { directory, name }),
+
 };
