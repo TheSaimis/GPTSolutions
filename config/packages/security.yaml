@@ -22,7 +22,7 @@ security:
                 success_handler:          lexik_jwt_authentication.handler.authentication_success
                 failure_handler:          lexik_jwt_authentication.handler.authentication_failure
         api:
-            pattern: ^/(api|objektai|darbai|vieta|user|daiktas|sandelys)
+            pattern: ^/(api|objektai|darbai|vieta|user|users|daiktas|sandelys)
             stateless: true
             jwt: ~      
 
