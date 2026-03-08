@@ -4,13 +4,13 @@ import styles from "./fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useState } from "react";
 import Directory from "./types/directory/directory";
-import Files from "./types/file";
+import Files from "./types/file/file";
 
 type List = {
     name: string;
     type: string;
     children?: TemplateList[]
-    directory?: string
+    directory?: string 
 }
 
 export default function FileList({ name, type, children, directory }: List) {
