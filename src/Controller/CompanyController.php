@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\CompanyRequisite;
 use App\Repository\CompanyRequisiteRepository;
+use App\Services\ManagerGenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +18,7 @@ final class CompanyController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private ValidatorInterface $validator,
+        private ManagerGenderResolver $genderResolver,
     ) {}
 
     #[Route('/create', name: 'api_company_create', methods: ['POST'])]
@@ -37,7 +39,13 @@ final class CompanyController extends AbstractController
         $company->setCategory($data['category'] ?? null);
         $company->setAddress($data['address'] ?? null);
         $company->setCityOrDistrict($data['cityOrDistrict'] ?? null);
-        $company->setManagerType($data['manager_type'] ?? null);
+        $managerType = $data['manager_type'] ?? null;
+        $company->setManagerType($managerType);
+        $company->setManagerGender(
+            $managerType !== null && trim((string) $managerType) !== ''
+                ? $this->genderResolver->resolve((string) $managerType)
+                : null
+        );
         $company->setManagerFirstName($data['manager_first_name'] ?? null);
         $company->setManagerLastName($data['manager_last_name'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
@@ -125,7 +133,15 @@ final class CompanyController extends AbstractController
         if (array_key_exists('category', $data))         $company->setCategory($data['category']);
         if (array_key_exists('address', $data))          $company->setAddress($data['address']);
         if (array_key_exists('cityOrDistrict', $data))   $company->setCityOrDistrict($data['cityOrDistrict']);
-        if (array_key_exists('managerType', $data))      $company->setManagerType($data['managerType']);
+        if (array_key_exists('managerType', $data)) {
+            $managerType = $data['managerType'];
+            $company->setManagerType($managerType);
+            $company->setManagerGender(
+                $managerType !== null && trim((string) $managerType) !== ''
+                    ? $this->genderResolver->resolve((string) $managerType)
+                    : null
+            );
+        }
         if (array_key_exists('managerFirstName', $data)) $company->setManagerFirstName($data['managerFirstName']);
         if (array_key_exists('managerLastName', $data))  $company->setManagerLastName($data['managerLastName']);
         if (array_key_exists('documentDate', $data))     $company->setDocumentDate($data['documentDate']);
@@ -174,6 +190,7 @@ final class CompanyController extends AbstractController
             'address'          => $c->getAddress(),
             'cityOrDistrict'   => $c->getCityOrDistrict(),
             'managerType'      => $c->getManagerType(),
+            'managerGender'    => $c->getManagerGender(),
             'managerFirstName' => $c->getManagerFirstName(),
             'managerLastName'  => $c->getManagerLastName(),
             'documentDate'     => $c->getDocumentDate(),

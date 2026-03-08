@@ -51,6 +51,9 @@ class CompanyRequisite
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $managerType = null;
 
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $managerGender = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $managerFirstName = null;
 
@@ -94,6 +97,9 @@ class CompanyRequisite
 
     public function getManagerType(): ?string { return $this->managerType; }
     public function setManagerType(?string $v): static { $this->managerType = $v; return $this; }
+
+    public function getManagerGender(): ?string { return $this->managerGender; }
+    public function setManagerGender(?string $v): static { $this->managerGender = $v; return $this; }
 
     public function getManagerFirstName(): ?string { return $this->managerFirstName; }
     public function setManagerFirstName(?string $v): static { $this->managerFirstName = $v; return $this; }

@@ -27,6 +27,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *
  * Savavališki pakeitimai (replacements): objektas arba masyvas porų.
  * Randa šablone ${placeholder} ir pakeičia į nurodytą vertę.
+ *
+ * Kintamųjų raidžių dydis nesvarbus: ${vadovas}, ${VADOVAS}, ${Vadovas} – visi sutampa.
  */
 final class CreateFile
 {
@@ -76,25 +78,26 @@ final class CreateFile
 
         $processor = new TemplateProcessor($templatePath);
 
-        $processor->setValue('kompanija', $companyName);
-        $processor->setValue('kodas', $code);
-        $processor->setValue('data', $documentDate);
-        $processor->setValue('role', $role);
-        $processor->setValue('vardas', $vardas);
-        $processor->setValue('pavarde', $pavarde);
-        $processor->setValue('tipas', $tipas);
-        $processor->setValue('tipasPilnas', $tipasPilnas);
-        $processor->setValue('TIPASPILNAS', $tipasPilnas);
-        $processor->setValue('adresas', $adresas);
-        $processor->setValue('vadovas', $this->formatManagerFullName(
+        $vadovas = $this->formatManagerFullName(
             $data['managerFirstName'] ?? $data['vardas'] ?? null,
             $data['managerLastName'] ?? $data['pavarde'] ?? null
-        ));
-        $processor->setValue('lytis', $this->resolveGender((string)($data['managerType'] ?? '')));
+        );
+        $lytis = $this->resolveGender((string)($data['managerType'] ?? ''));
 
-        $processor->setValue('companyName', $companyName);
-        $processor->setValue('code', $code);
-        $processor->setValue('documentDate', $documentDate);
+        $this->setValueCaseInsensitive($processor, 'kompanija', $companyName);
+        $this->setValueCaseInsensitive($processor, 'kodas', $code);
+        $this->setValueCaseInsensitive($processor, 'data', $documentDate);
+        $this->setValueCaseInsensitive($processor, 'role', $role);
+        $this->setValueCaseInsensitive($processor, 'vardas', $vardas);
+        $this->setValueCaseInsensitive($processor, 'pavarde', $pavarde);
+        $this->setValueCaseInsensitive($processor, 'tipas', $tipas);
+        $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnas);
+        $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
+        $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
+        $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
+        $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
+        $this->setValueCaseInsensitive($processor, 'code', $code);
+        $this->setValueCaseInsensitive($processor, 'documentDate', $documentDate);
 
         $this->applyReplacements($processor, $data['replacements'] ?? []);
 
@@ -207,7 +210,25 @@ final class CreateFile
 
         foreach ($pairs as $placeholder => $replacement) {
             if (trim($placeholder) !== '') {
-                $processor->setValue($placeholder, $replacement);
+                $this->setValueCaseInsensitive($processor, $placeholder, $replacement);
+            }
+        }
+    }
+
+    /**
+     * Nustato vertę visiems raidžių dydžio variantams – ${vadovas}, ${VADOVAS}, ${Vadovas} sutampa.
+     */
+    private function setValueCaseInsensitive(TemplateProcessor $processor, string $placeholder, string $value): void
+    {
+        $variants = array_unique([
+            $placeholder,
+            mb_strtolower($placeholder, 'UTF-8'),
+            mb_strtoupper($placeholder, 'UTF-8'),
+            mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
+        ]);
+        foreach ($variants as $v) {
+            if ($v !== '') {
+                $processor->setValue($v, $value);
             }
         }
     }
