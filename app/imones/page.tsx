@@ -16,6 +16,7 @@ export default function ImonesPage() {
     const [code, setCode] = useState("");
     const [manager_first_name, setManagerFirstName] = useState("");
     const [manager_last_name, setManagerLastName] = useState("");
+    const [manager_gender, setManagerGender] = useState("");
     const [role, setRole] = useState("");
 
     useEffect(() => {
@@ -23,7 +24,7 @@ export default function ImonesPage() {
     }, []);
 
     function handleSubmit() {
-        CompanyApi.companyCreate({ company_type, company_name, address, code, manager_first_name, manager_last_name, role });
+        CompanyApi.companyCreate({ company_type, company_name, address, code, manager_first_name, manager_last_name, manager_gender, role });
     }
 
     return (
@@ -50,9 +51,11 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={["UAB", "AB", "MB"]} onChange={setCompanyType} placeholder="Įmonės tipas"/>
+                        <InputFieldSelect options={["UAB", "AB", "MB", "VŠĮ", "IĮ", "IND. V"]} onChange={setCompanyType} placeholder="Įmonės tipas"/>
                         <InputFieldText value={company_name} onChange={setCompanyName} placeholder="Įmones pavadinimas"/>
                     </div>
+
+                    <InputFieldSelect options={["vyras", "moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis"/>
 
                     <InputFieldText value={address} onChange={setAddress} placeholder="Adresas"/>
                     <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas"/>

@@ -21,7 +21,7 @@ export default function FileList({ name, type, children, directory }: List) {
 
         <div className={styles.templateList}>
             {type === "file" && (
-                <Files name={name} directory={directory} />
+                <Files name={name} directory={""} />
             )}
             {type === "directory" && (
                 <Directory name={name} children={childNodes} directory={directory} />

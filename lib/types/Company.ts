@@ -8,6 +8,7 @@ export type Company = {
     manager_type?: string;
     manager_first_name?: string;
     manager_last_name?: string;
+    manager_gender?: string;
     document_date?: string;
     role?: string;
 };
