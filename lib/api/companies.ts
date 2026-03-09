@@ -3,7 +3,7 @@ import type { Company } from "../types/Company";
 
 export const CompanyApi = {
 
-    getAll: () => api.get<Company[]>("/api/company/all"),
+    getAll: () => api.get<Company[]>("/api/company/all", { loadingMessage: "Kraunamos įmonės..." }),
     companyCreate: (company: Company, errorMessage?: string, errorTitle?: string) => api.post<Company>("/api/company/create", company),
 
 };

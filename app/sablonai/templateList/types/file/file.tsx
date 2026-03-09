@@ -100,7 +100,7 @@ export default function Files({ name, directory }: List) {
           {
             id: "add",
             label: "Pasirinkti",
-            onClick: () => DirectoryStore.add(directory),
+            onClick: () => DirectoryStore.add(`${directory}/${currentName}`),
           },
           {
             id: "delete",
