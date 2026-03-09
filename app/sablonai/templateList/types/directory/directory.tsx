@@ -107,7 +107,7 @@ export default function Directory({ name, children, directory }: List) {
                 }
                 {childNodes.map((child) => (
                     child.type === "file" ?
-                        <Files key={child.name} name={child.name} directory={directory + "/" + child.name} />
+                        <Files key={child.name} name={child.name} directory={directory} />
                         :
                         <Directory key={child.name} name={child.name} children={child.children} directory={`${directory}/${child.name}`} />
                 ))}

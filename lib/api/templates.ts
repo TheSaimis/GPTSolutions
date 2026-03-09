@@ -25,4 +25,6 @@ export const TemplateApi = {
   renameTemplate : (directory: string, name: string) =>
     api.post<{ status: string }>("/api/template/rename", { directory, name }),
 
+  deleteTemplate : (directory: string) =>
+    api.post<{ status: string }>("/api/template/delete", { directory }),
 };
