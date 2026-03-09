@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\CompanyRequisiteRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CompanyRequisiteRepository::class)]
 class CompanyRequisite
@@ -17,9 +18,20 @@ class CompanyRequisite
     private ?string $companyType = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Įmonės pavadinimas yra privalomas.')]
     private ?string $companyName = null;
 
     #[ORM\Column(length: 50)]
+    #[Assert\NotBlank(message: 'Įmonės kodas yra privalomas.')]
+    #[Assert\Length(
+        min: 9,
+        max: 9,
+        exactMessage: 'Įmonės kodas turi būti būtent {{ limit }} skaitmenų.'
+    )]
+    #[Assert\Regex(
+        pattern: '/^\d+$/',
+        message: 'Įmonės kodas gali susidėti tik iš skaitmenų.'
+    )]
     private ?string $code = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -33,6 +45,9 @@ class CompanyRequisite
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $managerType = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $managerGender = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $managerFirstName = null;
@@ -62,7 +77,6 @@ class CompanyRequisite
 
     public function getCode(): ?string { return $this->code; }
     public function setCode(string $v): static { $this->code = $v; return $this; }
-
     public function getCategory(): ?string { return $this->category; }
     public function setCategory(?string $v): static { $this->category = $v; return $this; }
 
@@ -74,6 +88,9 @@ class CompanyRequisite
 
     public function getManagerType(): ?string { return $this->managerType; }
     public function setManagerType(?string $v): static { $this->managerType = $v; return $this; }
+
+    public function getManagerGender(): ?string { return $this->managerGender; }
+    public function setManagerGender(?string $v): static { $this->managerGender = $v; return $this; }
 
     public function getManagerFirstName(): ?string { return $this->managerFirstName; }
     public function setManagerFirstName(?string $v): static { $this->managerFirstName = $v; return $this; }
