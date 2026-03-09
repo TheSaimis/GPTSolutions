@@ -22,7 +22,7 @@ security:
                 success_handler:          lexik_jwt_authentication.handler.authentication_success
                 failure_handler:          lexik_jwt_authentication.handler.authentication_failure
         api:
-            pattern: ^/(api|objektai|darbai|vieta|user|daiktas|sandelys)
+            pattern: ^/(api|objektai|vieta|user|daiktas|sandelys)
             stateless: true
             jwt: ~      
 
@@ -36,8 +36,8 @@ security:
     # Note: Only the *first* access control that matches will be used
     access_control:
     - { path: ^/api/login, roles: PUBLIC_ACCESS }
-    - { path: ^/(api|objektai|darbai|vieta|daiktas|sandelys),       roles: IS_AUTHENTICATED_FULLY }
-    - { path: ^/(darbai|vieta|objektai|users), roles: ROLE_ADMIN }
+    - { path: ^/(api|objektai|vieta|daiktas|sandelys),       roles: IS_AUTHENTICATED_FULLY }
+    - { path: ^/(vieta|objektai|users), roles: ROLE_ADMIN }
 
 when@test:
     security:

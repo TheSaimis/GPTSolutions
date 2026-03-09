@@ -88,7 +88,7 @@ final class CompanyController extends AbstractController
         return new JsonResponse($result);
     }
 
-    #[Route('/companies', name: 'api_company_get', methods: ['GET'], requirements: ['id' => '\d+'])]
+    #[Route('/companies', name: 'api_company_public', methods: ['GET'])]
     public function getCompanies(CompanyRequisiteRepository $repo): JsonResponse
     {
         $companies = $repo->findAll();

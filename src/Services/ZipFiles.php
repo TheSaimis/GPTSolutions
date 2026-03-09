@@ -42,6 +42,7 @@ final class ZipFiles
             if ($file->isFile()) {
                 $filePath     = $file->getRealPath();
                 $relativePath = substr($filePath, strlen($sourceDir) + 1);
+                $relativePath = str_replace('\\', '/', $relativePath);
                 $zip->addFile($filePath, $relativePath);
             }
         }
@@ -138,6 +139,7 @@ final class ZipFiles
 
             $filePath     = $file->getRealPath();
             $relativePath = substr($filePath, strlen($sourceDir) + 1);
+            $relativePath = str_replace('\\', '/', $relativePath);
             $zip->addFile($filePath, $relativePath);
             $added++;
         }

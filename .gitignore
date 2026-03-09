@@ -12,6 +12,7 @@
 ###> phpunit/phpunit ###
 /phpunit.xml
 .phpunit.result.cache
+/templates/__zip_templates_test_*/
 ###< phpunit/phpunit ###
 
 ###> symfony/phpunit-bridge ###
