@@ -4,6 +4,7 @@ namespace App\Controller;
 use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 use App\Services\GetPDF;
+use App\Services\TemplateFileService;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\CompanyRequisite;
@@ -23,6 +24,7 @@ final class TemplateController extends AbstractController
         private readonly ZipFiles $zipFiles,
         private GetPDF $getPDF,
         private AddWordDocument $addWordDocument,
+        private TemplateFileService $templateFileService,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -66,6 +68,49 @@ final class TemplateController extends AbstractController
     //         'templates' => $this->scanDirectory($dir),
     //     ]);
     // }
+
+    /**
+     * POST /api/template/delete
+     * Ištrina šabloną templates/{path}.
+     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx" }
+     */
+    #[Route('/api/template/delete', name: 'api_template_delete', methods: ['POST'])]
+    public function delete(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $path = is_array($data) ? trim((string) ($data['path'] ?? '')) : '';
+
+        if ($path === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+        }
+
+        $status = $this->templateFileService->delete($path);
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
+    /**
+     * POST /api/template/rename
+     * Pervadina šabloną.
+     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx", "newName": "Naujas pavadinimas.docx" }
+     */
+    #[Route('/api/template/rename', name: 'api_template_rename', methods: ['POST'])]
+    public function rename(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+        }
+
+        $path = trim((string) ($data['path'] ?? ''));
+        $newName = trim((string) ($data['newName'] ?? ''));
+
+        if ($path === '' || $newName === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
+        }
+
+        $status = $this->templateFileService->rename($path, $newName);
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
 
     /**
      * POST /api/template/createFolder
