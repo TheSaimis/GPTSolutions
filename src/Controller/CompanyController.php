@@ -32,7 +32,6 @@ final class CompanyController extends AbstractController
         $company = new CompanyRequisite();
         $company->setCompanyName($data['company_name'] ?? '');
         $company->setCode($data['code'] ?? '');
-        $company->setEmail($data['email'] ?? null);
         $company->setCompanyType($data['company_type'] ?? null);
         $company->setCategory($data['category'] ?? null);
         $company->setAddress($data['address'] ?? null);
@@ -119,7 +118,6 @@ final class CompanyController extends AbstractController
 
         if (isset($data['companyName']))      $company->setCompanyName($data['companyName']);
         if (isset($data['code']))             $company->setCode($data['code']);
-        if (array_key_exists('email', $data)) $company->setEmail($data['email']);
         if (array_key_exists('companyType', $data))      $company->setCompanyType($data['companyType']);
         if (array_key_exists('category', $data))         $company->setCategory($data['category']);
         if (array_key_exists('address', $data))          $company->setAddress($data['address']);
@@ -167,7 +165,6 @@ final class CompanyController extends AbstractController
             'id'               => $c->getId(),
             'companyName'      => $c->getCompanyName(),
             'code'             => $c->getCode(),
-            'email'            => $c->getEmail(),
             'companyType'      => $c->getCompanyType(),
             'category'         => $c->getCategory(),
             'address'          => $c->getAddress(),

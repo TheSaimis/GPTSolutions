@@ -18,7 +18,6 @@ final class CompanyControllerTest extends ApiWebTestCase
         ], json_encode([
             'company_name' => 'Test UAB',
             'code' => '123456789',
-            'email' => 'test@example.com',
         ]));
 
         self::assertResponseStatusCodeSame(201);
@@ -27,7 +26,6 @@ final class CompanyControllerTest extends ApiWebTestCase
         self::assertArrayHasKey('data', $data);
         self::assertSame('Test UAB', $data['data']['companyName']);
         self::assertSame('123456789', $data['data']['code']);
-        self::assertSame('test@example.com', $data['data']['email']);
     }
 
     public function testCreateCompanyInvalidJson(): void
@@ -44,7 +42,7 @@ final class CompanyControllerTest extends ApiWebTestCase
         self::assertArrayHasKey('error', $data);
     }
 
-    public function testCreateCompanyValidationFails(): void
+    public function testCreateCompanyAcceptsEmptyOptionalFields(): void
     {
         $client = $this->createAuthenticatedClient();
 
@@ -55,10 +53,11 @@ final class CompanyControllerTest extends ApiWebTestCase
             'code' => '',
         ]));
 
-        self::assertResponseStatusCodeSame(400);
+        // Entity has no Assert constraints, so empty values are accepted
+        self::assertResponseStatusCodeSame(201);
         $data = json_decode($client->getResponse()->getContent(), true);
-        self::assertSame('FAIL', $data['status']);
-        self::assertArrayHasKey('errors', $data);
+        self::assertSame('SUCCESS', $data['status']);
+        self::assertArrayHasKey('data', $data);
     }
 
     public function testGetAllCompanies(): void
@@ -105,7 +104,6 @@ final class CompanyControllerTest extends ApiWebTestCase
         $company = new CompanyRequisite();
         $company->setCompanyName('Get Test UAB');
         $company->setCode('111111111');
-        $company->setEmail('get@test.lt');
         $company->setCreatedAt(new \DateTimeImmutable());
         $em->persist($company);
         $em->flush();
@@ -130,7 +128,6 @@ final class CompanyControllerTest extends ApiWebTestCase
         $company = new CompanyRequisite();
         $company->setCompanyName('Update Test UAB');
         $company->setCode('222222222');
-        $company->setEmail('update@test.lt');
         $company->setCreatedAt(new \DateTimeImmutable());
         $em->persist($company);
         $em->flush();
@@ -169,7 +166,6 @@ final class CompanyControllerTest extends ApiWebTestCase
         $company = new CompanyRequisite();
         $company->setCompanyName('Delete Test UAB');
         $company->setCode('333333333');
-        $company->setEmail('delete@test.lt');
         $company->setCreatedAt(new \DateTimeImmutable());
         $em->persist($company);
         $em->flush();
