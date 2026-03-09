@@ -1,5 +1,4 @@
 $primary: #EF2629;
-$primary-hover: #d91f22;
 $primary-light: rgba(239, 38, 41, 0.08);
 $bg: #F1F5F9;
 $text-dark: #0F172A;
@@ -18,131 +17,143 @@ $border: #E2E8F0;
 
 .topBar {
     width: 100%;
-    max-width: 560px;
+    max-width: 600px;
     margin-bottom: 20px;
-
     .backLink {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         font-size: 0.875rem;
-        font-weight: 500;
         color: $text-muted;
         text-decoration: none;
-        padding: 6px 12px;
-        border-radius: 8px;
-        transition: all 0.15s ease;
-
-        &:hover {
-            background: rgba(0, 0, 0, 0.04);
-            color: $text-dark;
-        }
+        &:hover { color: $text-dark; }
     }
 }
 
-.card {
+.card, .exampleCard {
     background: #ffffff;
     border-radius: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     padding: 32px;
     width: 100%;
-    max-width: 560px;
-    margin-bottom: 40px;
+    margin-bottom: 24px;
 }
+
+.card { max-width: 600px; }
+.exampleCard { max-width: 1100px; }
 
 .cardHeader {
     display: flex;
     align-items: center;
     gap: 16px;
-
     .fileIcon {
-        width: 48px;
-        height: 48px;
+        width: 48px; height: 48px;
         border-radius: 12px;
         background: $primary-light;
         color: $primary;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
     }
-
-    .title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: $text-dark;
-        margin: 0 0 2px;
-    }
-
-    .subtitle {
-        font-size: 0.85rem;
-        color: $text-muted;
-        margin: 0;
-    }
+    .title { font-size: 1.25rem; font-weight: 700; color: $text-dark; margin: 0; }
+    .subtitle { font-size: 0.875rem; color: $text-muted; margin: 0; }
 }
 
-.divider {
-    height: 1px;
-    background: $border;
-    margin: 24px 0;
-}
+.divider { height: 1px; background: $border; margin: 24px 0; }
 
 .infoBox {
-    display: flex;
-    gap: 12px;
+    display: flex; gap: 12px;
     background: #f8fafc;
     border-left: 4px solid $primary;
     padding: 16px;
     border-radius: 8px;
     margin-bottom: 24px;
-    color: $text-dark;
     font-size: 0.9rem;
-    line-height: 1.5;
+    svg { color: $primary; flex-shrink: 0; }
+}
 
-    svg {
-        color: $primary;
-        flex-shrink: 0;
+.searchWrapper {
+    position: relative;
+    margin-bottom: 20px;
+    .searchIcon {
+        position: absolute; left: 12px; top: 50%;
+        transform: translateY(-50%);
+        color: $text-muted;
+    }
+    .searchInput {
+        width: 100%; padding: 10px 12px 10px 40px;
+        border: 1px solid $border; border-radius: 8px;
+        &:focus { outline: none; border-color: $primary; box-shadow: 0 0 0 2px rgba($primary, 0.1); }
     }
 }
 
 .varTable {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-
-    th {
-        text-align: left;
-        padding: 12px;
-        border-bottom: 2px solid $border;
-        color: $text-muted;
-        font-weight: 600;
-    }
-
-    td {
-        padding: 12px;
-        border-bottom: 1px solid $border;
-        color: $text-dark;
-
-        code {
-            background: $primary-light;
-            color: $primary;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-weight: 600;
-        }
+    width: 100%; border-collapse: collapse; font-size: 0.9rem;
+    th { text-align: left; padding: 12px; border-bottom: 2px solid $border; color: $text-muted; }
+    td { 
+        padding: 12px; border-bottom: 1px solid $border; 
+        code { background: $primary-light; color: $primary; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: monospace; }
     }
 }
 
-.footer {
-    width: 100%;
-    max-width: 560px;
-    text-align: center;
-    padding-bottom: 24px;
-    
-    p {
-        font-size: 0.85rem;
-        color: $text-muted;
-        margin: 0;
+.copyButton {
+    background: none; border: none; cursor: pointer; color: $text-muted;
+    padding: 6px; border-radius: 4px; transition: all 0.2s;
+    &:hover { background: #f1f5f9; color: $text-dark; }
+    .successIcon { color: #22c55e; }
+}
+
+.exampleGrid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+    @media (max-width: 850px) { grid-template-columns: 1fr; }
+}
+
+.exampleItem {
+    h3 { font-size: 1rem; margin-bottom: 12px; color: $text-dark; font-weight: 600; }
+}
+
+.imageWrapper {
+    position: relative; border: 1px solid $border; border-radius: 12px;
+    background: #fff; overflow: hidden; cursor: zoom-in; transition: transform 0.2s;
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        .zoomIcon { opacity: 1; }
+    }
+    .zoomIcon {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.15);
+        display: flex; align-items: center; justify-content: center;
+        color: white; opacity: 0; transition: 0.2s; z-index: 5;
     }
 }
+
+// Čia nustatomas fiksuotas aukštis abiems nuotraukoms
+.imageHeightFix {
+    position: relative;
+    width: 100%;
+    height: 400px; // Abi nuotraukos bus būtent tokio aukščio
+    @media (max-width: 480px) { height: 280px; }
+}
+
+.imgContain {
+    object-fit: contain; // Neapkerpa nuotraukos, rodo visą turinį
+    padding: 12px;
+}
+
+// MODALAS
+.modalOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    z-index: 2000; display: flex; align-items: center; justify-content: center;
+    padding: 40px; cursor: zoom-out;
+}
+
+.modalContent {
+    position: relative; max-width: 90vw; max-height: 90vh;
+    img { width: auto; height: auto; max-width: 100%; max-height: 90vh; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+}
+
+.closeButton {
+    position: fixed; top: 20px; right: 20px;
+    background: none; border: none; color: white; cursor: pointer;
+    &:hover { transform: scale(1.1); }
+}
+
+.footer { margin-top: auto; padding: 40px 0; text-align: center; color: $text-muted; font-size: 0.85rem; }
