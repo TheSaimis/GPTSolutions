@@ -35,11 +35,6 @@ class CompanyRequisite
     private ?string $code = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Assert\NotBlank(message: 'El. paštas yra privalomas.')]
-    #[Assert\Email(message: 'Neteisingas el. pašto formatas.')]
-    private ?string $email = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
     private ?string $category = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -82,10 +77,6 @@ class CompanyRequisite
 
     public function getCode(): ?string { return $this->code; }
     public function setCode(string $v): static { $this->code = $v; return $this; }
-
-    public function getEmail(): ?string { return $this->email; }
-    public function setEmail(?string $v): static { $this->email = $v; return $this; }
-
     public function getCategory(): ?string { return $this->category; }
     public function setCategory(?string $v): static { $this->category = $v; return $this; }
 

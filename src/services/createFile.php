@@ -58,7 +58,7 @@ final class CreateFile
         $vardas       = (string)($data['vardas'] ?? $data['managerFirstName'] ?? '');
         $pavarde      = (string)($data['pavarde'] ?? $data['managerLastName'] ?? '');
         $tipas        = (string)($data['tipas'] ?? $data['companyType'] ?? '');
-        $tipasPilnas  = (string)($data['tipasPilnas'] ?? $data['category'] ?? '');
+        $tipasPilnas  = (string)($data['tipasPilnas'] ?? $data['companyType'] ?? '');
         $adresas      = (string)($data['adresas'] ?? $data['address'] ?? '');
 
         if ($tipasPilnas === '') {
