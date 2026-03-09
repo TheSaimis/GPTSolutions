@@ -4,10 +4,10 @@ import { api } from "./api";
 export const TemplateApi = {
 
   getAll: () =>
-    api.get<TemplateList[]>("/api/templates/all"),
+    api.get<TemplateList[]>("/api/templates/all", { loadingMessage: "Kraunami šablonai..." }),
 
   getTemplatePDF: (path: string) =>
-    api.getBlob(`/api/templates/pdf/${path}`),
+    api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
   getTemplatesZip: () =>
     api.getBlob("/api/templates/zip"),
@@ -20,7 +20,7 @@ export const TemplateApi = {
   },
 
   createDocument: (companyId: number, templates: string[]) =>
-    api.postBlob("/api/template/fillFileBulk", { companyId, templates }),
+    api.postBlob("/api/template/fillFileBulk", { companyId, templates, loadingMessage: "Kuriami dokumentai..." }),
 
   renameTemplate : (directory: string, name: string) =>
     api.post<{ status: string }>("/api/template/rename", { directory, name }),

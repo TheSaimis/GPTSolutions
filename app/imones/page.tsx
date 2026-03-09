@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Building2, ArrowLeft, Save } from "lucide-react";
 import { CompanyApi } from "@/lib/api/companies";
+import { MessageStore } from "@/lib/globalVariables/messages";
 import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
@@ -23,8 +24,11 @@ export default function ImonesPage() {
         document.title = "Pridėti įmonę";
     }, []);
 
-    function handleSubmit() {
-        CompanyApi.companyCreate({ company_type, company_name, address, code, manager_first_name, manager_last_name, manager_gender, role });
+    async function handleSubmit() {
+        const res = await CompanyApi.companyCreate({ company_type, company_name, address, code, manager_first_name, manager_last_name, manager_gender, role });
+        if (res.status === "SUCCESS") {
+            MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
+        }
     }
 
     return (
