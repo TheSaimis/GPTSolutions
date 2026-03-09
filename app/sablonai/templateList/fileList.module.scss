@@ -1,0 +1,113 @@
+$primary: #EF2629;
+$primary-hover: #d91f22;
+$primary-light: rgba(239, 38, 41, 0.06);
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+.templateList {
+
+    .files {
+        transition: 0.3s;
+        margin-block: 2px;
+        border-radius: 5px;
+    }
+    .files.selected {
+        background-color: #FDE8E8;
+    }
+
+
+    .itemContainer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-radius: 10px;
+        transition: background-color 0.15s ease;
+
+
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+
+            p {
+                margin: 0;
+                font-size: 0.938rem;
+                font-weight: 500;
+                color: $text-dark;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .collapsed.arrow {
+                transform: rotate(-90deg);
+            }
+
+            .arrow {
+                width: 18px;
+                height: 18px;
+                color: $text-muted;
+                transition: transform 0.25s ease;
+                flex-shrink: 0;
+            }
+
+            .file {
+                width: 16px;
+                height: 16px;
+                color: $primary;
+                flex-shrink: 0;
+            }
+        }
+
+        .inputContainer {
+            gap: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .button {
+            font-size: 0.813rem;
+            font-weight: 600;
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: none;
+            background: $primary;
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            margin-left: 12px;
+
+            &:hover {
+                background: $primary-hover;
+            }
+
+            &:active {
+                transform: scale(0.97);
+            }
+        }
+    }
+
+    .collapsed.child {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .child {
+        max-height: 1000px;
+        transition: max-height 0.3s ease, opacity 0.25s ease;
+        opacity: 1;
+        border-left: 2px solid $border;
+        display: flex;
+        flex-direction: column;
+        margin-left: 24px;
+        padding-left: 4px;
+    }
+}

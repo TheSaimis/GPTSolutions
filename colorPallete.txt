@@ -1,0 +1,7 @@
+Colors
+
+Purpose Color Hex
+Primary Red #EF2629
+Background Light #F1F5F9
+Text primary Dark #0F172A
+Success Green #22C55E

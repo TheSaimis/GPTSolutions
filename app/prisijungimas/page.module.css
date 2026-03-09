@@ -1,0 +1,29 @@
+.login {
+  display: flex;
+  height: 50vh;
+}
+.login h1 {
+  font-weight: bold;
+}
+.login .loginForm {
+  border-radius: 5px;
+  padding: 15px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.1);
+  background-color: white;
+}
+.login .loginForm .inputFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.login button {
+  width: 100%;
+  cursor: pointer;
+}/*# sourceMappingURL=page.module.css.map */
