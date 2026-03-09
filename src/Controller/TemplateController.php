@@ -78,7 +78,7 @@ final class TemplateController extends AbstractController
     public function delete(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $path = is_array($data) ? trim((string) ($data['path'] ?? '')) : '';
+        $path = is_array($data) ? trim((string) ($data['directory'] ?? '')) : '';
 
         if ($path === '') {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
@@ -101,8 +101,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
         }
 
-        $path = trim((string) ($data['path'] ?? ''));
-        $newName = trim((string) ($data['newName'] ?? ''));
+        $path = trim((string) ($data['directory'] ?? ''));
+        $newName = trim((string) ($data['name'] ?? ''));
 
         if ($path === '' || $newName === '') {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
