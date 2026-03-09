@@ -3,10 +3,12 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use App\Services\CreateFile;
+use App\Services\ManagerGenderResolver;
+use App\Services\Namer;
 
 $projectDir = dirname(__DIR__);
-
-$service = new CreateFile($projectDir);
+$namer = new Namer(new ManagerGenderResolver());
+$service = new CreateFile($projectDir, $namer);
 
 $data = [
     'directory'    => '4 Tvarkos',
@@ -15,6 +17,9 @@ $data = [
     'code'         => 'TEST123',
     'documentDate' => '2026-02-21',
     'role'         => 'Administrator',
+    'managerType'  => 'vadovas',
+    'vardas'       => 'Tomas',
+    'pavarde'      => 'Jonaitis',
 ];
 
 try {

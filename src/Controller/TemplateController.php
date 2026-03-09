@@ -161,9 +161,10 @@ final class TemplateController extends AbstractController
             'tipas'       => (string) ($company->getCompanyType() ?? ''),
             'tipasPilnas' => (string) ($company->getCategory() ?? ''),
             'adresas'     => (string) ($company->getAddress() ?? ''),
-            'managerType' => (string) ($company->getManagerType() ?? ''),
-            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
-            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+            'managerType'   => (string) ($company->getManagerType() ?? ''),
+            'managerGender' => (string) ($company->getManagerGender() ?? ''),
+            'vardas'        => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'      => (string) ($company->getManagerLastName() ?? ''),
         ];
 
         if (isset($data['replacements']) && is_array($data['replacements'])) {

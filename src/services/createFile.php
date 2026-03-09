@@ -23,7 +23,9 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - managerType – vadovo tipas (lyčiai: vadovas/vadovė, direktorius/direktorė)
  *
  * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
- * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis}
+ * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
+ * ${vadovo} (vadovo kilm.), ${vardo} (vardas kilm.), ${pavardes} (pavardė kilm.),
+ * ${varde} (vardas šauksm.), ${pavardeS} (pavardė šauksm.)
  *
  * Savavališki pakeitimai (replacements): objektas arba masyvas porų.
  * Randa šablone ${placeholder} ir pakeičia į nurodytą vertę.
@@ -34,6 +36,7 @@ final class CreateFile
 {
     public function __construct(
         private readonly string $projectDir,
+        private readonly Namer $namer,
     ) {}
 
     /**
@@ -82,7 +85,17 @@ final class CreateFile
             $data['managerFirstName'] ?? $data['vardas'] ?? null,
             $data['managerLastName'] ?? $data['pavarde'] ?? null
         );
-        $lytis = $this->resolveGender((string)($data['managerType'] ?? ''));
+        $managerType = (string)($data['managerType'] ?? '');
+        $lytis = trim((string)($data['managerGender'] ?? $data['lytis'] ?? ''));
+        if ($lytis === '') {
+            $lytis = $this->resolveGender($managerType);
+        }
+
+        $vadovo = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
+        $vardo = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+        $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+        $varde = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
+        $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
 
         $this->setValueCaseInsensitive($processor, 'kompanija', $companyName);
         $this->setValueCaseInsensitive($processor, 'kodas', $code);
@@ -95,6 +108,13 @@ final class CreateFile
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
         $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
+        $this->setValueCaseInsensitive($processor, 'vadovo', $vadovo);
+        $this->setValueCaseInsensitive($processor, 'vardo', $vardo);
+        $this->setValueCaseInsensitive($processor, 'pavardes', $pavardes);
+        $this->setValueCaseInsensitive($processor, 'varde', $varde);
+        $this->setValueCaseInsensitive($processor, 'pavardeS', $pavardeS);
+        $this->setValueCaseInsensitive($processor, 'pavardo', $pavardes);
+        $this->setValueCaseInsensitive($processor, 'vardes', $vardo);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
         $this->setValueCaseInsensitive($processor, 'documentDate', $documentDate);
