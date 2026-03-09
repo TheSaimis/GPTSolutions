@@ -70,13 +70,15 @@ final class CreateFile
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
 
-        $outputDir = $this->getGeneratedDir() . '/' . $code;
+        $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
+        $tipasSlug = $this->sanitizeForFilename($tipas) ?: 'Kita';
+        $outputDir = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $baseName . '_' . $code . '_' . date('Ymd_His') . '.docx';
+        $outputName = $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
 
         $processor = new TemplateProcessor($templatePath);
@@ -189,6 +191,17 @@ final class CreateFile
             'VŠĮ', 'VSĮ', 'VSI' => 'Viešoji įstaiga',
             default => $tipas,
         };
+    }
+
+    /**
+     * Pavers įmonės pavadinimą į saugų failų sistemos identifikatorių.
+     */
+    private function sanitizeForFilename(string $name): string
+    {
+        $s = trim($name);
+        $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
+        $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
+        return $s !== '' ? $s : '';
     }
 
     private function formatManagerFullName(?string $firstName, ?string $lastName): string
