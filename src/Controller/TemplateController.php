@@ -283,8 +283,9 @@ final class TemplateController extends AbstractController
             return $response;
         }
 
+        $companySlug = $this->sanitizeForFilename((string) $company->getCompanyName()) ?: $code;
         try {
-            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $code);
+            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $companySlug);
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'status'  => 'FAIL',
@@ -297,7 +298,7 @@ final class TemplateController extends AbstractController
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'generated_' . $code . '.zip'
+            'generated_' . $companySlug . '.zip'
         );
         $response->deleteFileAfterSend(true);
 
@@ -381,6 +382,14 @@ final class TemplateController extends AbstractController
     }
 
     // ─────────────────── Helpers ───────────────────
+
+    private function sanitizeForFilename(string $name): string
+    {
+        $s = trim($name);
+        $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
+        $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
+        return $s !== '' ? $s : '';
+    }
 
     private function getTemplatesDir(): string
     {

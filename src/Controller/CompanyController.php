@@ -44,7 +44,15 @@ final class CompanyController extends AbstractController
         $company->setManagerLastName($data['manager_last_name'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
-        $company->setDirectory($data['directory'] ?? null);
+        $company->setDirectory(
+            trim((string) ($data['directory'] ?? '')) !== ''
+                ? trim((string) $data['directory'])
+                : $this->buildCompanyDirectory(
+                    $company->getCompanyType() ?? $data['company_type'] ?? '',
+                    $company->getCompanyName() ?? '',
+                    $company->getCode() ?? ''
+                )
+        );
         $company->setCreatedAt(new \DateTimeImmutable());
 
         $errors = $this->validator->validate($company);
@@ -139,7 +147,15 @@ final class CompanyController extends AbstractController
         if (array_key_exists('managerLastName', $data))  $company->setManagerLastName($data['managerLastName']);
         if (array_key_exists('documentDate', $data))     $company->setDocumentDate($data['documentDate']);
         if (array_key_exists('role', $data))             $company->setRole($data['role']);
-        if (array_key_exists('directory', $data))        $company->setDirectory($data['directory']);
+        if (array_key_exists('directory', $data)) {
+            $company->setDirectory(trim((string) $data['directory']) !== '' ? $data['directory'] : null);
+        } elseif (isset($data['companyName']) || array_key_exists('companyType', $data)) {
+            $company->setDirectory($this->buildCompanyDirectory(
+                $company->getCompanyType() ?? '',
+                $company->getCompanyName() ?? '',
+                $company->getCode() ?? ''
+            ));
+        }
         $errors = $this->validator->validate($company);
         if (\count($errors) > 0) {
             $messages = [];
@@ -169,6 +185,22 @@ final class CompanyController extends AbstractController
         $this->em->flush();
 
         return new JsonResponse(['status' => 'SUCCESS']);
+    }
+
+    private function sanitizeForFilename(string $name): string
+    {
+        $s = trim($name);
+        $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
+        $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
+        return $s !== '' ? $s : '';
+    }
+
+    /** Grąžina kelią: {tipas}/{pavadinimas} (pvz. UAB/UAB_Test_Company) */
+    private function buildCompanyDirectory(string $tipas, string $companyName, string $code): string
+    {
+        $tipasSlug = $this->sanitizeForFilename($tipas) ?: 'Kita';
+        $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
+        return $tipasSlug . '/' . $companySlug;
     }
 
     private function toArray(CompanyRequisite $c): array
