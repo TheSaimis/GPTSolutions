@@ -4,20 +4,17 @@ import { TemplateApi } from "@/lib/api/templates";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
-import FileList from "./templateList/fileList";
-import DirectoryMenu from "./menus/directoryMenu/directoryMenu";
-import styles from "./page.module.scss";
+import FileList from "../templateList/fileList";
+import DirectoryMenu from "../menus/directoryMenu/directoryMenu";
+import styles from "../page.module.scss";
 import { Download } from "lucide-react";
 
-export default function TemplatePage() {
-
-
+export default function GeneratedFilePage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
 
     useEffect(() => {
-        document.title = "Šablonai";
-        getTemplateList();
-        // getGeneratedFiles();
+        document.title = "Sukurti failai";
+        getGeneratedFiles();
     }, []);
 
     async function getTemplateList() {

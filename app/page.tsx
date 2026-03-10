@@ -17,7 +17,7 @@ export default function Home() {
     []);
 
   async function getGeneratedFiles() {
-    const { blob, filename } = await GeneratedFilesApi.getAll();
+    const { blob, filename } = await GeneratedFilesApi.getAllZip();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -1,5 +1,6 @@
 import { api } from "./api";
 
 export const GeneratedFilesApi = {
-    getAll: () => api.getBlob("/api/generated/all/zip",),
+    getAllZip: () => api.getBlob("/api/generated/all/zip",),
+    getAll: () => api.get("/api/generated",),
 }
