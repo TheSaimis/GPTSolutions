@@ -13,12 +13,29 @@ final class GeneratedFileController extends AbstractController
 {
     public function __construct(
         private ZipFiles $zipFiles,
-    ) {}
+    ) {
+    }
 
     /**
      * GET /api/generated/{directory}/zip
      * Suarchyvuoja nurodytą katalogą iš var/generated/ ir grąžina .zip failą.
      */
+
+    #[Route('/api/templates/all', name: 'api_templates_all', methods: ['GET'])]
+    public function all(): JsonResponse
+    {
+        $dir = $this->getGeneratedDir();
+        if (!is_dir($dir)) {
+            return new JsonResponse(['error' => 'Templates directory not found'], 500);
+        }
+
+        return new JsonResponse(
+            $this->scanDirectory($dir)
+        );
+    }
+
+
+
     #[Route('/api/generated/zip/{directory}', name: 'api_generated_zip', methods: ['GET'])]
     public function filterFilesByApp(string $directory): JsonResponse|BinaryFileResponse
     {
@@ -75,7 +92,7 @@ final class GeneratedFileController extends AbstractController
             );
             foreach ($files as $file) {
                 if ($file->isFile()) {
-                    $filePath     = $file->getRealPath();
+                    $filePath = $file->getRealPath();
                     $relativePath = $dir . '/' . substr($filePath, strlen($dirPath) + 1);
                     $zip->addFile($filePath, $relativePath);
                 }
@@ -147,15 +164,18 @@ final class GeneratedFileController extends AbstractController
         );
 
         foreach ($files as $file) {
-            if (!$file->isFile()) continue;
+            if (!$file->isFile())
+                continue;
 
             $name = $file->getFilename();
-            if (str_starts_with($name, '~') || $name === 'desktop.ini') continue;
+            if (str_starts_with($name, '~') || $name === 'desktop.ini')
+                continue;
 
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (!in_array($ext, ['doc', 'docx'], true)) continue;
+            if (!in_array($ext, ['doc', 'docx'], true))
+                continue;
 
-            $filePath     = $file->getRealPath();
+            $filePath = $file->getRealPath();
             $relativePath = substr($filePath, strlen($templatesDir) + 1);
             $zip->addFile($filePath, $relativePath);
         }
@@ -175,5 +195,28 @@ final class GeneratedFileController extends AbstractController
         );
 
         return $response;
+    }
+    private function resolveGeneratedPath(string $file, array $data): ?string
+    {
+        $base = $this->getGeneratedDir();
+        $dir = $data['directory'] ?? null;
+        $sub = $data['subcategory'] ?? null;
+
+        $candidates = [];
+        if ($dir && $sub) {
+            $candidates[] = "$base/$dir/$sub/$file";
+        }
+        if ($dir) {
+            $candidates[] = "$base/$dir/$file";
+        }
+        $candidates[] = "$base/$file";
+
+        foreach ($candidates as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 }
