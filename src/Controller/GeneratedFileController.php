@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Services\FileService;
 use App\Services\ZipFiles;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -11,34 +12,38 @@ use Symfony\Component\Routing\Annotation\Route;
 
 final class GeneratedFileController extends AbstractController
 {
+    private const GENERATED_BASE = 'var/generated';
+    private const TEMPLATES_BASE = 'templates';
+
     public function __construct(
         private ZipFiles $zipFiles,
+        private FileService $fileService,
     ) {
     }
 
     /**
+     * GET /api/generated
+     * Grąžina sukurtų failų katalogų struktūrą (tipas/pavadinimas).
+     */
+    #[Route('/api/generated', name: 'api_generated_list', methods: ['GET'])]
+    public function listDirectories(): JsonResponse
+    {
+        return new JsonResponse(
+            $this->fileService->listDirectory('var/generated')
+        );
+    }
+    /**
      * GET /api/generated/{directory}/zip
      * Suarchyvuoja nurodytą katalogą iš var/generated/ ir grąžina .zip failą.
      */
-
-    #[Route('/api/templates/all', name: 'api_templates_all', methods: ['GET'])]
-    public function all(): JsonResponse
-    {
-        $dir = $this->getGeneratedDir();
-        if (!is_dir($dir)) {
-            return new JsonResponse(['error' => 'Templates directory not found'], 500);
-        }
-
-        return new JsonResponse(
-            $this->scanDirectory($dir)
-        );
-    }
-
-
-
-    #[Route('/api/generated/zip/{directory}', name: 'api_generated_zip', methods: ['GET'])]
+    #[Route('/api/generated/zip/{directory}', name: 'api_generated_zip', methods: ['GET'], requirements: ['directory' => '.+'])]
     public function filterFilesByApp(string $directory): JsonResponse|BinaryFileResponse
     {
+        $resolved = $this->fileService->resolvePath(self::GENERATED_BASE, $directory);
+        if ($resolved === null || !is_dir($resolved)) {
+            return new JsonResponse(['error' => 'Katalogas nerastas: ' . $directory], 404);
+        }
+
         try {
             $zipPath = $this->zipFiles->zipDirectory($directory);
         } catch (\InvalidArgumentException $e) {
@@ -64,9 +69,9 @@ final class GeneratedFileController extends AbstractController
     #[Route('/api/generated/all/zip', name: 'api_generated_all_zip', methods: ['GET'])]
     public function allFilesByApp(): JsonResponse|BinaryFileResponse
     {
-        $generatedDir = $this->getParameter('kernel.project_dir') . '/var/generated';
+        $generatedDir = $this->fileService->getBaseFullPath(self::GENERATED_BASE);
 
-        if (!is_dir($generatedDir)) {
+        if ($generatedDir === null) {
             return new JsonResponse(['error' => 'Sugeneruotų failų katalogas nerastas'], 404);
         }
 
@@ -119,6 +124,11 @@ final class GeneratedFileController extends AbstractController
     #[Route('/api/templates/zip/{path}', name: 'api_templates_directory_zip', methods: ['GET'], requirements: ['path' => '.+'])]
     public function templatesDirectoryZip(string $path): JsonResponse|BinaryFileResponse
     {
+        $resolved = $this->fileService->resolvePath(self::TEMPLATES_BASE, $path);
+        if ($resolved === null || !is_dir($resolved)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Katalogas nerastas: ' . $path], 404);
+        }
+
         try {
             $zipPath = $this->zipFiles->zipTemplatesDirectory($path);
         } catch (\InvalidArgumentException $e) {
@@ -146,9 +156,9 @@ final class GeneratedFileController extends AbstractController
     #[Route('/api/templates/zip', name: 'api_templates_zip', methods: ['GET'])]
     public function allTemplatesZip(): JsonResponse|BinaryFileResponse
     {
-        $templatesDir = $this->getParameter('kernel.project_dir') . '/templates';
+        $templatesDir = $this->fileService->getBaseFullPath(self::TEMPLATES_BASE);
 
-        if (!is_dir($templatesDir)) {
+        if ($templatesDir === null) {
             return new JsonResponse(['error' => 'Šablonų katalogas nerastas'], 404);
         }
 
@@ -195,28 +205,5 @@ final class GeneratedFileController extends AbstractController
         );
 
         return $response;
-    }
-    private function resolveGeneratedPath(string $file, array $data): ?string
-    {
-        $base = $this->getGeneratedDir();
-        $dir = $data['directory'] ?? null;
-        $sub = $data['subcategory'] ?? null;
-
-        $candidates = [];
-        if ($dir && $sub) {
-            $candidates[] = "$base/$dir/$sub/$file";
-        }
-        if ($dir) {
-            $candidates[] = "$base/$dir/$file";
-        }
-        $candidates[] = "$base/$file";
-
-        foreach ($candidates as $path) {
-            if (file_exists($path)) {
-                return $path;
-            }
-        }
-
-        return null;
     }
 }

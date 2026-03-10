@@ -45,7 +45,7 @@ services:
         arguments:
             $libreOfficeBin: '%env(LIBREOFFICE_BIN)%'
 
-    App\Services\TemplateFileService:
+    App\Services\FileService:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
