@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services;
 
@@ -13,7 +13,7 @@ namespace App\Services;
 final class FileService
 {
     private const SUCCESS = 'SUCCESS';
-    private const FAIL = 'FAIL';
+    private const FAIL    = 'FAIL';
 
     public function __construct(
         private readonly string $projectDir,
@@ -36,7 +36,7 @@ final class FileService
 
         $fullPath = $baseFull . '/' . $path;
         $resolved = realpath($fullPath);
-        if ($resolved === false || !str_starts_with($resolved, $baseFull)) {
+        if ($resolved === false || ! str_starts_with($resolved, $baseFull)) {
             return null;
         }
 
@@ -54,10 +54,10 @@ final class FileService
         }
 
         try {
-            if (!is_file($fullPath)) {
+            if (! is_file($fullPath)) {
                 return self::FAIL;
             }
-            if ($allowedExtensions !== [] && !$this->isAllowedExtension($fullPath, $allowedExtensions)) {
+            if ($allowedExtensions !== [] && ! $this->isAllowedExtension($fullPath, $allowedExtensions)) {
                 return self::FAIL;
             }
             return unlink($fullPath) ? self::SUCCESS : self::FAIL;
@@ -77,7 +77,7 @@ final class FileService
         }
 
         $newName = trim(str_replace(['\\', '/'], '', $newName));
-        if ($newName === '' || ($allowedExtensions !== [] && !$this->isAllowedExtension($newName, $allowedExtensions))) {
+        if ($newName === '' || ($allowedExtensions !== [] && ! $this->isAllowedExtension($newName, $allowedExtensions))) {
             return self::FAIL;
         }
 
@@ -86,12 +86,12 @@ final class FileService
             return self::FAIL;
         }
 
-        $directory = dirname($path);
-        $newRelPath = ($directory !== '.' ? $directory . '/' : '') . $newName;
+        $directory   = dirname($path);
+        $newRelPath  = ($directory !== '.' ? $directory . '/' : '') . $newName;
         $newFullPath = $baseFull . '/' . $newRelPath;
 
         try {
-            if (!is_file($fullPath) || file_exists($newFullPath)) {
+            if (! is_file($fullPath) || file_exists($newFullPath)) {
                 return self::FAIL;
             }
             return rename($fullPath, $newFullPath) ? self::SUCCESS : self::FAIL;
@@ -113,20 +113,20 @@ final class FileService
         }
 
         $targetPath = $path !== '' ? $baseFull . '/' . trim(str_replace('\\', '/', $path), '/') : $baseFull;
-        $resolved = realpath($targetPath);
-        if ($resolved === false || !is_dir($resolved) || !str_starts_with($resolved, $baseFull)) {
+        $resolved   = realpath($targetPath);
+        if ($resolved === false || ! is_dir($resolved) || ! str_starts_with($resolved, $baseFull)) {
             return [];
         }
 
         $result = [];
-        $items = scandir($resolved) ?: [];
+        $items  = scandir($resolved) ?: [];
 
         foreach ($items as $item) {
             if ($item === '.' || $item === '..' || str_starts_with($item, '~') || $item === 'desktop.ini') {
                 continue;
             }
             $itemPath = $resolved . '/' . $item;
-            $relPath = $path !== '' ? $path . '/' . $item : $item;
+            $relPath  = $path !== '' ? $path . '/' . $item : $item;
             if (is_dir($itemPath)) {
                 $result[] = [
                     'name'     => $item,
@@ -136,9 +136,11 @@ final class FileService
                 ];
             } else {
                 $result[] = [
-                    'name' => $item,
-                    'type' => 'file',
-                    'path' => $relPath,
+                    'name'       => $item,
+                    'type'       => 'file',
+                    'path'       => $relPath,
+                    'createdAt'  => date('Y-m-d H:i:s', filectime($itemPath)),
+                    'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),
                 ];
             }
         }
@@ -151,7 +153,7 @@ final class FileService
      */
     public function getBaseFullPath(string $baseDir): ?string
     {
-        $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+        $baseDir  = trim(str_replace('\\', '/', $baseDir), '/');
         $fullPath = $this->projectDir . '/' . $baseDir;
         $resolved = realpath($fullPath);
         return ($resolved !== false && is_dir($resolved)) ? $resolved : null;

@@ -10,6 +10,7 @@ php bin/console app:create-user - paleis src/Command/CreateUserCommand.php faila
 
 php bin/console make:entity - Sukuria naują arba atnaujina entity. Naudok kai yra pakeitimai duomenų bazėje (Class name = lentelės pavadinimas iš DB, Symfony UX Turbo? = no, property name = stulpelio pavadinimas, field type = tipas DB)
     Jei labai didelė duomenų bazė bus (ch, kad nebus), geriau įkelk SQL failą į ChatGPT ir paprašyk kad sukurtų copy-paste entity failus.
+php bin/console doctrine:schema:update --force - Atnaujina duomenu baze palei sukurtus src/Entity/... failus per prievarta
 
 symfony server:start - Įjungti serverį
 symfony server:stop - Išjungti serverį (jei išjungsi terminalą neįvedęs šitos komandos, serveris vistiek veiks – tikriausiai)

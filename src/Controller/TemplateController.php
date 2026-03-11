@@ -4,7 +4,7 @@ namespace App\Controller;
 use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 use App\Services\GetPDF;
-use App\Services\TemplateFileService;
+use App\Services\FileService;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\CompanyRequisite;
@@ -24,7 +24,7 @@ final class TemplateController extends AbstractController
         private readonly ZipFiles $zipFiles,
         private GetPDF $getPDF,
         private AddWordDocument $addWordDocument,
-        private TemplateFileService $templateFileService,
+        private FileService $fileService
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -37,7 +37,7 @@ final class TemplateController extends AbstractController
         }
 
         return new JsonResponse(
-            $this->scanDirectory($dir)
+            $this->fileService->listDirectory('templates')
         );
     }
 
@@ -68,49 +68,6 @@ final class TemplateController extends AbstractController
     //         'templates' => $this->scanDirectory($dir),
     //     ]);
     // }
-
-    /**
-     * POST /api/template/delete
-     * Ištrina šabloną templates/{path}.
-     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx" }
-     */
-    #[Route('/api/template/delete', name: 'api_template_delete', methods: ['POST'])]
-    public function delete(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        $path = is_array($data) ? trim((string) ($data['directory'] ?? '')) : '';
-
-        if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
-        }
-
-        $status = $this->templateFileService->delete($path);
-        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
-    }
-
-    /**
-     * POST /api/template/rename
-     * Pervadina šabloną.
-     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx", "newName": "Naujas pavadinimas.docx" }
-     */
-    #[Route('/api/template/rename', name: 'api_template_rename', methods: ['POST'])]
-    public function rename(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        if (!is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
-        }
-
-        $path = trim((string) ($data['directory'] ?? ''));
-        $newName = trim((string) ($data['name'] ?? ''));
-
-        if ($path === '' || $newName === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
-        }
-
-        $status = $this->templateFileService->rename($path, $newName);
-        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
-    }
 
     /**
      * POST /api/template/createFolder
@@ -204,11 +161,11 @@ final class TemplateController extends AbstractController
             'data'        => (string) $documentDate,
             'role'        => (string) ($company->getRole() ?? ''),
             'tipas'       => (string) ($company->getCompanyType() ?? ''),
+            'tipasPilnas' => (string) ($company->getCategory() ?? ''),
             'adresas'     => (string) ($company->getAddress() ?? ''),
-            'managerType'   => (string) ($company->getManagerType() ?? ''),
-            'managerGender' => (string) ($company->getManagerGender() ?? ''),
-            'vardas'        => (string) ($company->getManagerFirstName() ?? ''),
-            'pavarde'      => (string) ($company->getManagerLastName() ?? ''),
+            'managerType' => (string) ($company->getManagerType() ?? ''),
+            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
         ];
 
         if (isset($data['replacements']) && is_array($data['replacements'])) {
@@ -283,9 +240,8 @@ final class TemplateController extends AbstractController
             return $response;
         }
 
-        $companySlug = $this->sanitizeForFilename((string) $company->getCompanyName()) ?: $code;
         try {
-            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $companySlug);
+            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $code);
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'status'  => 'FAIL',
@@ -298,7 +254,7 @@ final class TemplateController extends AbstractController
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'generated_' . $companySlug . '.zip'
+            'generated_' . $code . '.zip'
         );
         $response->deleteFileAfterSend(true);
 
@@ -326,6 +282,25 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Upload failed (invalid file type or save error)'], 400);
         }
 
+        return new JsonResponse(['status' => 'SUCCESS']);
+    }
+
+    #[Route ('api/template/rename', name: 'api_template_rename', methods: ['POST'])]
+    public function rename(Request $request): JsonResponse
+    {
+        $path = $request->request->get('directory');
+        $name = $request->request->get('name');
+        $this->renameFile->renameFile(`/templates/${path}`, $name);
+        return new JsonResponse(['status' => 'SUCCESS']);
+    }
+
+    #[Route ('/api/template/delete', name: 'api_template_delete', methods: ['POST'])]
+    public function delete(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $path = $request->request->get('path');
+        $this->deleteFile->deleteFile(`/templates/${path}`);
         return new JsonResponse(['status' => 'SUCCESS']);
     }
 
@@ -382,14 +357,6 @@ final class TemplateController extends AbstractController
     }
 
     // ─────────────────── Helpers ───────────────────
-
-    private function sanitizeForFilename(string $name): string
-    {
-        $s = trim($name);
-        $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
-        $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
-        return $s !== '' ? $s : '';
-    }
 
     private function getTemplatesDir(): string
     {
@@ -467,4 +434,6 @@ final class TemplateController extends AbstractController
 
         return $result;
     }
+
+    
 }
