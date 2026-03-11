@@ -1,13 +1,13 @@
 <?php
 namespace App\Controller;
 
+use App\Entity\CompanyRequisite;
 use App\Services\AddWordDocument;
 use App\Services\CreateFile;
-use App\Services\GetPDF;
 use App\Services\FileService;
+use App\Services\GetPDF;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Entity\CompanyRequisite;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -101,6 +101,7 @@ final class TemplateController extends AbstractController
     public function fillFile(Request $request): JsonResponse
     {
         $directory = $request->request->get('directory');
+
         if ($directory === null || trim((string) $directory) === '') {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
@@ -133,6 +134,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Invalid JSON body'], 400);
         }
 
+        $user = $this->getUser();
+
         $companyId = $data['companyId'] ?? null;
         $templates = $data['templates'] ?? null;
 
@@ -151,10 +154,9 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Company not found'], 404);
         }
 
-        $documentDate = $company->getDocumentDate()
-            ?? (new \DateTimeImmutable())->format('Y-m-d');
+        $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
 
-        $code = (string) $company->getCode();
+        $code        = (string) $company->getCode();
         $companyData = [
             'kompanija'   => (string) $company->getCompanyName(),
             'kodas'       => $code,
@@ -166,6 +168,11 @@ final class TemplateController extends AbstractController
             'managerType' => (string) ($company->getManagerType() ?? ''),
             'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
             'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+            
+            'userId'      => (string) ($user->getId() ?? ''),
+            'userName'    => (string) ($user->getFirstName() ?? ''),
+            'userSurname' => (string) ($user->getLastName() ?? ''),
+            'companyId'   => (string) $company->getId(),
         ];
 
         if (isset($data['replacements']) && is_array($data['replacements'])) {
@@ -292,8 +299,8 @@ final class TemplateController extends AbstractController
     #[Route('/api/template/rename', name: 'api_template_rename', methods: ['POST'])]
     public function rename(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $path = trim((string) (is_array($data) ? ($data['path'] ?? $request->request->get('path')) : ''));
+        $data    = json_decode($request->getContent(), true);
+        $path    = trim((string) (is_array($data) ? ($data['path'] ?? $request->request->get('path')) : ''));
         $newName = trim((string) (is_array($data) ? ($data['newName'] ?? $request->request->get('newName') ?? $request->request->get('name')) : ''));
 
         if ($path === '' || $newName === '') {

@@ -77,7 +77,7 @@ final class CompanyController extends AbstractController
     #[Route('/all', name: 'api_company_all', methods: ['GET'])]
     public function getAll(CompanyRequisiteRepository $repo): JsonResponse
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        // $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $companies = $repo->findAll();
         $result = [];

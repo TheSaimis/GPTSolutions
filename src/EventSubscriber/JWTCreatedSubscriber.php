@@ -1,5 +1,4 @@
 <?php
-// src/EventSubscriber/JWTCreatedSubscriber.php
 namespace App\EventSubscriber;
 
 use App\Entity\User;
@@ -31,7 +30,7 @@ final class JWTCreatedSubscriber implements EventSubscriberInterface
         $payload['firstName'] = $user->getFirstName();
         $payload['lastName'] = $user->getLastName();
 
-        unset($payload['username']);
+        // $payload['username'] stays there
 
         $event->setData($payload);
     }

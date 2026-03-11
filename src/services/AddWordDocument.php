@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use App\Services\Metadata\DocxMetadataService;
 
 /**
  * Įkelia Word (.docx) šabloną į templates/{directory}/.

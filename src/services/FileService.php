@@ -135,13 +135,20 @@ final class FileService
                     'children' => $this->listDirectory($baseDir, $relPath),
                 ];
             } else {
-                $result[] = [
+                $entry = [
                     'name'       => $item,
                     'type'       => 'file',
                     'path'       => $relPath,
                     'createdAt'  => date('Y-m-d H:i:s', filectime($itemPath)),
                     'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),
                 ];
+
+                $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
+                if ($ext === 'docx') {
+                    $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                }
+
+                $result[] = $entry;
             }
         }
 
@@ -163,5 +170,108 @@ final class FileService
     {
         $ext = strtolower(pathinfo($pathOrName, PATHINFO_EXTENSION));
         return in_array($ext, $allowedExtensions, true);
+    }
+
+    private function readDocxMetadata(string $docxPath): array
+    {
+        $zip = new \ZipArchive();
+
+        if ($zip->open($docxPath) !== true) {
+            return [];
+        }
+
+        $metadata = [
+            'core'   => [],
+            'custom' => [],
+        ];
+
+        $coreXml = $zip->getFromName('docProps/core.xml');
+        if ($coreXml !== false) {
+            $metadata['core'] = $this->parseCoreMetadata($coreXml);
+        }
+
+        $customXml = $zip->getFromName('docProps/custom.xml');
+        if ($customXml !== false) {
+            $metadata['custom'] = $this->parseCustomMetadata($customXml);
+        }
+
+        $zip->close();
+
+        return $metadata;
+    }
+
+    private function parseCoreMetadata(string $xml): array
+    {
+        $doc = new \DOMDocument();
+
+        if (! @$doc->loadXML($xml)) {
+            return [];
+        }
+
+        $xpath = new \DOMXPath($doc);
+        $xpath->registerNamespace('cp', 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties');
+        $xpath->registerNamespace('dc', 'http://purl.org/dc/elements/1.1/');
+        $xpath->registerNamespace('dcterms', 'http://purl.org/dc/terms/');
+
+        return [
+            'title'          => $this->firstNodeValue($xpath, '/cp:coreProperties/dc:title'),
+            'subject'        => $this->firstNodeValue($xpath, '/cp:coreProperties/dc:subject'),
+            'creator'        => $this->firstNodeValue($xpath, '/cp:coreProperties/dc:creator'),
+            'description'    => $this->firstNodeValue($xpath, '/cp:coreProperties/dc:description'),
+            'lastModifiedBy' => $this->firstNodeValue($xpath, '/cp:coreProperties/cp:lastModifiedBy'),
+            'revision'       => $this->firstNodeValue($xpath, '/cp:coreProperties/cp:revision'),
+            'created'        => $this->firstNodeValue($xpath, '/cp:coreProperties/dcterms:created'),
+            'modified'       => $this->firstNodeValue($xpath, '/cp:coreProperties/dcterms:modified'),
+        ];
+    }
+
+    private function parseCustomMetadata(string $xml): array
+    {
+        $doc = new \DOMDocument();
+
+        if (! @$doc->loadXML($xml)) {
+            return [];
+        }
+
+        $xpath = new \DOMXPath($doc);
+        $xpath->registerNamespace('cp', 'http://schemas.openxmlformats.org/officeDocument/2006/custom-properties');
+
+        $result = [];
+
+        foreach ($xpath->query('/cp:Properties/cp:property') as $property) {
+            if (! $property instanceof \DOMElement) {
+                continue;
+            }
+
+            $name = $property->getAttribute('name');
+            if ($name === '') {
+                continue;
+            }
+
+            $value = null;
+            foreach ($property->childNodes as $child) {
+                if ($child instanceof \DOMElement) {
+                    $value = $child->textContent;
+                    break;
+                }
+            }
+
+            $result[$name] = $value ?? '';
+        }
+
+        return $result;
+    }
+
+    private function firstNodeValue(\DOMXPath $xpath, string $query): ?string
+    {
+        $nodes = $xpath->query($query);
+
+        if ($nodes === false || $nodes->length === 0) {
+            return null;
+        }
+
+        $value = trim($nodes->item(0)?->textContent ?? '');
+
+        return $value !== '' ? $value : null;
     }
 }
