@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Services\FileService;
+use App\Services\GetPDF;
 use App\Services\ZipFiles;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -18,7 +19,44 @@ final class GeneratedFileController extends AbstractController
     public function __construct(
         private ZipFiles $zipFiles,
         private FileService $fileService,
+        private GetPDF $getPDF,
     ) {
+    }
+
+    /**
+     * GET /api/generated/pdf/{path}
+     * Konvertuoja sugeneruotą .docx/.doc failą į PDF ir grąžina peržiūrai.
+     * Path pvz.: "CompanyName/document_20240101.docx"
+     */
+    #[Route('/api/generated/pdf/{path}', name: 'api_generated_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function viewAsPdf(string $path): JsonResponse|BinaryFileResponse
+    {
+        $resolved = $this->fileService->resolvePath(self::GENERATED_BASE, $path);
+        if ($resolved === null || !is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['doc', 'docx'], true)) {
+            return new JsonResponse(['error' => 'Palaikomi tik .doc ir .docx failai'], 400);
+        }
+
+        try {
+            $pdfPath = $this->getPDF->convertToPdf($path, self::GENERATED_BASE);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'PDF generavimas nepavyko: ' . $e->getMessage()], 500);
+        }
+
+        $response = new BinaryFileResponse($pdfPath);
+        $response->headers->set('Content-Type', 'application/pdf');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            pathinfo($path, PATHINFO_FILENAME) . '.pdf'
+        );
+
+        return $response;
     }
 
     /**
