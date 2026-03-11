@@ -2,30 +2,48 @@
 
 import styles from "./fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import InputFieldText from "@/components/inputFields/inputFieldText";
 import Directory from "./types/directory/directory";
 import Files from "./types/file/file";
+import { useCatalogueTree } from "../catalogueTreeContext";
 
-type List = {
-    name: string;
-    type: string;
-    children?: TemplateList[]
-    directory?: string 
-}
+type FileListProps = {
+    catalougeTree: TemplateList[];
+    fileType?: string
+};
 
-export default function FileList({ name, type, children, directory }: List) {
+export default function FileList({ catalougeTree, fileType }: FileListProps) {
 
-    const [childNodes, setChildNodes] = useState<TemplateList[]>(children ?? []);
+    const { search, setSearch } = useCatalogueTree();
+
+    useEffect(() => {
+       console.log(catalougeTree);
+    }, []);
 
     return (
 
         <div className={styles.templateList}>
-            {type === "file" && (
-                <Files name={name} directory={""} />
-            )}
-            {type === "directory" && (
-                <Directory name={name} children={childNodes} directory={directory} />
-            )}
+
+            <div className={styles.card}>
+                <div>
+                    <InputFieldText value={search} onChange={setSearch} placeholder="Paieška" icon={Search} />
+                </div>
+                <div className={styles.catalogueTree}>
+                    {catalougeTree.map((item) => (
+                        item.type === "file" && (
+                            <Files key={item.name} name={item.name} directory={""} fileType={fileType} createdAt={item.createdAt} metadata={item.metadata} modifiedAt={item.modifiedAt} />
+                        )
+                        ||
+                        item.type === "directory" && (
+                            <Directory key={item.name} name={item.name} children={item.children} directory={item.name} fileType={fileType} />
+                        )
+                    ))
+                    }
+                </div>
+            </div>
+            
         </div>
     );
 }

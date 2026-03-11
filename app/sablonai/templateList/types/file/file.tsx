@@ -6,22 +6,26 @@ import { TemplateApi } from "@/lib/api/templates";
 import CheckBox from "@/components/inputFields/checkBox";
 import { File } from "lucide-react";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
-import {
-  DirectoryStore,
-  useDirectoryStore,
-} from "@/lib/globalVariables/directoriesToSend";
+import { DirectoryStore, useDirectoryStore, } from "@/lib/globalVariables/directoriesToSend";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
+import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
+import { Metadata } from "@/lib/types/TemplateList";
 
 type List = {
   name: string;
   directory: string;
+  fileType?: string;
+  metadata?: Metadata;
 };
 
-export default function Files({ name, directory }: List) {
-  const router = useRouter();
+export default function Files({ name, directory, fileType, metadata }: List) {
 
+  const router = useRouter();
+  const role = localStorage.getItem("role");
+
+  const { search, setSearch } = useCatalogueTree();
   const [rename, setRename] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
   const [currentName, setCurrentName] = useState<string>(name);
@@ -69,8 +73,16 @@ export default function Files({ name, directory }: List) {
   }
 
   useEffect(() => {
+    console.log(metadata);
+  },);
+
+  useEffect(() => {
     inputRef.current?.focus();
   }, [rename]);
+
+  if (search && !currentName.toLowerCase().includes(search.toLowerCase())) {
+    return null;
+  }
 
   if (deleted) return null;
 
@@ -90,50 +102,52 @@ export default function Files({ name, directory }: List) {
             onClick: previewPDF,
           },
           {
-            id: "rename",
-            label: "Pervadinti",
-            onClick: () => {
-              setRename(true);
-              inputRef.current?.focus();
-            },
-          },
-          {
             id: "add",
             label: "Pasirinkti",
             onClick: () => DirectoryStore.add(`${directory}/${currentName}`),
           },
-          {
-            id: "delete",
-            label: `Ištrinti šabloną ${currentName}`,
-            onClick: () => deleteTemplate(),
-          },
+
+          ...(role === "ROLE_ADMIN"
+            ? [
+              {
+                id: "rename",
+                label: "Pervadinti",
+                onClick: () => {
+                  setRename(true);
+                  inputRef.current?.focus();
+                },
+              },
+              {
+                id: "delete",
+                label: `Ištrinti šabloną ${currentName}`,
+                onClick: deleteTemplate,
+              },
+            ]
+            : []),
         ])
       }
     >
+
       <div className={styles.itemContainer}>
         <div className={styles.item} onClick={clicked}>
           <File className={styles.file} />
           {rename ? (
             <div onClick={(e) => e.stopPropagation()}>
-              <InputFieldText
-                ref={inputRef}
-                value={newName}
-                onFocus={setRename}
-                onChange={setNewName}
-                onKeyDown={{
-                  Enter: renameTemplate,
-                  Escape: () => setRename(false),
-                }}
-              />
+              <InputFieldText ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameTemplate, Escape: () => setRename(false), }} />
             </div>
           ) : (
-            <p>{currentName}</p>
+            <div className={styles.header}>
+              <p className={styles.name}>{name}</p>
+              { metadata?.custom?.created &&
+                <p className={styles.date}>Sukurta {metadata?.custom?.created}</p>
+              }
+            </div>
           )}
         </div>
 
         <div className={styles.inputContainer}>
           <button onClick={previewPDF} className={`${styles.button} buttons`}>
-            Peržiūrėti šabloną
+            Peržiūrėti failą
           </button>
 
           <CheckBox

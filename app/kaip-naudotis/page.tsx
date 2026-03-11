@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { HelpCircle, ArrowLeft, Info, Copy, CheckCircle2, X, ZoomIn, Search } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -14,6 +14,8 @@ export default function KaipNaudotiPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [selectedImg, setSelectedImg] = useState<any>(null);
+
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         document.title = "Šablonų instrukcija | Sistema";
@@ -39,10 +41,25 @@ export default function KaipNaudotiPage() {
 
     const copyToClipboard = (text: string, index: number) => {
         navigator.clipboard.writeText(text).then(() => {
-            setCopiedIndex(index);
-            setTimeout(() => setCopiedIndex(null), 1500);
+          setCopiedIndex(index);
+      
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+      
+          timeoutRef.current = setTimeout(() => {
+            setCopiedIndex(null);
+          }, 1500);
         });
-    };
+      };
+      
+      useEffect(() => {
+        return () => {
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+        };
+      }, []);
 
     return (
         <div className={styles.page}>

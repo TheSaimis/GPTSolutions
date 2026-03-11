@@ -1,13 +1,14 @@
 "use client";
 
-import { TemplateApi } from "@/lib/api/templates";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
 import FileList from "../templateList/fileList";
-import DirectoryMenu from "../menus/directoryMenu/directoryMenu";
+import Filters from "../components/filters/filters";
+import DirectoryMenu from "../components/directoryMenu/directoryMenu";
 import styles from "../page.module.scss";
 import { Download } from "lucide-react";
+import { CatalogueTreeProvider } from "../catalogueTreeContext";
 
 export default function GeneratedFilePage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
@@ -17,19 +18,13 @@ export default function GeneratedFilePage() {
         getGeneratedFiles();
     }, []);
 
-    async function getTemplateList() {
-        const data: TemplateList[] = await TemplateApi.getAll();
-        setTemplateList(data);
-        console.log(data);
-    }
-
     async function getGeneratedFiles() {
         const data: TemplateList[] = await GeneratedFilesApi.getAll();
         setTemplateList(data);
     }
 
-    async function downloadTemplates() {
-        const { blob, filename } = await TemplateApi.getTemplatesZip();
+    async function downloadCatalogue() {
+        const { blob, filename } = await GeneratedFilesApi.getAllZip();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -39,28 +34,28 @@ export default function GeneratedFilePage() {
         a.remove();
         URL.revokeObjectURL(url);
     }
-
+    
 
     return (
         <div className={styles.templates}>
-            <DirectoryMenu/>
+            <DirectoryMenu />
             <div className={styles.header}>
                 <div className={styles.headerText}>
-                    <h1 className={styles.title}>Šablonai</h1>
-                    <p className={styles.subtitle}>Pasirinkite šabloną dokumentui sukurti</p>
+                    <h1 className={styles.title}>Dokumentai</h1>
+                    <p className={styles.subtitle}>Pasirinkite veiksmą, kurį norite atlikti</p>
                 </div>
-                <button type="button" onClick={downloadTemplates} className={styles.downloadCatalogButton}>
+                <button type="button" onClick={downloadCatalogue} className={styles.downloadCatalogButton}>
                     <Download size={18} />
-                    Atsisiųsti šablonų katalogą
+                    Atsisiųsti katalogą
                 </button>
             </div>
-            <div className={styles.card}>
-                <div className={styles.templatesList}>
-                    {templateList.map((template) => (
-                        <FileList key={template.name} name={template.name} type={template.type} children={template.children} directory={template.name} />
-                    ))}
+
+            <CatalogueTreeProvider>
+                <div style={{ display: "flex" }}>
+                    <FileList catalougeTree={templateList} fileType="generated" />
+                    <Filters />
                 </div>
-            </div>
-        </div> 
+            </CatalogueTreeProvider>
+        </div>
     );
 }

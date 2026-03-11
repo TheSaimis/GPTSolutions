@@ -7,11 +7,41 @@ $border: #E2E8F0;
 
 .templateList {
 
+    // flex: 1;
+    // background: #F1F5F9;
+    // padding: 40px 24px;
+    // display: flex;
+    // flex-direction: column;
+    // align-items: center;
+
+    .card {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+        padding: 28px 32px;
+        width: 100%;
+    }
+
+    .catalogueTree {
+        display: flex;
+        gap: 4px;
+        flex-direction: column;
+    }
+
     .files {
         transition: 0.3s;
         margin-block: 2px;
         border-radius: 5px;
+        .header {
+            position: relative;
+            .date {
+                position: absolute;
+                color: #b1b5b9;
+                font-size: 12px;
+            }
+        }
     }
+
     .files.selected {
         background-color: #FDE8E8;
     }
@@ -92,6 +122,8 @@ $border: #E2E8F0;
             }
         }
     }
+
+
 
     .collapsed.child {
         max-height: 0;

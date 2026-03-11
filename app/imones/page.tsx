@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Building2, ArrowLeft, Save } from "lucide-react";
 import { CompanyApi } from "@/lib/api/companies";
 import { MessageStore } from "@/lib/globalVariables/messages";
+import { COMPANY_TYPES } from "@/lib/types/Company";
 import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
@@ -55,11 +56,11 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={["UAB", "AB", "MB", "VŠĮ", "IĮ", "IND. V"]} onChange={setCompanyType} placeholder="Įmonės tipas"/>
+                        <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas"/>
                         <InputFieldText value={company_name} onChange={setCompanyName} placeholder="Įmones pavadinimas"/>
                     </div>
 
-                    <InputFieldSelect options={["vyras", "moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis"/>
+                    <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis"/>
 
                     <InputFieldText value={address} onChange={setAddress} placeholder="Adresas"/>
                     <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas"/>

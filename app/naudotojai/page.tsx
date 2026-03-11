@@ -1,26 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import InputFieldUsername from "@/components/inputFields/inputFieldUsername";
-// import InputFieldRights from "@/components/inputFields/inputFieldRights";
-// import InputFieldUserPassword from "@/components/inputFields/inputFieldUserPassword";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldPassword from "@/components/inputFields/inputFieldPassword";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import { UsersApi } from "@/lib/api/users";
 import { UserPlus, ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import styles from "./page.module.scss";
+
 export default function NaudotojaiPage() {
-    const [vardas, setVardas] = useState("");
-    const [teises, setTeises] = useState("");
-    const [slaptazodis, setSlaptazodis] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [role, setRole] = useState("");
+    const [password, setPassword] = useState("");
 
     useEffect(() => {
         document.title = "Pridėti naudotoją";
     }, []);
 
-    function handleSubmit() {
-        console.log({ vardas, teises, slaptazodis });
+    async function handleSubmit() {
+        UsersApi.userCreate({ firstName, lastName, email, role, password });
     }
 
     return (
@@ -46,9 +47,13 @@ export default function NaudotojaiPage() {
                 <div className={styles.divider} />
 
                 <div className={styles.form}>
-                    <InputFieldText value={vardas} onChange={setVardas} placeholder="Vardas"/>
-                    <InputFieldSelect options={["Administratorius", "Vartotojas"]} onChange={setTeises} placeholder="Teises"/>
-                    <InputFieldPassword value={slaptazodis} onChange={setSlaptazodis} placeholder="Slaptazodis"/>
+                    <div className={styles.nameField}>
+                        <InputFieldText value={firstName} onChange={setFirstName} placeholder="Vardas" />
+                        <InputFieldText value={lastName} onChange={setLastName} placeholder="Pavardė" />
+                    </div>
+                    <InputFieldText value={email} onChange={setEmail} type="email" placeholder="Prisijungimo paštas" />
+                    <InputFieldSelect options={[{ value: "ROLE_ADMIN", label: "Administratorius" },{ value: "ROLE_USER", label: "Naudotojas" },]} onChange={setRole} placeholder="Teisės"/>
+                    <InputFieldPassword value={password} onChange={setPassword} placeholder="Slaptažodis" />
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>

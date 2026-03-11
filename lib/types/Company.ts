@@ -12,3 +12,12 @@ export type Company = {
     document_date?: string;
     role?: string;
 };
+
+export const COMPANY_TYPES = [
+    "UAB",
+    "AB",
+    "MB",
+    "VŠĮ",
+    "IĮ",
+    "IND V."
+  ] as const;

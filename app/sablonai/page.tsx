@@ -1,33 +1,28 @@
 "use client";
 
 import { TemplateApi } from "@/lib/api/templates";
-import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
 import FileList from "./templateList/fileList";
-import DirectoryMenu from "./menus/directoryMenu/directoryMenu";
+import DirectoryMenu from "./components/directoryMenu/directoryMenu";
 import styles from "./page.module.scss";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
+import { CatalogueTreeProvider } from "./catalogueTreeContext";
+import { useRouter } from "next/navigation";
 
 export default function TemplatePage() {
 
 
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
+    const router = useRouter();
 
     useEffect(() => {
         document.title = "Šablonai";
         getTemplateList();
-        // getGeneratedFiles();
     }, []);
 
     async function getTemplateList() {
         const data: TemplateList[] = await TemplateApi.getAll();
-        setTemplateList(data);
-        console.log(data);
-    }
-
-    async function getGeneratedFiles() {
-        const data: TemplateList[] = await GeneratedFilesApi.getAll();
         setTemplateList(data);
     }
 
@@ -43,27 +38,30 @@ export default function TemplatePage() {
         URL.revokeObjectURL(url);
     }
 
-
     return (
         <div className={styles.templates}>
-            <DirectoryMenu/>
+            <DirectoryMenu />
             <div className={styles.header}>
                 <div className={styles.headerText}>
                     <h1 className={styles.title}>Šablonai</h1>
                     <p className={styles.subtitle}>Pasirinkite šabloną dokumentui sukurti</p>
                 </div>
-                <button type="button" onClick={downloadTemplates} className={styles.downloadCatalogButton}>
-                    <Download size={18} />
-                    Atsisiųsti šablonų katalogą
-                </button>
-            </div>
-            <div className={styles.card}>
-                <div className={styles.templatesList}>
-                    {templateList.map((template) => (
-                        <FileList key={template.name} name={template.name} type={template.type} children={template.children} directory={template.name} />
-                    ))}
+                <div className={styles.headerButtons}>
+                    <button type="button" onClick={downloadTemplates} className={styles.downloadCatalogButton}>
+                        <Download size={18} />
+                        Atsisiųsti šablonų katalogą
+                    </button>
+                    <button type="button" onClick={() => router.push("/sablonai/sukurtiDokumentai")} className={styles.downloadCatalogButton}>
+                        <ExternalLink size={18} />
+                        Sukurtų dokumentų katalogas
+                    </button>
                 </div>
             </div>
-        </div> 
+
+                    <CatalogueTreeProvider>
+                        <FileList catalougeTree={templateList} />
+                    </CatalogueTreeProvider>
+
+        </div>
     );
 }
