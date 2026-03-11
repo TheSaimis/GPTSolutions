@@ -12,7 +12,7 @@ import Image from "next/image";
 export default function Login() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function Login() {
   }, []);
 
   async function login() {
-    await AuthApi.login(username, password);
+    await AuthApi.login(email, password);
     router.push("/");
   }
 
@@ -39,20 +39,18 @@ export default function Login() {
         <h1 className={styles.title}>Prisijungimas</h1>
         <p className={styles.subtitle}>Įveskite savo prisijungimo duomenis</p>
 
-        <form
+        <div
           className={styles.form}
-          onSubmit={(e) => {
-            e.preventDefault();
-            login();
-          }}
         >
           <div className={styles.inputFields}>
             <InputFieldText
-              value={username}
+              value={email}
               placeholder="Vartotojo vardas"
-              onChange={setUsername}
+              onChange={setEmail}
               icon={User}
             />
+
+            
             <InputFieldPassword
               value={password}
               placeholder="Slaptažodis"
@@ -60,11 +58,11 @@ export default function Login() {
               icon={Lock}
             />
           </div>
-          <button type="submit" className={styles.submitButton}>
+          <button type="submit" onClick={login} className={styles.submitButton}>
             <LogIn size={20} />
             Prisijungti
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );

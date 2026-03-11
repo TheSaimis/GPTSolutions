@@ -1,6 +1,7 @@
 // api.ts
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { useLoadingStore } from "../globalVariables/isLoading";
+import { useRouter } from "next/navigation";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL!;
 
@@ -110,6 +111,8 @@ async function request<T>({
       }
 
       if (res.status === 401 || res.status === 403) {
+        window.location.href = "/prisijungimas";
+
         MessageStore.push({
           title: "Klaida",
           message:
@@ -117,8 +120,7 @@ async function request<T>({
           backgroundColor: "#e53e3e",
         });
 
-        window.location.href = "/login";
-        throw new Error("Unauthorized");
+        
       }
 
       MessageStore.push({

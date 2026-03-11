@@ -20,6 +20,12 @@
             text-align: left;
         }
 
+        .headerButtons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .title {
             font-size: 2rem;
             font-weight: 700;
@@ -57,18 +63,18 @@
         }
     }
 
-    .card {
-        background: #ffffff;
-        border-radius: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
-        padding: 28px 32px;
-        width: 100%;
-        max-width: 720px;
-    }
+    // .card {
+    //     background: #ffffff;
+    //     border-radius: 16px;
+    //     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    //     padding: 28px 32px;
+    //     width: 100%;
+    //     max-width: 720px;
+    // }
 
-    .templatesList {
-        display: flex;
-        gap: 4px;
-        flex-direction: column;
-    }
+    // .templatesList {
+    //     display: flex;
+    //     gap: 4px;
+    //     flex-direction: column;
+    // }
 }

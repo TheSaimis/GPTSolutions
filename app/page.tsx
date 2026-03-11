@@ -18,7 +18,6 @@ export default function Home() {
 
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAllZip();
-
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -50,19 +49,33 @@ export default function Home() {
           </span>
         </Link>
 
-        <Link href="/imones" className={styles.card}>
+        <Link href="/sablonai/sukurtiDokumentai" className={styles.card}>
           <div className={styles.cardIcon}>
-            <Building2 size={28} />
+            <FileText size={28} />
           </div>
-          <h2 className={styles.cardTitle}>Pridėti įmonę</h2>
+          <h2 className={styles.cardTitle}>Dokumentų katalogas</h2>
           <p className={styles.cardDescription}>
-            Registruokite naują įmonę sistemoje ir pradėkite naudotis paslaugomis.
+            Dokumentų tvarkymas ir priežiūra.
           </p>
           <span className={styles.cardButton}>
-            Registruoti įmonę <ArrowRight size={16} />
+            Peržiūrėti Dokumentus <ArrowRight size={16} />
           </span>
         </Link>
 
+        {role == "ROLE_ADMIN" &&
+          <Link href="/imones" className={styles.card}>
+            <div className={styles.cardIcon}>
+              <Building2 size={28} />
+            </div>
+            <h2 className={styles.cardTitle}>Pridėti įmonę</h2>
+            <p className={styles.cardDescription}>
+              Registruokite naują įmonę sistemoje ir pradėkite naudotis paslaugomis.
+            </p>
+            <span className={styles.cardButton}>
+              Registruoti įmonę <ArrowRight size={16} />
+            </span>
+          </Link>
+        }
         {role == "ROLE_ADMIN" && (
           <Link href={"/naudotojai"} className={styles.card}>
             <div className={styles.cardIcon}>

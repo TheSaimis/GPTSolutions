@@ -11,6 +11,7 @@ import styles from "../[...template]/page.module.scss";
 
 export default function TemplatePage() {
 
+    // bullshit page, temporary replacement for [...template]
 
     const [directory, setDirectory] = useState([] as string[]);
     const [companies, setCompanies] = useState([]);

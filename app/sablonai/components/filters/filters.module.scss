@@ -1,0 +1,22 @@
+.filters {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    margin-left: 5px;
+    border-radius: 15px;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    text-align: center;
+    gap: 5px;
+    h1 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #E2E8F0;
+        padding-bottom: 5px;
+    }
+    .types {
+        display: flex;
+        gap: 5px;
+    }
+}
