@@ -6,6 +6,9 @@ export const TemplateApi = {
   getAll: () =>
     api.get<TemplateList[]>("/api/templates/all", { loadingMessage: "Kraunami šablonai..." }),
 
+  getById: (id: string) =>
+    api.get<string>(`/api/templates/id/${id}`),
+
   getTemplatePDF: (path: string) =>
     api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
@@ -22,9 +25,9 @@ export const TemplateApi = {
   createDocument: (companyId: number, templates: string[]) =>
     api.postBlob("/api/template/fillFileBulk", { companyId, templates, loadingMessage: "Kuriami dokumentai..." }),
 
-  renameTemplate : (directory: string, name: string) =>
+  renameTemplate: (directory: string, name: string) =>
     api.post<{ status: string }>("/api/template/rename", { directory, name }),
 
-  deleteTemplate : (directory: string) =>
-    api.post<{ status: string }>("/api/template/delete", { directory }),
+  deleteTemplate: (path: string) =>
+    api.post<{ status: string }>("/api/template/delete", { path }),
 };
