@@ -11,7 +11,7 @@ type CatalogueTreeType = {
     companyFilter: string[];
     setCompanyFilter: (v: string[]) => void;
     catalogueTree: TemplateList[]
-    setCatalogueTree: (v: TemplateList[]) => void
+    setCatalogueTree: React.Dispatch<React.SetStateAction<TemplateList[]>>;
 };
 
 const CatalogueTreeContext = createContext<CatalogueTreeType | undefined>(undefined);
@@ -24,7 +24,7 @@ export function CatalogueTreeProvider({ children }: { children: ReactNode }) {
     const [catalogueTree, setCatalogueTree] = useState<TemplateList[]>([]);
 
     return (
-        <CatalogueTreeContext.Provider value={{ search, setSearch, typeFilter, setTypeFilter, companyFilter, setCompanyFilter, catalogueTree: [], setCatalogueTree: () => { } }}>
+        <CatalogueTreeContext.Provider value={{ search, setSearch, typeFilter, setTypeFilter, companyFilter, setCompanyFilter, catalogueTree, setCatalogueTree}}>
             {children}
         </CatalogueTreeContext.Provider>
     );

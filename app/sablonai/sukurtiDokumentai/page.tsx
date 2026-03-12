@@ -35,10 +35,9 @@ export default function GeneratedFilePage() {
         URL.revokeObjectURL(url);
     }
     
-
     return (
         <div className={styles.templates}>
-            <DirectoryMenu />
+            
             <div className={styles.header}>
                 <div className={styles.headerText}>
                     <h1 className={styles.title}>Dokumentai</h1>
@@ -49,11 +48,11 @@ export default function GeneratedFilePage() {
                     Atsisiųsti katalogą
                 </button>
             </div>
-
             <CatalogueTreeProvider>
                 <div style={{ display: "flex" }}>
-                    <FileList catalougeTree={templateList} fileType="generated" />
+                    <FileList catalougeTreeProp={templateList} fileType="generated" />
                     <Filters />
+                    <DirectoryMenu />
                 </div>
             </CatalogueTreeProvider>
         </div>

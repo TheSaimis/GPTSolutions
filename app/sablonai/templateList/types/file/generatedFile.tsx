@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import styles from "../../fileList.module.scss";
-import { TemplateApi } from "@/lib/api/templates";
 import CheckBox from "@/components/inputFields/checkBox";
 import { File } from "lucide-react";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
@@ -12,6 +11,8 @@ import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { Metadata } from "@/lib/types/TemplateList";
+import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { TemplateApi } from "@/lib/api/templates";
 
 type List = {
   name: string;
@@ -20,12 +21,14 @@ type List = {
   metadata?: Metadata;
 };
 
-export default function Files({ name, path, fileType, metadata }: List) {
+export default function GeneratedFiles({ name, path, fileType, metadata }: List) {
 
   const router = useRouter();
   const role = localStorage.getItem("role");
 
   const { search, setSearch } = useCatalogueTree();
+  const { typeFilter, setTypeFilter } = useCatalogueTree();
+
   const [rename, setRename] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
   const [currentName, setCurrentName] = useState<string>(name);
@@ -37,11 +40,11 @@ export default function Files({ name, path, fileType, metadata }: List) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function clicked() {
-    router.push(`/sablonai/${path}`);
+    // router.push(`/sablonai/${path}/${currentName}`);
   }
 
   function previewPDF() {
-    TemplateApi.getTemplatePDF(path).then(
+    GeneratedFilesApi.getGeneratedPDF(path).then(
       (res: any) => {
         setPDFToView(res);
       },
@@ -49,31 +52,41 @@ export default function Files({ name, path, fileType, metadata }: List) {
   }
 
   function renameTemplate() {
-    TemplateApi.renameTemplate(path, newName).then(
-      (res) => {
-        if (res.status === "SUCCESS") {
-          console.log("successed");
-          setRename(false);
-          setCurrentName(newName);
-        }
-      },
-    );
+    // TemplateApi.renameTemplate(path + "/" + currentName, newName).then(
+    //   (res) => {
+    //     if (res.status === "SUCCESS") {
+    //       if (selected) {
+    //         DirectoryStore.remove(path + "/" + currentName);
+    //         DirectoryStore.add(path + "/" + newName);
+    //       }
+    //       setRename(false);
+    //       setCurrentName(newName);
+    //     }
+    //   },
+    // );
   }
 
   function deleteTemplate() {
-    TemplateApi.deleteTemplate(path).then((res) => {
-      if (res.status === "SUCCESS") {
-        DirectoryStore.remove(path);
-        setDeleted(true);
-      }
-    });
+    // TemplateApi.deleteTemplate(path + "/" + currentName).then((res) => {
+    //   if (res.status === "SUCCESS") {
+    //     DirectoryStore.remove(path + "/" + currentName);
+    //     setDeleted(true);
+    //   }
+    // });
   }
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [rename]);
 
-  if (search && !currentName.toLowerCase().includes(search.toLowerCase())) {
+  useEffect(() => {
+    if (metadata?.custom?.templateId) {
+      const res = TemplateApi.getById(metadata?.custom?.templateId).then((res) => {console.log(res)});
+    }
+  }, []);
+
+
+  if ((search && !currentName.toLowerCase().includes(search.toLowerCase()) || (typeFilter.length > 0 && !typeFilter.includes(metadata?.custom?.type || "")))) {
     return null;
   }
 
@@ -92,14 +105,15 @@ export default function Files({ name, path, fileType, metadata }: List) {
             },
             {
               id: "preview",
-              label: "Peržiūrėti šabloną",
+              label: "Peržiūrėti dokumentą",
               onClick: previewPDF,
             },
             {
               id: "add",
               label: "Pasirinkti",
-              onClick: () => DirectoryStore.add(`${path}`),
+              onClick: () => DirectoryStore.add(`${path}/${currentName}`),
             },
+
             ...(role === "ROLE_ADMIN"
               ? [
                 {
@@ -112,7 +126,7 @@ export default function Files({ name, path, fileType, metadata }: List) {
                 },
                 {
                   id: "delete",
-                  label: `Ištrinti šabloną ${currentName}`,
+                  label: `Ištrinti dokumentą ${currentName}`,
                   onClick: deleteTemplate,
                 },
               ]
@@ -130,7 +144,7 @@ export default function Files({ name, path, fileType, metadata }: List) {
               </div>
             ) : (
               <div className={styles.header}>
-                <p className={styles.name}>{currentName}</p>
+                <p className={styles.name}>{name}</p>
                 {metadata?.custom?.created &&
                   <p className={styles.date}>Sukurta {metadata?.custom?.created}</p>
                 }
@@ -143,13 +157,13 @@ export default function Files({ name, path, fileType, metadata }: List) {
               Peržiūrėti failą
             </button>
 
-            <CheckBox
+            {/* <CheckBox
               value={selected}
               onChange={(checked: boolean) => {
-                if (checked) DirectoryStore.add(path);
-                else DirectoryStore.remove(path);
+                if (checked) DirectoryStore.add(path + "/" + currentName);
+                else DirectoryStore.remove(path + "/" + currentName);
               }}
-            />
+            /> */}
           </div>
         </div>
       </div>

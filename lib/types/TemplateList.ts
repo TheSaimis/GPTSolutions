@@ -17,6 +17,8 @@ type CustomMetadata = {
     type?: string;
     company?: string;
     companyId?: string;
+    templateId?: string;
+    documentId?: string;
     [key: string]: string | number | boolean | null | undefined;
 };
 
@@ -26,12 +28,13 @@ export type Metadata = {
 };
 
 export type TemplateList = {
-    metadata: Metadata | undefined;
     name: string;
     type: "file" | "directory";
+    path?: string;
+    children?: TemplateList[];
+    metadata?: Metadata;
     createdAt?: string;
     modifiedAt?: string;
-    children?: TemplateList[];
 };
 
 export type Document = {
