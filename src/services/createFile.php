@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services;
 
@@ -133,15 +133,19 @@ final class CreateFile
 
         $processor->saveAs($outputPath);
 
-        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
-            'created'   => $documentDate,
-            'createdBy' => $createdBy,
-            'userId'    => $userId,
-            'type'      => $tipas,
-            'company'   => $companyName,
-            'companyId' => $companyId,
-        ]);
+        $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
+        $templateId       = (string) ($templateMetadata['templateId'] ?? '');
 
+        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+            'templateId' => $templateId,
+            'documentId' => $this->generateUuidV4(),
+            'created'    => $documentDate,
+            'createdBy'  => $createdBy,
+            'userId'     => $userId,
+            'type'       => $tipas,
+            'company'    => $companyName,
+            'companyId'  => $companyId,
+        ]);
         return $outputPath;
     }
 
@@ -209,7 +213,6 @@ final class CreateFile
             default => $tipas,
         };
     }
-
     /**
      * Pavers įmonės pavadinimą į saugų failų sistemos identifikatorių.
      */
@@ -290,5 +293,14 @@ final class CreateFile
                 $processor->setValue($v, $value);
             }
         }
+    }
+    private function generateUuidV4(): string
+    {
+        $data = random_bytes(16);
+
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

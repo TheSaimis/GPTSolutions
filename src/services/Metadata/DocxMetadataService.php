@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services\Metadata;
 
@@ -163,5 +163,46 @@ final class DocxMetadataService
         $root->appendChild($override);
 
         $zip->addFromString($contentTypesPath, $doc->saveXML());
+    }
+
+    public function readDocxCustomProperties(string $docxPath): array
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return [];
+        }
+        $customXml = $zip->getFromName('docProps/custom.xml');
+        $zip->close();
+        if ($customXml === false) {
+            return [];
+        }
+        $doc = new \DOMDocument();
+        if (! @$doc->loadXML($customXml)) {
+            return [];
+        }
+        $xpath = new \DOMXPath($doc);
+        $xpath->registerNamespace(
+            'cp',
+            'http://schemas.openxmlformats.org/officeDocument/2006/custom-properties'
+        );
+        $result = [];
+        foreach ($xpath->query('/cp:Properties/cp:property') as $node) {
+            if (! $node instanceof \DOMElement) {
+                continue;
+            }
+            $name = $node->getAttribute('name');
+            if ($name === '') {
+                continue;
+            }
+            $value = '';
+            foreach ($node->childNodes as $child) {
+                if ($child instanceof \DOMElement) {
+                    $value = $child->textContent;
+                    break;
+                }
+            }
+            $result[$name] = $value;
+        }
+        return $result;
     }
 }

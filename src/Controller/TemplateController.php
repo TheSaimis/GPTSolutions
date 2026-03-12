@@ -6,6 +6,7 @@ use App\Services\AddWordDocument;
 use App\Services\CreateFile;
 use App\Services\FileService;
 use App\Services\GetPDF;
+use App\Services\Metadata\FindTemplate;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +24,7 @@ final class TemplateController extends AbstractController
         private CreateFile $createFile,
         private readonly ZipFiles $zipFiles,
         private GetPDF $getPDF,
+        private FindTemplate $findTemplate,
         private AddWordDocument $addWordDocument,
         private FileService $fileService
     ) {}
@@ -38,6 +40,12 @@ final class TemplateController extends AbstractController
         return new JsonResponse(
             $this->filterTemplatesOnly($this->fileService->listDirectory('templates'))
         );
+    }
+
+    #[Route('/api/templates/id/{id}', name: 'api_templates_id', methods: ['GET'])]
+    public function byId(string $id): JsonResponse
+    {
+        return new JsonResponse($this->findTemplate->findByTemplateId($id));
     }
 
     // ───── GET  /api/templates/{category} ─────
@@ -168,7 +176,7 @@ final class TemplateController extends AbstractController
             'managerType' => (string) ($company->getManagerType() ?? ''),
             'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
             'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
-            
+
             'userId'      => (string) ($user->getId() ?? ''),
             'userName'    => (string) ($user->getFirstName() ?? ''),
             'userSurname' => (string) ($user->getLastName() ?? ''),
@@ -300,8 +308,8 @@ final class TemplateController extends AbstractController
     public function rename(Request $request): JsonResponse
     {
         $data    = json_decode($request->getContent(), true);
-        $path    = trim((string) (is_array($data) ? ($data['path'] ?? $request->request->get('path')) : ''));
-        $newName = trim((string) (is_array($data) ? ($data['newName'] ?? $request->request->get('newName') ?? $request->request->get('name')) : ''));
+        $path    = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
+        $newName = trim((string) (is_array($data) ? ($data['name'] ?? $request->request->get('name') ?? $request->request->get('name')) : ''));
 
         if ($path === '' || $newName === '') {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
