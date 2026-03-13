@@ -25,10 +25,6 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
 
   const router = useRouter();
   const role = localStorage.getItem("role");
-
-  const { search, setSearch } = useCatalogueTree();
-  const { typeFilter, setTypeFilter } = useCatalogueTree();
-
   const [rename, setRename] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
   const [currentName, setCurrentName] = useState<string>(name);
@@ -40,7 +36,8 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
   const inputRef = useRef<HTMLInputElement>(null);
 
   function clicked() {
-    // router.push(`/sablonai/${path}/${currentName}`);
+    if (metadata?.custom?.templateId === undefined || metadata?.custom?.userId === undefined || metadata?.custom?.companyId === undefined) return
+    router.push(`/sablonai/sukurtiDokumentai/${metadata.custom.templateId}/${metadata.custom.userId}/${metadata.custom.companyId}/${metadata.custom.created}/${path}`);
   }
 
   function previewPDF() {
@@ -79,16 +76,6 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
     inputRef.current?.focus();
   }, [rename]);
 
-  useEffect(() => {
-    if (metadata?.custom?.templateId) {
-      const res = TemplateApi.getById(metadata?.custom?.templateId).then((res) => {console.log(res)});
-    }
-  }, []);
-
-
-  if ((search && !currentName.toLowerCase().includes(search.toLowerCase()) || (typeFilter.length > 0 && !typeFilter.includes(metadata?.custom?.type || "")))) {
-    return null;
-  }
 
   if (deleted) return null;
 
@@ -146,7 +133,7 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
               <div className={styles.header}>
                 <p className={styles.name}>{name}</p>
                 {metadata?.custom?.created &&
-                  <p className={styles.date}>Sukurta {metadata?.custom?.created}</p>
+                  <p className={styles.date}>Redaguota {metadata?.custom?.created}</p>
                 }
               </div>
             )}
@@ -156,14 +143,6 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
             <button onClick={previewPDF} className={`${styles.button} buttons`}>
               Peržiūrėti failą
             </button>
-
-            {/* <CheckBox
-              value={selected}
-              onChange={(checked: boolean) => {
-                if (checked) DirectoryStore.add(path + "/" + currentName);
-                else DirectoryStore.remove(path + "/" + currentName);
-              }}
-            /> */}
           </div>
         </div>
       </div>

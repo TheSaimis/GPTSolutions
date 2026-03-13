@@ -5,141 +5,146 @@ $text-dark: #0F172A;
 $text-muted: #64748B;
 $border: #E2E8F0;
 
-.templateList {
+.container {
+    display: flex;
+    .templateList {
 
-    // flex: 1;
-    // background: #F1F5F9;
-    // padding: 40px 24px;
-    // display: flex;
-    // flex-direction: column;
-    // align-items: center;
+        // flex: 1;
+        // background: #F1F5F9;
+        // padding: 40px 24px;
+        // display: flex;
+        // flex-direction: column;
+        // align-items: center;
 
-    .card {
-        background: #ffffff;
-        border-radius: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
-        padding: 28px 32px;
-        width: 100%;
-    }
+        .card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+            padding: 28px 32px;
+            width: 100%;
+        }
 
-    .catalogueTree {
-        display: flex;
-        gap: 4px;
-        flex-direction: column;
-    }
+        .catalogueTree {
+            display: flex;
+            gap: 4px;
+            flex-direction: column;
+        }
 
-    .files {
-        transition: 0.3s;
-        margin-block: 2px;
-        border-radius: 5px;
-        .header {
-            position: relative;
-            .date {
-                position: absolute;
-                color: #b1b5b9;
-                font-size: 12px;
+        .files {
+            transition: 0.3s;
+            margin-block: 2px;
+            border-radius: 5px;
+
+            .header {
+                position: relative;
+
+                .date {
+                    position: absolute;
+                    color: #b1b5b9;
+                    font-size: 12px;
+                }
             }
         }
-    }
 
-    .files.selected {
-        background-color: #FDE8E8;
-    }
-
-
-    .itemContainer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        border-radius: 10px;
-        transition: background-color 0.15s ease;
+        .files.selected {
+            background-color: #FDE8E8;
+        }
 
 
-        .item {
+        .itemContainer {
             display: flex;
             align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            flex: 1;
-            min-width: 0;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-radius: 10px;
+            transition: background-color 0.15s ease;
 
-            p {
-                margin: 0;
-                font-size: 0.938rem;
-                font-weight: 500;
-                color: $text-dark;
+
+            .item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                cursor: pointer;
+                flex: 1;
+                min-width: 0;
+
+                p {
+                    margin: 0;
+                    font-size: 0.938rem;
+                    font-weight: 500;
+                    color: $text-dark;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .collapsed.arrow {
+                    transform: rotate(-90deg);
+                }
+
+                .arrow {
+                    width: 18px;
+                    height: 18px;
+                    color: $text-muted;
+                    transition: transform 0.25s ease;
+                    flex-shrink: 0;
+                }
+
+                .file {
+                    width: 16px;
+                    height: 16px;
+                    color: $primary;
+                    flex-shrink: 0;
+                }
+            }
+
+            .inputContainer {
+                gap: 12px;
+                display: flex;
+                align-items: center;
+            }
+
+            .button {
+                font-size: 0.813rem;
+                font-weight: 600;
+                padding: 6px 16px;
+                border-radius: 8px;
+                border: none;
+                background: $primary;
+                color: #fff;
+                cursor: pointer;
                 white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
+                transition: background-color 0.15s ease, transform 0.1s ease;
+                margin-left: 12px;
 
-            .collapsed.arrow {
-                transform: rotate(-90deg);
-            }
+                &:hover {
+                    background: $primary-hover;
+                }
 
-            .arrow {
-                width: 18px;
-                height: 18px;
-                color: $text-muted;
-                transition: transform 0.25s ease;
-                flex-shrink: 0;
-            }
-
-            .file {
-                width: 16px;
-                height: 16px;
-                color: $primary;
-                flex-shrink: 0;
+                &:active {
+                    transform: scale(0.97);
+                }
             }
         }
 
-        .inputContainer {
-            gap: 12px;
+
+
+        .collapsed.child {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .child {
+            max-height: 1000px;
+            transition: max-height 0.3s ease, opacity 0.25s ease;
+            opacity: 1;
+            border-left: 2px solid $border;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            margin-left: 24px;
+            padding-left: 4px;
         }
-
-        .button {
-            font-size: 0.813rem;
-            font-weight: 600;
-            padding: 6px 16px;
-            border-radius: 8px;
-            border: none;
-            background: $primary;
-            color: #fff;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background-color 0.15s ease, transform 0.1s ease;
-            margin-left: 12px;
-
-            &:hover {
-                background: $primary-hover;
-            }
-
-            &:active {
-                transform: scale(0.97);
-            }
-        }
-    }
-
-
-
-    .collapsed.child {
-        max-height: 0;
-        overflow: hidden;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .child {
-        max-height: 1000px;
-        transition: max-height 0.3s ease, opacity 0.25s ease;
-        opacity: 1;
-        border-left: 2px solid $border;
-        display: flex;
-        flex-direction: column;
-        margin-left: 24px;
-        padding-left: 4px;
     }
 }

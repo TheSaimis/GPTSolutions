@@ -1,53 +1,59 @@
 "use client";
 
 import styles from "./fileList.module.scss";
-import { TemplateList } from "@/lib/types/TemplateList";
 import { Search } from "lucide-react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import Directory from "./types/directory/directory";
 import Files from "./types/file/file";
-import { useCatalogueTree } from "../catalogueTreeContext";
 import GeneratedFiles from "./types/file/generatedFile";
-import { useEffect } from "react";
+import { useCatalogueTree } from "../catalogueTreeContext";
+import Filters from "../components/filters/filters";
 
 type FileListProps = {
-    catalougeTreeProp: TemplateList[];
-    fileType?: string
+    fileType?: string;
 };
 
-export default function FileList({ catalougeTreeProp, fileType }: FileListProps) {
-
-    const { search, setSearch } = useCatalogueTree();
-    const { catalogueTree, setCatalogueTree } = useCatalogueTree();
+export default function FileList({ fileType }: FileListProps) {
+    const { filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
     const Component = fileType === "generated" ? GeneratedFiles : Files;
 
-    useEffect(() => {
-        setCatalogueTree(catalougeTreeProp);
-        console.log(catalogueTree);
-        console.log(catalougeTreeProp);
-    }, [catalougeTreeProp]);
-
     return (
+        <div className={styles.container}>
+            <div className={styles.templateList}>
+                <div className={styles.card}>
+                    <div>
+                        <InputFieldText
+                            value={filters.search}
+                            onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+                            placeholder="Paieška"
+                            icon={Search}
+                        />
+                    </div>
 
-        <div className={styles.templateList}>
-
-            <div className={styles.card}>
-                <div>
-                    <InputFieldText value={search} onChange={setSearch} placeholder="Paieška" icon={Search} />
-                </div>
-                <div className={styles.catalogueTree}>
-                    {catalogueTree.map((item) => (
-                        item.type === "file" && (
-                            <Component key={item.name} name={item.name} path={item.path ?? item.name} fileType={fileType} createdAt={item.createdAt} metadata={item.metadata} modifiedAt={item.modifiedAt} />
-                        )
-                        ||
-                        item.type === "directory" && (
-                            <Directory key={item.name} name={item.name} children={item.children} path={item.path} fileType={fileType} />
-                        )
-                    ))
-                    }
+                    <div className={styles.catalogueTree}>
+                        {filteredCatalogueTree.map((node) =>
+                            node.type === "file" ? (
+                                <Component
+                                    key={node.path ?? node.name}
+                                    name={node.name}
+                                    path={node.path ?? ""}
+                                    metadata={node.metadata}
+                                    fileType={fileType}
+                                />
+                            ) : (
+                                <Directory
+                                    key={node.path ?? node.name}
+                                    name={node.name}
+                                    children={node.children}
+                                    path={node.path}
+                                    fileType={fileType}
+                                />
+                            )
+                        )}
+                    </div>
                 </div>
             </div>
+            <Filters />
         </div>
     );
 }
