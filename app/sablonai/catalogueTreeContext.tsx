@@ -1,39 +1,84 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, ReactNode, useEffect } from "react";
 import { TemplateList } from "@/lib/types/TemplateList";
+import { filterCatalogueTree } from "./components/utilities/catalogueTreeFilter";
+
+export type CatalogueFilters = {
+  search: string;
+  types: string[];
+  companies: string[];
+  createdBy: string[];
+  userIds: string[];
+  companyIds: string[];
+  templateIds: string[];
+  documentIds: string[];
+  createdFrom: string;
+  createdTo: string;
+  showEmptyDirectories: boolean;
+};
 
 type CatalogueTreeType = {
-    search: string;
-    setSearch: (v: string) => void;
-    typeFilter: string[];
-    setTypeFilter: (v: string[]) => void;
-    companyFilter: string[];
-    setCompanyFilter: (v: string[]) => void;
-    catalogueTree: TemplateList[]
-    setCatalogueTree: React.Dispatch<React.SetStateAction<TemplateList[]>>;
+  filters: CatalogueFilters;
+  setFilters: React.Dispatch<React.SetStateAction<CatalogueFilters>>;
+  catalogueTree: TemplateList[];
+  setCatalogueTree: React.Dispatch<React.SetStateAction<TemplateList[]>>;
+  filteredCatalogueTree: TemplateList[];
 };
 
 const CatalogueTreeContext = createContext<CatalogueTreeType | undefined>(undefined);
 
-export function CatalogueTreeProvider({ children }: { children: ReactNode }) {
+const defaultFilters: CatalogueFilters = {
+  search: "",
+  types: [],
+  companies: [],
+  createdBy: [],
+  userIds: [],
+  companyIds: [],
+  templateIds: [],
+  documentIds: [],
+  createdFrom: "",
+  createdTo: "",
+  showEmptyDirectories: true,
+};
 
-    const [search, setSearch] = useState<string>("");
-    const [typeFilter, setTypeFilter] = useState<string[]>([]);
-    const [companyFilter, setCompanyFilter] = useState<string[]>([]);
-    const [catalogueTree, setCatalogueTree] = useState<TemplateList[]>([]);
+export function CatalogueTreeProvider({
+  children,
+  initialTree,
+}: {
+  children: ReactNode;
+  initialTree: TemplateList[];
+}) {
+  const [filters, setFilters] = useState<CatalogueFilters>(defaultFilters);
+  const [catalogueTree, setCatalogueTree] = useState<TemplateList[]>(initialTree ?? []);
 
-    return (
-        <CatalogueTreeContext.Provider value={{ search, setSearch, typeFilter, setTypeFilter, companyFilter, setCompanyFilter, catalogueTree, setCatalogueTree}}>
-            {children}
-        </CatalogueTreeContext.Provider>
-    );
+  useEffect(() => {
+    setCatalogueTree(initialTree ?? []);
+  }, [initialTree]);
+
+  const filteredCatalogueTree = useMemo(() => {
+    return filterCatalogueTree(catalogueTree ?? [], filters);
+  }, [catalogueTree, filters]);
+
+  return (
+    <CatalogueTreeContext.Provider
+      value={{
+        filters,
+        setFilters,
+        catalogueTree,
+        setCatalogueTree,
+        filteredCatalogueTree,
+      }}
+    >
+      {children}
+    </CatalogueTreeContext.Provider>
+  );
 }
 
 export function useCatalogueTree() {
-    const context = useContext(CatalogueTreeContext);
-    if (!context) {
-        throw new Error("useCatalogueTree must be used inside AppProvider");
-    }
-    return context;
+  const context = useContext(CatalogueTreeContext);
+  if (!context) {
+    throw new Error("useCatalogueTree must be used inside CatalogueTreeProvider");
+  }
+  return context;
 }

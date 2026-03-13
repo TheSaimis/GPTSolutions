@@ -22,8 +22,16 @@ export const TemplateApi = {
     return api.post<{ status: string }>("/api/template/create", form);
   },
 
-  createDocument: (companyId: number, templates: string[]) =>
-    api.postBlob("/api/template/fillFileBulk", { companyId, templates, loadingMessage: "Kuriami dokumentai..." }),
+  createDocument: (companyId: number, templates: string[], name?: string) =>
+    api.postBlob(
+      "/api/template/fillFileBulk",
+      {
+        companyId,
+        templates,
+        ...(name ? { name } : {})
+      },
+      { loadingMessage: "Kuriami dokumentai..." }
+    ),
 
   renameTemplate: (directory: string, name: string) =>
     api.post<{ status: string }>("/api/template/rename", { directory, name }),

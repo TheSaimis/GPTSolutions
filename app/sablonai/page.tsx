@@ -58,7 +58,7 @@ export default function TemplatePage() {
                 </div>
             </div>
 
-                    <CatalogueTreeProvider>
+                    <CatalogueTreeProvider initialTree={templateList}>
                         <FileList catalougeTreeProp={templateList} />
                     </CatalogueTreeProvider>
 

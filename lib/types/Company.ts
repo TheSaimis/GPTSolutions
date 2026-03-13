@@ -1,18 +1,36 @@
 export type Company = {
     id?: number;
-    company_type?: string;
-    company_name?: string;
+    companyType?: string;
+    companyName?: string;
     code?: string;
     address?: string;
-    city_or_district?: string;
-    manager_type?: string;
-    manager_first_name?: string;
-    manager_last_name?: string;
-    manager_gender?: string;
-    document_date?: string;
+    cityOrDistrict?: string;
+    managerType?: string;
+    managerFirstName?: string;
+    managerLastName?: string;
+    managerGender?: string;
+    documentDate?: string;
+    modifiedAt?: string;
+    createdAt?: string;
     role?: string;
 };
 
+export const companyLabels: Record<keyof Company, string> = {
+    id: "ID",
+    companyType: "Įmonės tipas",
+    companyName: "Įmonės pavadinimas",
+    code: "Įmonės kodas",
+    address: "Adresas",
+    cityOrDistrict: "Miestas / rajonas",
+    managerType: "Vadovo tipas",
+    managerFirstName: "Vadovo vardas",
+    managerLastName: "Vadovo pavardė",
+    managerGender: "Vadovo lytis",
+    documentDate: "Dokumento data",
+    modifiedAt: "Redaguota",
+    createdAt: "Sukurta",
+    role: "Pareigos",
+};
 export const COMPANY_TYPES = [
     "UAB",
     "AB",
@@ -20,4 +38,4 @@ export const COMPANY_TYPES = [
     "VŠĮ",
     "IĮ",
     "IND V."
-  ] as const;
+] as const;

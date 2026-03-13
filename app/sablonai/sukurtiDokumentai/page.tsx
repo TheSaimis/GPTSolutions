@@ -10,7 +10,7 @@ import styles from "../page.module.scss";
 import { Download } from "lucide-react";
 import { CatalogueTreeProvider } from "../catalogueTreeContext";
 
-export default function GeneratedFilePage() {
+export default function GeneratedFilesPage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
 
     useEffect(() => {
@@ -19,8 +19,7 @@ export default function GeneratedFilePage() {
     }, []);
 
     async function getGeneratedFiles() {
-        const data: TemplateList[] = await GeneratedFilesApi.getAll();
-        setTemplateList(data);
+        await GeneratedFilesApi.getAll().then((data) => setTemplateList(data));
     }
 
     async function downloadCatalogue() {
@@ -48,12 +47,9 @@ export default function GeneratedFilePage() {
                     Atsisiųsti katalogą
                 </button>
             </div>
-            <CatalogueTreeProvider>
-                <div style={{ display: "flex" }}>
-                    <FileList catalougeTreeProp={templateList} fileType="generated" />
-                    <Filters />
+            <CatalogueTreeProvider initialTree={templateList}>
+                    <FileList fileType="generated" />
                     <DirectoryMenu />
-                </div>
             </CatalogueTreeProvider>
         </div>
     );

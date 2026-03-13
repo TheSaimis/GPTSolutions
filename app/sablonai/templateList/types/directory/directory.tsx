@@ -7,16 +7,13 @@ import { useRef, useEffect, useState } from "react";
 import { ChevronDown, Folder, ArrowUpToLine } from "lucide-react";
 import Files from "../file/file";
 import InputFieldFile from "@/components/inputFields/inputFieldFile";
-import InputFieldText from "@/components/inputFields/inputFieldText";
 import DropZone from "@/components/inputFields/dropZone";
 import CreateDirectory from "./functions/createDirectory";
 import RenameDirectory from "./functions/renameDirectory";
 import { addFileToTree } from "@/app/sablonai/components/utilities/addFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
-import { renameDirectoryInTree } from "@/app/sablonai/components/utilities/renameDirectory";
 import GeneratedFiles from "../file/generatedFile";
-import { CatalougeApi } from "@/lib/api/catalouges";
 
 type List = {
     name: string;
@@ -27,36 +24,19 @@ type List = {
 
 export default function Directory({ name, children, path, fileType }: List) {
 
-    const [collapsed, setCollapsed] = useState<string>("");
+    const [collapsed, setCollapsed] = useState<boolean>(false);
     const [rename, setRename] = useState<boolean>(false);
     const [create, setCreate] = useState<boolean>(false);
     const [file, setFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
-    const { search, setSearch, catalogueTree, setCatalogueTree, typeFilter, setTypeFilter, companyFilter, setCompanyFilter } = useCatalogueTree();
+    const { catalogueTree, setCatalogueTree } = useCatalogueTree();
     const Component = fileType === "generated" ? GeneratedFiles : Files;
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // used for knowing if the path includes a file that matches the file search
-    function matchesTree(nodes: TemplateList[], searchValue: string, typeValues?: string[]): boolean {
-        const normalizedSearch = searchValue.trim().toLowerCase();
-        if (!normalizedSearch) return true;
-        return nodes.some((node) => {
-            const nameMatches = node.name.toLowerCase().includes(normalizedSearch);
-            if (nameMatches) return true;
-
-            if (node.type === "directory" && node.children) {
-                return matchesTree(node.children, normalizedSearch);
-            }
-            return false;
-        });
-    }
-
-    const normalizedSearch = search.trim().toLowerCase();
-    const shouldShowDirectory = !normalizedSearch || name.toLowerCase().includes(normalizedSearch) || matchesTree(children ?? [], normalizedSearch);
-
+    // used for knowing if the path includes a file that matches the file search in other words bullshit
     function clicked() {
-        setCollapsed(collapsed === "" ? "collapsed" : "")
+        setCollapsed(!collapsed);
     }
 
     useEffect(() => {
@@ -74,8 +54,7 @@ export default function Directory({ name, children, path, fileType }: List) {
     useEffect(() => {
         inputRef.current?.focus();
     }, [rename]);
-
-    if (!shouldShowDirectory) return null;
+    
     return (
         <DropZone onFile={setFile} accept=".docx" className={styles.directory} >
             <div className={styles.itemContainer} onContextMenu={(e) =>
@@ -105,10 +84,9 @@ export default function Directory({ name, children, path, fileType }: List) {
                         id: "deleteFolder",
                         label: `Ištrinti aplanką "${name}"`,
                         onClick: () => {
-                            console.log("Rename:", path);
+                            console.log("Delete:", path);
                         },
                     },
-
                 ])
             }>
                 <div className={styles.item} onClick={clicked}>
@@ -120,7 +98,7 @@ export default function Directory({ name, children, path, fileType }: List) {
                     ) : (
                         <p>{name}</p>
                     )}
-                    
+
                     <div onClick={(e) => { fileInputRef.current?.click(); e.stopPropagation(); }}>
                         <ArrowUpToLine size={16} />
                         <div style={{ display: "none" }}>
@@ -129,16 +107,16 @@ export default function Directory({ name, children, path, fileType }: List) {
                     </div>
                 </div>
             </div>
+
             <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
                 {create &&
                     <CreateDirectory key={"createDirectory"} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
                 }
-                {(children ?? []).map((child) =>
-                    child.type === "file" ? (
-                        <Component key={child.path ?? child.name} name={child.name} path={child.path ?? ""} metadata={child.metadata} fileType={fileType} />
-                    ) : (
-                        <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
-                    )
+                {(children ?? []).map((child) => child.type === "file" ? (
+                    <Component key={child.path ?? child.name} name={child.name} path={child.path ?? ""} metadata={child.metadata} fileType={fileType} />
+                ) : (
+                    <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
+                )
                 )}
             </div>
         </DropZone>

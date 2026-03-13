@@ -12,21 +12,22 @@ import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 
 export default function ImonesPage() {
-    const [company_type, setCompanyType] = useState("");
-    const [company_name, setCompanyName] = useState("");
+    const [companyType, setCompanyType] = useState("");
+    const [companyName, setCompanyName] = useState("");
     const [address, setAddress] = useState("");
     const [code, setCode] = useState("");
-    const [manager_first_name, setManagerFirstName] = useState("");
-    const [manager_last_name, setManagerLastName] = useState("");
-    const [manager_gender, setManagerGender] = useState("");
+    const [managerFirstName, setManagerFirstName] = useState("");
+    const [managerLastName, setManagerLastName] = useState("");
+    const [managerGender, setManagerGender] = useState("");
     const [role, setRole] = useState("");
 
     useEffect(() => {
         document.title = "Pridėti įmonę";
+        CompanyApi.getAll();
     }, []);
 
     async function handleSubmit() {
-        const res = await CompanyApi.companyCreate({ company_type, company_name, address, code, manager_first_name, manager_last_name, manager_gender, role });
+        const res = await CompanyApi.companyCreate({ companyType, companyName, address, code, managerFirstName, managerLastName, managerGender, role });
         if (res.status === "SUCCESS") {
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
         }
@@ -57,7 +58,7 @@ export default function ImonesPage() {
                 <div className={styles.form}>
                     <div className={styles.row}>
                         <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas"/>
-                        <InputFieldText value={company_name} onChange={setCompanyName} placeholder="Įmones pavadinimas"/>
+                        <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas"/>
                     </div>
 
                     <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis"/>
@@ -66,8 +67,8 @@ export default function ImonesPage() {
                     <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas"/>
 
                     <div className={styles.row}>
-                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={manager_first_name} onChange={setManagerFirstName} placeholder="Vardas"/>
-                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={manager_last_name} onChange={setManagerLastName} placeholder="Pavardė"/>
+                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vardas"/>
+                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė"/>
                     </div>
 
                     <InputFieldText value={role} onChange={setRole} placeholder="Pareigos"/>

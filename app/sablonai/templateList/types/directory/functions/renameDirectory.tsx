@@ -54,7 +54,7 @@ export default function RenameDirectory({ name, path, onFocus, folders }: List) 
     }, [focused]);
 
     return (
-        <div className={styles.createDirectoryContainer}>
+        <div onClick={(e) => e.stopPropagation()} className={styles.createDirectoryContainer}>
             <div className={`${styles.inputContainer} ${focused ? "" : styles.create}`}>
                 <InputFieldText ref={inputRef} value={folderName} onChange={setFolderName} onFocus={setFocused} onKeyDown={{ Enter: renameDirectory, Escape: () => clearState() }} />
             </div>
