@@ -146,6 +146,7 @@ final class TemplateController extends AbstractController
 
         $companyId = $data['companyId'] ?? null;
         $templates = $data['templates'] ?? null;
+        $name = isset($data['name']) ? trim((string) $data['name']) : null;
 
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
             return new JsonResponse(['error' => 'companyId is required'], 400);
@@ -211,10 +212,13 @@ final class TemplateController extends AbstractController
             $template = basename($tplPath);
 
             try {
-                $generatedPath = $this->createFile->createWordDocument(array_merge($companyData, [
-                    'directory' => $directory,
-                    'template'  => $template,
-                ]));
+                $generatedPath = $this->createFile->createWordDocument(
+                    array_merge($companyData, [
+                        'directory' => $directory,
+                        'template'  => $template,
+                    ]),
+                    $name
+                );
 
                 $generatedFiles[] = $generatedPath;
 

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Controller;
 
 use App\Services\FileService;
@@ -29,15 +28,15 @@ final class GeneratedFileController extends AbstractController
      * Path pvz.: "CompanyName/document_20240101.docx"
      */
     #[Route('/api/generated/pdf/{path}', name: 'api_generated_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
-    public function viewAsPdf(string $path): JsonResponse|BinaryFileResponse
+    public function viewAsPdf(string $path): JsonResponse | BinaryFileResponse
     {
         $resolved = $this->fileService->resolvePath(self::GENERATED_BASE, $path);
-        if ($resolved === null || !is_file($resolved)) {
+        if ($resolved === null || ! is_file($resolved)) {
             return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
         }
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['doc', 'docx'], true)) {
+        if (! in_array($ext, ['doc', 'docx'], true)) {
             return new JsonResponse(['error' => 'Palaikomi tik .doc ir .docx failai'], 400);
         }
 
@@ -75,10 +74,10 @@ final class GeneratedFileController extends AbstractController
      * Suarchyvuoja nurodytą katalogą iš var/generated/ ir grąžina .zip failą.
      */
     #[Route('/api/generated/zip/{directory}', name: 'api_generated_zip', methods: ['GET'], requirements: ['directory' => '.+'])]
-    public function filterFilesByApp(string $directory): JsonResponse|BinaryFileResponse
+    public function filterFilesByApp(string $directory): JsonResponse | BinaryFileResponse
     {
         $resolved = $this->fileService->resolvePath(self::GENERATED_BASE, $directory);
-        if ($resolved === null || !is_dir($resolved)) {
+        if ($resolved === null || ! is_dir($resolved)) {
             return new JsonResponse(['error' => 'Katalogas nerastas: ' . $directory], 404);
         }
 
@@ -100,12 +99,37 @@ final class GeneratedFileController extends AbstractController
         return $response;
     }
 
+    #[Route('/api/generated/file/{path}', name: 'api_generated_file', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function getGeneratedFile(string $path): JsonResponse | BinaryFileResponse
+    {
+        $resolved = $this->fileService->resolvePath(self::GENERATED_BASE, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+        $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['doc', 'docx'], true)) {
+            return new JsonResponse(['error' => 'Leidžiami tik Word failai'], 400);
+        }
+        $response = new BinaryFileResponse($resolved);
+        $response->headers->set(
+            'Content-Type',
+            $ext === 'docx'
+                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : 'application/msword'
+        );
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($resolved)
+        );
+        return $response;
+    }
+
     /**
      * GET /api/generated/all/zip
      * Suarchyvuoja visus katalogus iš var/generated/ ir grąžina vieną .zip failą.
      */
     #[Route('/api/generated/all/zip', name: 'api_generated_all_zip', methods: ['GET'])]
-    public function allFilesByApp(): JsonResponse|BinaryFileResponse
+    public function allFilesByApp(): JsonResponse | BinaryFileResponse
     {
         $generatedDir = $this->fileService->getBaseFullPath(self::GENERATED_BASE);
 
@@ -122,20 +146,20 @@ final class GeneratedFileController extends AbstractController
         }
 
         $zipPath = $generatedDir . '/generated.zip';
-        $zip = new \ZipArchive();
+        $zip     = new \ZipArchive();
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return new JsonResponse(['error' => 'Nepavyko sukurti ZIP'], 500);
         }
 
         foreach ($dirs as $dir) {
             $dirPath = $generatedDir . '/' . $dir;
-            $files = new \RecursiveIteratorIterator(
+            $files   = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($dirPath, \RecursiveDirectoryIterator::SKIP_DOTS),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
             foreach ($files as $file) {
                 if ($file->isFile()) {
-                    $filePath = $file->getRealPath();
+                    $filePath     = $file->getRealPath();
                     $relativePath = $dir . '/' . substr($filePath, strlen($dirPath) + 1);
                     $zip->addFile($filePath, $relativePath);
                 }
@@ -160,10 +184,10 @@ final class GeneratedFileController extends AbstractController
      * Return: zip failas + X-Status: SUCCESS, arba JSON { "status": "FAIL" }
      */
     #[Route('/api/templates/zip/{path}', name: 'api_templates_directory_zip', methods: ['GET'], requirements: ['path' => '.+'])]
-    public function templatesDirectoryZip(string $path): JsonResponse|BinaryFileResponse
+    public function templatesDirectoryZip(string $path): JsonResponse | BinaryFileResponse
     {
         $resolved = $this->fileService->resolvePath(self::TEMPLATES_BASE, $path);
-        if ($resolved === null || !is_dir($resolved)) {
+        if ($resolved === null || ! is_dir($resolved)) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Katalogas nerastas: ' . $path], 404);
         }
 
@@ -192,7 +216,7 @@ final class GeneratedFileController extends AbstractController
      * Suarchyvuoja visus šablonus iš templates/ katalogo ir grąžina templates.zip.
      */
     #[Route('/api/templates/zip', name: 'api_templates_zip', methods: ['GET'])]
-    public function allTemplatesZip(): JsonResponse|BinaryFileResponse
+    public function allTemplatesZip(): JsonResponse | BinaryFileResponse
     {
         $templatesDir = $this->fileService->getBaseFullPath(self::TEMPLATES_BASE);
 
@@ -201,7 +225,7 @@ final class GeneratedFileController extends AbstractController
         }
 
         $zipPath = $this->getParameter('kernel.project_dir') . '/var/templates.zip';
-        $zip = new \ZipArchive();
+        $zip     = new \ZipArchive();
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return new JsonResponse(['error' => 'Nepavyko sukurti ZIP'], 500);
         }
@@ -212,18 +236,21 @@ final class GeneratedFileController extends AbstractController
         );
 
         foreach ($files as $file) {
-            if (!$file->isFile())
+            if (! $file->isFile()) {
                 continue;
+            }
 
             $name = $file->getFilename();
-            if (str_starts_with($name, '~') || $name === 'desktop.ini')
+            if (str_starts_with($name, '~') || $name === 'desktop.ini') {
                 continue;
+            }
 
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (!in_array($ext, ['doc', 'docx'], true))
+            if (! in_array($ext, ['doc', 'docx'], true)) {
                 continue;
+            }
 
-            $filePath = $file->getRealPath();
+            $filePath     = $file->getRealPath();
             $relativePath = substr($filePath, strlen($templatesDir) + 1);
             $zip->addFile($filePath, $relativePath);
         }

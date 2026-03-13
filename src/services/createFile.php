@@ -47,7 +47,7 @@ final class CreateFile
      * @param array<string, mixed> $data
      * @return string
      */
-    public function createWordDocument(array $data): string
+    public function createWordDocument(array $data, ?string $name = null): string
     {
         $this->validateData($data);
 
@@ -86,7 +86,7 @@ final class CreateFile
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $baseName . '_' . $companySlug . '.docx';
+        $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
 
         $processor = new TemplateProcessor($templatePath);
@@ -139,7 +139,7 @@ final class CreateFile
         $this->docxMetadataService->setDocxCustomProperties($outputPath, [
             'templateId' => $templateId,
             'documentId' => $this->generateUuidV4(),
-            'created'    => $documentDate,
+            'created' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'createdBy'  => $createdBy,
             'userId'     => $userId,
             'type'       => $tipas,

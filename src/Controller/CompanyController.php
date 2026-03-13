@@ -32,23 +32,23 @@ final class CompanyController extends AbstractController
         }
 
         $company = new CompanyRequisite();
-        $company->setCompanyName($data['company_name'] ?? '');
+        $company->setCompanyName($data['companyName'] ?? '');
         $company->setCode($data['code'] ?? '');
-        $company->setCompanyType($data['company_type'] ?? null);
+        $company->setCompanyType($data['companyType'] ?? null);
         $company->setAddress($data['address'] ?? null);
         $company->setCityOrDistrict($data['cityOrDistrict'] ?? null);
-        $managerType = $data['manager_type'] ?? null;
+        $managerType = $data['managerType'] ?? null;
         $company->setManagerType($managerType);
-        $company->setManagerGender($data['manager_gender'] ?? null);
-        $company->setManagerFirstName($data['manager_first_name'] ?? null);
-        $company->setManagerLastName($data['manager_last_name'] ?? null);
+        $company->setManagerGender($data['managerGender'] ?? null);
+        $company->setManagerFirstName($data['managerFirstName'] ?? null);
+        $company->setManagerLastName($data['managerLastName'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
         $company->setDirectory(
             trim((string) ($data['directory'] ?? '')) !== ''
                 ? trim((string) $data['directory'])
                 : $this->buildCompanyDirectory(
-                    $company->getCompanyType() ?? $data['company_type'] ?? '',
+                    $company->getCompanyType() ?? $data['companyType'] ?? '',
                     $company->getCompanyName() ?? '',
                     $company->getCode() ?? ''
                 )
@@ -68,10 +68,8 @@ final class CompanyController extends AbstractController
         $this->em->persist($company);
         $this->em->flush();
 
-        return new JsonResponse([
-            'status' => 'SUCCESS',
-            'data' => $this->toArray($company),
-        ], 201);
+        return new JsonResponse(
+            $this->toArray($company), 201);
     }
 
     #[Route('/all', name: 'api_company_all', methods: ['GET'])]
@@ -220,6 +218,7 @@ final class CompanyController extends AbstractController
             'role'             => $c->getRole(),
             'directory'        => $c->getDirectory(),
             'createdAt'        => $c->getCreatedAt()?->format('Y-m-d H:i:s'),
+            'modifiedAt'        => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
         ];
     }
 }
