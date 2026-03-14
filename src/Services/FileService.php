@@ -101,6 +101,50 @@ final class FileService
     }
 
     /**
+     * Perkelia failą į kitą direktoriją tame pačiame baseDir.
+     *
+     * @return 'SUCCESS'|'FAIL'
+     */
+    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx']): string
+    {
+        $fullPath = $this->resolvePath($baseDir, $path);
+        if ($fullPath === null || ! is_file($fullPath)) {
+            return self::FAIL;
+        }
+
+        if ($allowedExtensions !== [] && ! $this->isAllowedExtension($fullPath, $allowedExtensions)) {
+            return self::FAIL;
+        }
+
+        $baseFull = $this->getBaseFullPath($baseDir);
+        if ($baseFull === null) {
+            return self::FAIL;
+        }
+
+        $newDirectory = trim(str_replace('\\', '/', $newDirectory), '/');
+        if (str_contains($newDirectory, '..')) {
+            return self::FAIL;
+        }
+
+        $fileName    = basename($fullPath);
+        $newDirFull  = $baseFull . '/' . $newDirectory;
+        $newFullPath = $newDirFull . '/' . $fileName;
+
+        if (file_exists($newFullPath)) {
+            return self::FAIL;
+        }
+
+        try {
+            if (! is_dir($newDirFull)) {
+                mkdir($newDirFull, 0775, true);
+            }
+            return rename($fullPath, $newFullPath) ? self::SUCCESS : self::FAIL;
+        } catch (\Throwable) {
+            return self::FAIL;
+        }
+    }
+
+    /**
      * Grąžina katalogo turinį (katalogai ir failai).
      *
      * @return array{name: string, type: 'directory'|'file', path: string, children?: array}[]

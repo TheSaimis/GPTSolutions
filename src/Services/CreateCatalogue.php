@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 /**
- * Sukuria naują katalogą templates/{directory}/{folderName}.
- * create(directory, folderName) → SUCCESS | FAIL
+ * Sukuria naują katalogą /${baseDir}/{directory}/{folderName}.
+ * create(directory, folderName, baseDir) → SUCCESS | FAIL
  */
 final class CreateCatalogue
 {
@@ -18,25 +18,28 @@ final class CreateCatalogue
     ) {}
 
     /**
-     * Sukuria katalogą templates/{directory}/{folderName}.
-     *
-     * @param string $directory  Kelias po templates/ (pvz. "4 Tvarkos" arba "")
-     * @param string $folderName  Naujo katalogo pavadinimas
+     * @param string $directory  Kelias po baseDir (pvz. "4 Tvarkos" arba "")
+     * @param string $folderName Naujo katalogo pavadinimas
+     * @param string $baseDir    "templates" arba "var/generated"
      * @return 'SUCCESS'|'FAIL'
      */
-    public function create(string $directory, string $folderName): string
+    public function create(string $directory, string $folderName, string $baseDir = 'templates'): string
     {
-        $directory = trim(str_replace('\\', '/', $directory));
+        $directory  = trim(str_replace('\\', '/', $directory));
         $folderName = trim(str_replace(['\\', '/'], '', $folderName));
 
         if ($folderName === '') {
             return self::FAIL;
         }
 
-        $templatesDir = $this->projectDir . '/templates';
+        $base = $this->resolveBase($baseDir);
+        if ($base === null) {
+            return self::FAIL;
+        }
+
         $targetDir = $directory !== ''
-            ? $templatesDir . '/' . $directory . '/' . $folderName
-            : $templatesDir . '/' . $folderName;
+            ? $base . '/' . $directory . '/' . $folderName
+            : $base . '/' . $folderName;
 
         try {
             if (is_dir($targetDir)) {
@@ -46,5 +49,13 @@ final class CreateCatalogue
         } catch (\Throwable) {
             return self::FAIL;
         }
+    }
+
+    private function resolveBase(string $baseDir): ?string
+    {
+        $baseDir  = trim(str_replace('\\', '/', $baseDir), '/');
+        $fullPath = $this->projectDir . '/' . $baseDir;
+        $resolved = realpath($fullPath);
+        return ($resolved !== false && is_dir($resolved)) ? $resolved : null;
     }
 }
