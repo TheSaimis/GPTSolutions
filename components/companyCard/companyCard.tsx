@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2 } from "lucide-react";
+import { Building2, Pencil } from "lucide-react";
+import Link from "next/link";
 import { CompanyApi } from "@/lib/api/companies";
 import styles from "./companyCard.module.scss";
 import { useEffect, useState } from "react";
@@ -10,8 +11,8 @@ export default function CompanyCard({ id }: { id: number }) {
     const [company, setCompany] = useState<Company | null>(null);
 
     useEffect(() => {
-        CompanyApi.getById(id).then((res) => setCompany(res));
-    }, []);
+        CompanyApi.getById(id).then((res) => setCompany(res ?? null));
+    }, [id]);
 
     if (!company) {
         return <p>Kraunama įmonė...</p>;
@@ -24,6 +25,9 @@ export default function CompanyCard({ id }: { id: number }) {
                     <Building2 size={22} />
                 </div>
                 <h2 className={styles.companyName}>{company.companyName}</h2>
+                <Link href={`/imone/${id}`} className={styles.editButton} title="Redaguoti įmonę">
+                    <Pencil size={18} />
+                </Link>
             </div>
             <dl className={styles.rekvizitai}>
                 {Object.entries(company)

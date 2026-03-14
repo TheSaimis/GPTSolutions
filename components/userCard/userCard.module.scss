@@ -1,5 +1,6 @@
 $primary: #EF2629;
 $primary-light: rgba(239, 38, 41, 0.08);
+$bg: #F1F5F9;
 $text-dark: #0F172A;
 $text-muted: #64748B;
 $border: #E2E8F0;
@@ -19,6 +20,24 @@ $border: #E2E8F0;
     margin-bottom: 16px;
     padding-bottom: 16px;
     border-bottom: 1px solid $border;
+
+    .editButton {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        color: $text-muted;
+        background: $bg;
+        transition: color 0.15s ease, background 0.15s ease;
+
+        &:hover {
+            color: $primary;
+            background: $primary-light;
+        }
+    }
 
     .cardIcon {
         width: 44px;

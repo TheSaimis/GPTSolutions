@@ -7,6 +7,7 @@ type CompanyStore = {
     wasSet: boolean;
     push: (cmp: Omit<Company, "id">) => void;
     set: (companies: Company[]) => void;
+    update: (id: number, cmp: Company) => void;
     remove: (id: number) => void;
     clear: () => void;
 };
@@ -28,6 +29,11 @@ export const useCompanyStore = create<CompanyStore>((set) => ({
             ],
         })),
 
+    update: (id, cmp) =>
+        set((state) => ({
+            companies: state.companies.map((m) => (m.id === id ? { ...m, ...cmp, id } : m)),
+        })),
+
     remove: (id) =>
         set((state) => ({
             companies: state.companies.filter((m) => m.id !== id),
@@ -47,6 +53,9 @@ export const CompanyStore = {
 
     set: (companies: Company[]) =>
         useCompanyStore.getState().set(companies),
+
+    update: (id: number, cmp: Company) =>
+        useCompanyStore.getState().update(id, cmp),
 
     remove: (id: number) =>
         useCompanyStore.getState().remove(id),

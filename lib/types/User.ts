@@ -5,4 +5,6 @@ export type User = {
     lastName?: string;
     password?: string;
     role?: string;
-  };
+    createdAt?: string;
+    modifiedAt?: string;
+};

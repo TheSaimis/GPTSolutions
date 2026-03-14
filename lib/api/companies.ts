@@ -25,5 +25,13 @@ export const CompanyApi = {
             CompanyStore.push(res.data);
         }
         return res;
+    },
+
+    companyUpdate: async (id: number, company: Partial<Company>) => {
+        const res = await api.post<ApiStatus<Company>>(`/api/company/update/${id}`, company);
+        if (res.status === "SUCCESS" && res.data) {
+            CompanyStore.update(id, res.data);
+        }
+        return res;
     }
 };
