@@ -6,6 +6,9 @@ namespace App\Services\Metadata;
 
 final class DocxMetadataService
 {
+    /**
+     * Prideda custom metaduomenis į DOCX. Jei savybė jau egzistuoja – neperrašo.
+     */
     public function setDocxCustomProperties(string $docxPath, array $properties): void
     {
         $zip = new \ZipArchive();
@@ -59,24 +62,17 @@ final class DocxMetadataService
                 continue;
             }
 
-            $existing = $xpath->query(sprintf('/cp:Properties/cp:property[@name="%s"]', $name));
-
-            if ($existing !== false && $existing->length > 0) {
-                $property = $existing->item(0);
-
-                if ($property instanceof \DOMElement) {
-                    while ($property->firstChild) {
-                        $property->removeChild($property->firstChild);
+            $existing = $xpath->query('/cp:Properties/cp:property');
+            $alreadyExists = false;
+            if ($existing !== false) {
+                foreach ($existing as $prop) {
+                    if ($prop instanceof \DOMElement && $prop->getAttribute('name') === $name) {
+                        $alreadyExists = true;
+                        break;
                     }
-
-                    $vt = $doc->createElementNS(
-                        'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes',
-                        'vt:lpwstr',
-                        $value
-                    );
-                    $property->appendChild($vt);
                 }
-
+            }
+            if ($alreadyExists) {
                 continue;
             }
 
