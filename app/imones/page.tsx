@@ -28,7 +28,7 @@ export default function ImonesPage() {
 
     async function handleSubmit() {
         const res = await CompanyApi.companyCreate({ companyType, companyName, address, code, managerFirstName, managerLastName, managerGender, role });
-        if (res.status === "SUCCESS") {
+        if (!res.status) {
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
         }
     }
@@ -57,21 +57,21 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas"/>
-                        <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas"/>
+                        <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                        <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                     </div>
 
-                    <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis"/>
+                    <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis" />
 
-                    <InputFieldText value={address} onChange={setAddress} placeholder="Adresas"/>
-                    <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas"/>
+                    <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
+                    <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas" />
 
                     <div className={styles.row}>
-                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vardas"/>
-                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė"/>
+                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vardas" />
+                        <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
                     </div>
 
-                    <InputFieldText value={role} onChange={setRole} placeholder="Pareigos"/>
+                    <InputFieldText value={role} onChange={setRole} placeholder="Pareigos" />
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>

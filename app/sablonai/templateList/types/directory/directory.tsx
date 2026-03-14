@@ -30,11 +30,9 @@ export default function Directory({ name, children, path, fileType }: List) {
     const [file, setFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
-    const { catalogueTree, setCatalogueTree } = useCatalogueTree();
+    const { setCatalogueTree } = useCatalogueTree();
     const Component = fileType === "generated" ? GeneratedFiles : Files;
-    const inputRef = useRef<HTMLInputElement>(null);
 
-    // used for knowing if the path includes a file that matches the file search in other words bullshit
     function clicked() {
         setCollapsed(!collapsed);
     }
@@ -43,7 +41,6 @@ export default function Directory({ name, children, path, fileType }: List) {
         if (file?.name && file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
             TemplateApi.createTemplate(file, path ?? "").then((res) => {
                 if (res.status === "SUCCESS") {
-                    console.log(path);
                     setCatalogueTree((prev) => addFileToTree(prev, path ?? "", file.name));
                 }
                 setFile(null);
@@ -51,10 +48,6 @@ export default function Directory({ name, children, path, fileType }: List) {
         }
     }, [file])
 
-    useEffect(() => {
-        inputRef.current?.focus();
-    }, [rename]);
-    
     return (
         <DropZone onFile={setFile} accept=".docx" className={styles.directory} >
             <div className={styles.itemContainer} onContextMenu={(e) =>

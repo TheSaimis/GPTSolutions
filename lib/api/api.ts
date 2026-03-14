@@ -20,16 +20,25 @@ export type DownloadResult = {
 
 type ResponseType = "json" | "blob";
 
-type RequestConfig = {
+type BaseRequestConfig = {
   method: string;
   path: string;
   body?: Json | File | FormData;
   errorMessage?: string;
   errorTitle?: string;
   loadingMessage?: string;
-  responseType?: ResponseType;
   fallbackFilename?: string;
 };
+
+type JsonRequestConfig = BaseRequestConfig & {
+  responseType?: "json";
+};
+
+type BlobRequestConfig = BaseRequestConfig & {
+  responseType: "blob";
+};
+
+type RequestConfig = JsonRequestConfig | BlobRequestConfig;
 
 type RequestOptions = {
   errorMessage?: string;
@@ -42,7 +51,10 @@ async function getClientToken(): Promise<string | null> {
   return localStorage.getItem("token");
 }
 
-function filenameFromDisposition(disposition: string | null, fallback: string) {
+function filenameFromDisposition(
+  disposition: string | null,
+  fallback: string
+): string {
   if (!disposition) return fallback;
 
   const star = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
@@ -58,6 +70,11 @@ function filenameFromDisposition(disposition: string | null, fallback: string) {
   return fallback;
 }
 
+// overloads
+async function request<T>(config: JsonRequestConfig): Promise<T>;
+async function request(config: BlobRequestConfig): Promise<DownloadResult>;
+
+// implementation
 async function request<T>({
   method,
   path,
@@ -83,7 +100,9 @@ async function request<T>({
     finalBody = JSON.stringify(body);
   }
 
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   useLoadingStore.getState().setLoading(true, loadingMessage ?? "Kraunama...");
 
@@ -122,7 +141,9 @@ async function request<T>({
       throw new Error(details || `HTTP ${res.status}`);
     }
 
-    if (res.status === 204) return undefined as T;
+    if (res.status === 204) {
+      return undefined as T;
+    }
 
     if (responseType === "blob") {
       const disposition = res.headers.get("content-disposition");
@@ -134,7 +155,7 @@ async function request<T>({
       };
     }
 
-    return await res.json();
+    return (await res.json()) as T;
   } finally {
     useLoadingStore.getState().setLoading(false);
   }
@@ -149,15 +170,15 @@ export const api = {
       ...options,
     }),
 
-  getBlob: (path: string, options?: RequestOptions): Promise<DownloadResult> =>
-    request<never>({
+  getBlob: (path: string, options?: RequestOptions) =>
+    request({
       method: "GET",
       path,
       responseType: "blob",
       ...options,
-    }) as Promise<DownloadResult>,
+    }),
 
-  post: <T>(path: string, body?: Json | FormData, options?: RequestOptions) =>
+  post: <T>(path: string, body?: Json | File | FormData, options?: RequestOptions) =>
     request<T>({
       method: "POST",
       path,
@@ -170,12 +191,12 @@ export const api = {
     path: string,
     body?: Json | File | FormData,
     options?: RequestOptions
-  ): Promise<DownloadResult> =>
-    request<never>({
+  ) =>
+    request({
       method: "POST",
       path,
       body,
       responseType: "blob",
       ...options,
-    }) as Promise<DownloadResult>,
+    }),
 };

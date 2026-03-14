@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
+import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { FileText, Download, ArrowLeft } from "lucide-react";
 import { DirectoryStore, useDirectoryStore } from "@/lib/globalVariables/directoriesToSend";
@@ -14,7 +15,7 @@ export default function TemplatePage() {
     // bullshit page, temporary replacement for [...template]
 
     const [directory, setDirectory] = useState([] as string[]);
-    const [companies, setCompanies] = useState([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
     const selectedDirectories = useDirectoryStore((state) => state.selected);
     const [company, setCompany] = useState("");
 

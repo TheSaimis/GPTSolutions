@@ -55,6 +55,9 @@ export default function Login() {
               value={password}
               placeholder="Slaptažodis"
               onChange={setPassword}
+              onKeyDown={{
+                Enter: login,
+              }}
               icon={Lock}
             />
           </div>
