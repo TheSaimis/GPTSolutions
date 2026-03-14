@@ -199,4 +199,13 @@ export const api = {
       responseType: "blob",
       ...options,
     }),
+
+  put: <T>(path: string, body?: Json, options?: RequestOptions) =>
+    request<T>({
+      method: "PUT",
+      path,
+      body,
+      responseType: "json",
+      ...options,
+    }),
 };

@@ -1,0 +1,44 @@
+ŠABLONŲ KINTAMŲJŲ SĄRAŠAS
+=========================
+Įrašykite šiuos kintamuosius į Word dokumentą kaip šabloną. Sistema juos pakeis į tikrąsias reikšmes.
+
+——— ĮMONĖS KINTAMIEJAI (naudojami šablonuose) ———
+
+${kompanija}          – Įmonės pavadinimas
+${tipas}              – Įmonės kategorija (trumpinys)
+${tipasPilnas}        – Pilnas įmonės kategorijos pavadinimas
+${adresas}            – Įmonės registracijos adresas
+${kodas}              – Įmonės kodas
+${data}               – Įsakymo arba dokumento data
+${vadovas}            – Įmonės vadovo vardas ir pavardė
+${vardas}             – Vadovo vardas
+${pavarde}            – Vadovo pavardė
+${role}               – Pasirašančio asmens pareigos
+
+——— PAGAL DUOMENŲ BAZĘ (Company laukai) ———
+
+id                   – Įmonės ID
+companyType          – Įmonės tipas (UAB, AB, MB, …)
+companyName          – Įmonės pavadinimas
+code                 – Įmonės kodas
+address              – Adresas
+cityOrDistrict       – Miestas / rajonas
+managerType          – Vadovo tipas
+managerFirstName     – Vadovo vardas
+managerLastName      – Vadovo pavardė
+managerGender        – Vadovo lytis
+documentDate         – Dokumento data
+role                 – Pareigos
+modifiedAt           – Redaguota
+createdAt            – Sukurta
+
+——— NAUDOTOJO LAUKAI (User) ———
+
+id                   – Naudotojo ID
+email                – El. paštas
+firstName            – Vardas
+lastName             – Pavardė
+role                 – Rolė (ROLE_ADMIN / ROLE_USER)
+
+=========================
+Naudojimas Word dokumente: įrašykite kintamąjį ten, kur turi atsirasti reikšmė, pvz.: ${kompanija}, ${adresas}, ${data}.

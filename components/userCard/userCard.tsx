@@ -1,6 +1,7 @@
 "use client";
 
-import { User } from "lucide-react";
+import { User, Pencil } from "lucide-react";
+import Link from "next/link";
 import styles from "./userCard.module.scss";
 
 export type UserCardData = {
@@ -8,7 +9,7 @@ export type UserCardData = {
     email?: string;
     firstName?: string;
     lastName?: string;
-    role?: string;
+    role?: string | string[];
 };
 
 const FIELD_LABEL: Record<string, string> = {
@@ -19,17 +20,17 @@ const FIELD_LABEL: Record<string, string> = {
     role: "Rolė",
 };
 
-function roleLabel(role?: string): string {
-    if (role === "ROLE_ADMIN") return "Administratorius";
-    if (role === "ROLE_USER") return "Naudotojas";
-    return role ?? "—";
+function roleLabel(role?: string | string[]): string {
+    const r = Array.isArray(role) ? role[0] : role;
+    if (r === "ROLE_ADMIN") return "Administratorius";
+    if (r === "ROLE_USER") return "Naudotojas";
+    return r ?? "—";
 }
 
 export default function UserCard(props: UserCardData) {
     const { id, email, firstName, lastName, role } = props;
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || "—";
     const fields = [
-        // { key: "id", value: id != null ? String(id) : undefined },
         { key: "email", value: email },
         { key: "firstName", value: firstName },
         { key: "lastName", value: lastName },
@@ -43,6 +44,11 @@ export default function UserCard(props: UserCardData) {
                     <User size={22} />
                 </div>
                 <h2 className={styles.userName}>{fullName}</h2>
+                {id != null && (
+                    <Link href={`/naudotojai/${id}`} className={styles.editButton} title="Redaguoti naudotoją">
+                        <Pencil size={18} />
+                    </Link>
+                )}
             </div>
             <dl className={styles.fields}>
                 {fields.map(({ key, value }) => (

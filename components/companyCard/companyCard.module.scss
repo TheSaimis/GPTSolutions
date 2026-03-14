@@ -21,6 +21,24 @@ $border: #E2E8F0;
     padding-bottom: 16px;
     border-bottom: 1px solid $border;
 
+    .editButton {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        color: $text-muted;
+        background: $bg;
+        transition: color 0.15s ease, background 0.15s ease;
+
+        &:hover {
+            color: $primary;
+            background: $primary-light;
+        }
+    }
+
     .cardIcon {
         width: 44px;
         height: 44px;
