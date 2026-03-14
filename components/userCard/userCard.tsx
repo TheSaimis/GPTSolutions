@@ -29,7 +29,7 @@ export default function UserCard(props: UserCardData) {
     const { id, email, firstName, lastName, role } = props;
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || "—";
     const fields = [
-        { key: "id", value: id != null ? String(id) : undefined },
+        // { key: "id", value: id != null ? String(id) : undefined },
         { key: "email", value: email },
         { key: "firstName", value: firstName },
         { key: "lastName", value: lastName },

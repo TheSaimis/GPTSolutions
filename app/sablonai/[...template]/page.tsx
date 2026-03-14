@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
+import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { FileText, Download, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -14,16 +15,16 @@ export default function TemplatePage() {
     const { template } = useParams();
     const templatePath = Array.isArray(template) ? template.join("/") : template;
     const fileName = Array.isArray(template) ? template.at(-1) : template;
-    const [directory, setDirectory] = useState(decodeURIComponent(templatePath));
+    const [directory, setDirectory] = useState(decodeURIComponent(templatePath || ""));
     const [documentName, setDocumentName] = useState(fileName);
 
-    const [companies, setCompanies] = useState([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
     const [company, setCompany] = useState("");
 
     useEffect(() => {
         getCompanies();
-        const decoded = decodeURIComponent(templatePath);
-        const decodedFileName = decodeURIComponent(fileName);
+        const decoded = decodeURIComponent(templatePath || "");
+        const decodedFileName = decodeURIComponent(fileName || "");
         setDocumentName(decodedFileName);
         setDirectory(decoded);
         document.title = decodedFileName;
