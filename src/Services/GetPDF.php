@@ -12,30 +12,34 @@ final class GetPDF
     ) {}
 
     /**
-     * Konvertuoja .docx/.doc šabloną į PDF naudojant LibreOffice.
+     * Konvertuoja .docx/.doc failą į PDF naudojant LibreOffice.
      * Grąžina pilną kelią iki sugeneruoto PDF failo.
      *
-     * @throws \InvalidArgumentException Jei failas nerastas arba kelias išeina iš templates ribų
+     * @param string $relativePath Santykinis kelias (pvz. "4 Tvarkos/file.docx" arba "CompanyName/doc.docx")
+     * @param string $baseDir      Bazinis katalogas nuo projectDir (pvz. "templates", "var/generated")
+     * @throws \InvalidArgumentException Jei failas nerastas arba kelias išeina iš baseDir ribų
      * @throws \RuntimeException Jei konvertavimas nepavyksta
      */
-    public function convertToPdf(string $relativePath): string
+    public function convertToPdf(string $relativePath, string $baseDir = 'templates'): string
     {
         $relativePath = str_replace('\\', '/', urldecode($relativePath));
-        $templatesDir = $this->projectDir . '/templates';
-        $filePath = realpath($templatesDir . '/' . $relativePath);
-    
+        $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+        $sourceDir = $this->projectDir . '/' . $baseDir;
+        $filePath = realpath($sourceDir . '/' . $relativePath);
+
         if ($filePath === false) {
             throw new \InvalidArgumentException(
                 "Failas nerastas.\n" .
-                "Ieškota: " . $templatesDir . '/' . $relativePath . "\n" .
+                "Ieškota: " . $sourceDir . '/' . $relativePath . "\n" .
                 "ProjectDir: " . $this->projectDir . "\n" .
-                "TemplatesDir: " . $templatesDir
+                "SourceDir: " . $sourceDir
             );
         }
-    
-        if (!str_starts_with($filePath, realpath($templatesDir))) {
+
+        $sourceResolved = realpath($sourceDir);
+        if ($sourceResolved === false || !str_starts_with($filePath, $sourceResolved)) {
             throw new \InvalidArgumentException(
-                "Kelias išeina iš templates ribų: " . $filePath
+                "Kelias išeina iš " . $baseDir . " ribų: " . $filePath
             );
         }
     
@@ -58,7 +62,7 @@ final class GetPDF
             mkdir($outputDir, 0775, true);
         }
     
-        $hash = md5($relativePath . filemtime($filePath));
+        $hash = md5($baseDir . $relativePath . filemtime($filePath));
         $pdfName = pathinfo($filePath, PATHINFO_FILENAME) . '_' . $hash . '.pdf';
         $pdfPath = $outputDir . '/' . $pdfName;
     

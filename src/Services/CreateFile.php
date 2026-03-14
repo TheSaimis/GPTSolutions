@@ -1,9 +1,10 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services;
 
+use App\Services\Metadata\DocxMetadataService;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 /**
@@ -37,6 +38,7 @@ final class CreateFile
     public function __construct(
         private readonly string $projectDir,
         private readonly Namer $namer,
+        private readonly DocxMetadataService $docxMetadataService,
     ) {}
 
     /**
@@ -45,41 +47,49 @@ final class CreateFile
      * @param array<string, mixed> $data
      * @return string
      */
-    public function createWordDocument(array $data): string
+    public function createWordDocument(array $data, ?string $name = null): string
     {
         $this->validateData($data);
 
-        $directory    = (string)($data['directory'] ?? '');
-        $template     = (string)($data['template'] ?? '');
-        $companyName  = (string)($data['kompanija'] ?? $data['companyName'] ?? '');
-        $code         = (string)($data['kodas'] ?? $data['code'] ?? '');
-        $documentDate = (string)($data['data'] ?? $data['documentDate'] ?? '');
-        $role         = (string)($data['role'] ?? '');
-        $vardas       = (string)($data['vardas'] ?? $data['managerFirstName'] ?? '');
-        $pavarde      = (string)($data['pavarde'] ?? $data['managerLastName'] ?? '');
-        $tipas        = (string)($data['tipas'] ?? $data['companyType'] ?? '');
-        $tipasPilnas  = (string)($data['tipasPilnas'] ?? $data['companyType'] ?? '');
-        $adresas      = (string)($data['adresas'] ?? $data['address'] ?? '');
+        $directory    = (string) ($data['directory'] ?? '');
+        $template     = (string) ($data['template'] ?? '');
+        $companyName  = (string) ($data['kompanija'] ?? $data['companyName'] ?? '');
+        $code         = (string) ($data['kodas'] ?? $data['code'] ?? '');
+        $documentDate = (string) ($data['data'] ?? $data['documentDate'] ?? '');
+        $role         = (string) ($data['role'] ?? '');
+        $vardas       = (string) ($data['vardas'] ?? $data['managerFirstName'] ?? '');
+        $pavarde      = (string) ($data['pavarde'] ?? $data['managerLastName'] ?? '');
+        $tipas        = (string) ($data['tipas'] ?? $data['companyType'] ?? '');
+        $tipasPilnas  = (string) ($data['tipasPilnas'] ?? $data['companyType'] ?? '');
+        $adresas      = (string) ($data['adresas'] ?? $data['address'] ?? '');
+
+        $companyId   = (string) ($data['companyId'] ?? '');
+        $userId      = (string) ($data['userId'] ?? '');
+        $userName    = (string) ($data['userName'] ?? $data['firstName'] ?? '');
+        $userSurname = (string) ($data['userSurname'] ?? $data['lastName'] ?? '');
+        $createdBy   = trim($userName . ' ' . $userSurname);
 
         if ($tipasPilnas === '') {
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
 
         $templatePath = $this->resolveTemplatePath($directory, $template);
-        if ($templatePath === null || !is_readable($templatePath)) {
+        if ($templatePath === null || ! is_readable($templatePath)) {
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
 
         $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
-        $tipasSlug = $this->sanitizeForFilename($tipas) ?: 'Kita';
-        $outputDir = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
-        if (!is_dir($outputDir)) {
+        $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
+        $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        if (! is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $baseName . '_' . $companySlug . '.docx';
+        $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
+
+        $lang = $this->detectLanguage($template);
 
         $processor = new TemplateProcessor($templatePath);
 
@@ -87,36 +97,56 @@ final class CreateFile
             $data['managerFirstName'] ?? $data['vardas'] ?? null,
             $data['managerLastName'] ?? $data['pavarde'] ?? null
         );
-        $managerType = (string)($data['managerType'] ?? '');
-        $lytis = trim((string)($data['managerGender'] ?? $data['lytis'] ?? ''));
+        $managerType = (string) ($data['managerType'] ?? '');
+        $lytis       = trim((string) ($data['managerGender'] ?? $data['lytis'] ?? ''));
         if ($lytis === '') {
             $lytis = $this->resolveGender($managerType);
         }
 
-        $vadovo = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
-        $vardo = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
-        $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
-        $varde = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
-        $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
+        if ($lang === 'LT') {
+            $vadovo   = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
+            $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
+            $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
+
+            $this->setValueCaseInsensitive($processor, 'role', $role);
+            $this->setValueCaseInsensitive($processor, 'tipas', $tipas);
+            $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnas);
+            $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
+            $this->setValueCaseInsensitive($processor, 'vadovo', $vadovo);
+            $this->setValueCaseInsensitive($processor, 'vardo', $vardo);
+            $this->setValueCaseInsensitive($processor, 'pavardes', $pavardes);
+            $this->setValueCaseInsensitive($processor, 'varde', $varde);
+            $this->setValueCaseInsensitive($processor, 'pavardeS', $pavardeS);
+            $this->setValueCaseInsensitive($processor, 'pavardo', $pavardes);
+            $this->setValueCaseInsensitive($processor, 'vardes', $vardo);
+        } else {
+            $roleTr        = $this->translateRole($managerType, $lang);
+            $tipasTr       = $this->translateTipas($tipas, $lang);
+            $tipasPilnasTr = $this->translateTipasPilnas($tipas, $tipasPilnas, $lang);
+            $lytisTr       = $this->translateGender($lytis, $lang);
+
+            $this->setValueCaseInsensitive($processor, 'role', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'tipas', $tipasTr);
+            $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnasTr);
+            $this->setValueCaseInsensitive($processor, 'lytis', $lytisTr);
+            $this->setValueCaseInsensitive($processor, 'vadovo', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vardo', $vardas);
+            $this->setValueCaseInsensitive($processor, 'pavardes', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'varde', $vardas);
+            $this->setValueCaseInsensitive($processor, 'pavardeS', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'pavardo', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'vardes', $vardas);
+        }
 
         $this->setValueCaseInsensitive($processor, 'kompanija', $companyName);
         $this->setValueCaseInsensitive($processor, 'kodas', $code);
         $this->setValueCaseInsensitive($processor, 'data', $documentDate);
-        $this->setValueCaseInsensitive($processor, 'role', $role);
         $this->setValueCaseInsensitive($processor, 'vardas', $vardas);
         $this->setValueCaseInsensitive($processor, 'pavarde', $pavarde);
-        $this->setValueCaseInsensitive($processor, 'tipas', $tipas);
-        $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnas);
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
-        $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
-        $this->setValueCaseInsensitive($processor, 'vadovo', $vadovo);
-        $this->setValueCaseInsensitive($processor, 'vardo', $vardo);
-        $this->setValueCaseInsensitive($processor, 'pavardes', $pavardes);
-        $this->setValueCaseInsensitive($processor, 'varde', $varde);
-        $this->setValueCaseInsensitive($processor, 'pavardeS', $pavardeS);
-        $this->setValueCaseInsensitive($processor, 'pavardo', $pavardes);
-        $this->setValueCaseInsensitive($processor, 'vardes', $vardo);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
         $this->setValueCaseInsensitive($processor, 'documentDate', $documentDate);
@@ -125,6 +155,20 @@ final class CreateFile
 
         $processor->saveAs($outputPath);
 
+        $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
+        $templateId       = (string) ($templateMetadata['templateId'] ?? '');
+
+        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+            'templateId' => $templateId,
+            'documentId' => $this->generateUuidV4(),
+            'created'    => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'createdBy'  => $createdBy,
+            'userId'     => $userId,
+            'type'       => $tipas,
+            'company'    => $companyName,
+            'companyId'  => $companyId,
+            'language'   => $lang,
+        ]);
         return $outputPath;
     }
 
@@ -136,13 +180,13 @@ final class CreateFile
         $companyName = $data['kompanija'] ?? $data['companyName'] ?? '';
         $code        = $data['kodas'] ?? $data['code'] ?? '';
         $required    = ['template'];
-        if (empty($companyName) || !is_string($companyName) || trim($companyName) === '') {
+        if (empty($companyName) || ! is_string($companyName) || trim($companyName) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "kompanija" arba "companyName"');
         }
-        if (empty($code) || !is_string($code) || trim($code) === '') {
+        if (empty($code) || ! is_string($code) || trim($code) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "kodas" arba "code"');
         }
-        if (empty($data['template']) || !is_string($data['template']) || trim($data['template']) === '') {
+        if (empty($data['template']) || ! is_string($data['template']) || trim($data['template']) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "template"');
         }
     }
@@ -183,16 +227,15 @@ final class CreateFile
         $t = preg_replace('/\s+/', ' ', $t) ?? $t;
 
         return match ($t) {
-            'UAB' => 'Uždaroji akcinė bendrovė',
-            'AB'  => 'Akcinė bendrovė',
-            'MB'  => 'Mažoji bendrija',
+            'UAB'   => 'Uždaroji akcinė bendrovė',
+            'AB'    => 'Akcinė bendrovė',
+            'MB'    => 'Mažoji bendrija',
             'IĮ', 'II' => 'Individuali įmonė',
-            'IND V', 'INDV', 'IV' => 'Individuali veikla',
+            'IND V', 'INDV', 'IV', 'IND. V.' => 'Individuali veikla',
             'VŠĮ', 'VSĮ', 'VSI' => 'Viešoji įstaiga',
             default => $tipas,
         };
     }
-
     /**
      * Pavers įmonės pavadinimą į saugų failų sistemos identifikatorių.
      */
@@ -212,12 +255,21 @@ final class CreateFile
 
     private function resolveGender(string $managerType): string
     {
-        $type = mb_strtolower(trim($managerType));
+        $type   = mb_strtolower(trim($managerType));
         $female = ['vadovė', 'direktorė'];
         $male   = ['vadovas', 'direktorius'];
-        if (in_array($type, $female, true)) return 'Moteris';
-        if (in_array($type, $male, true)) return 'Vyras';
-        if (str_ends_with($type, 'ė')) return 'Moteris';
+        if (in_array($type, $female, true)) {
+            return 'Moteris';
+        }
+
+        if (in_array($type, $male, true)) {
+            return 'Vyras';
+        }
+
+        if (str_ends_with($type, 'ė')) {
+            return 'Moteris';
+        }
+
         return 'Vyras';
     }
 
@@ -228,7 +280,7 @@ final class CreateFile
      */
     private function applyReplacements(TemplateProcessor $processor, mixed $replacements): void
     {
-        if (!is_array($replacements)) {
+        if (! is_array($replacements)) {
             return;
         }
 
@@ -264,5 +316,129 @@ final class CreateFile
                 $processor->setValue($v, $value);
             }
         }
+    }
+    private function detectLanguage(string $templateFilename): string
+    {
+        $baseName = pathinfo($templateFilename, PATHINFO_FILENAME);
+
+        if (preg_match('/\s(RU|EN)$/i', $baseName, $matches)) {
+            return mb_strtoupper($matches[1]);
+        }
+
+        return 'LT';
+    }
+
+    private function translateRole(string $managerType, string $lang): string
+    {
+        $type = mb_strtolower(trim($managerType));
+
+        if ($lang === 'RU') {
+            return match ($type) {
+                'direktorius', 'direktorė'                          => 'Директор',
+                'vadovas', 'vadovė'                                 => 'Руководитель',
+                'generalinis direktorius', 'generalinė direktorė'   => 'Генеральный директор',
+                'pirmininkas', 'pirmininkė'                         => 'Председатель',
+                'prezidentas', 'prezidentė'                         => 'Президент',
+                'administratorius', 'administratorė'                => 'Администратор',
+                'savininkas', 'savininkė'                           => 'Владелец',
+                default                                             => $managerType,
+            };
+        }
+
+        return match ($type) {
+            'direktorius', 'direktorė'                          => 'Director',
+            'vadovas', 'vadovė'                                 => 'Manager',
+            'generalinis direktorius', 'generalinė direktorė'   => 'General Director',
+            'pirmininkas', 'pirmininkė'                         => 'Chairman',
+            'prezidentas', 'prezidentė'                         => 'President',
+            'administratorius', 'administratorė'                => 'Administrator',
+            'savininkas', 'savininkė'                           => 'Owner',
+            default                                             => $managerType,
+        };
+    }
+
+    private function translateTipas(string $tipas, string $lang): string
+    {
+        $t = mb_strtoupper(trim($tipas));
+        $t = str_replace('.', '', $t);
+        $t = preg_replace('/\s+/', ' ', $t) ?? $t;
+
+        if ($lang === 'RU') {
+            return match ($t) {
+                'UAB'                              => 'ЗАО',
+                'AB'                               => 'АО',
+                'MB'                               => 'МТ',
+                'IĮ', 'II'                        => 'ИП',
+                'IND V', 'INDV', 'IV', 'IND. V.' => 'ИД',
+                'VŠĮ', 'VSĮ', 'VSI'              => 'ГУ',
+                default                            => $tipas,
+            };
+        }
+
+        return match ($t) {
+            'UAB'                              => 'LLC',
+            'AB'                               => 'JSC',
+            'MB'                               => 'SP',
+            'IĮ', 'II'                        => 'IE',
+            'IND V', 'INDV', 'IV', 'IND. V.' => 'IA',
+            'VŠĮ', 'VSĮ', 'VSI'              => 'PI',
+            default                            => $tipas,
+        };
+    }
+
+    private function translateTipasPilnas(string $tipas, string $tipasPilnas, string $lang): string
+    {
+        $t = mb_strtoupper(trim($tipas));
+        $t = str_replace('.', '', $t);
+        $t = preg_replace('/\s+/', ' ', $t) ?? $t;
+
+        if ($lang === 'RU') {
+            return match ($t) {
+                'UAB'                              => 'Закрытое акционерное общество',
+                'AB'                               => 'Акционерное общество',
+                'MB'                               => 'Малое товарищество',
+                'IĮ', 'II'                        => 'Индивидуальное предприятие',
+                'IND V', 'INDV', 'IV', 'IND. V.' => 'Индивидуальная деятельность',
+                'VŠĮ', 'VSĮ', 'VSI'              => 'Государственное учреждение',
+                default                            => $tipasPilnas,
+            };
+        }
+
+        return match ($t) {
+            'UAB'                              => 'Private Limited Liability Company',
+            'AB'                               => 'Joint Stock Company',
+            'MB'                               => 'Small Partnership',
+            'IĮ', 'II'                        => 'Individual Enterprise',
+            'IND V', 'INDV', 'IV', 'IND. V.' => 'Individual Activity',
+            'VŠĮ', 'VSĮ', 'VSI'              => 'Public Institution',
+            default                            => $tipasPilnas,
+        };
+    }
+
+    private function translateGender(string $lytis, string $lang): string
+    {
+        if ($lang === 'RU') {
+            return match (mb_strtolower(trim($lytis))) {
+                'vyras'   => 'Мужской',
+                'moteris' => 'Женский',
+                default   => $lytis,
+            };
+        }
+
+        return match (mb_strtolower(trim($lytis))) {
+            'vyras'   => 'Male',
+            'moteris' => 'Female',
+            default   => $lytis,
+        };
+    }
+
+    private function generateUuidV4(): string
+    {
+        $data = random_bytes(16);
+
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

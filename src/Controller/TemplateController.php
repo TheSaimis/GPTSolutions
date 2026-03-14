@@ -1,13 +1,14 @@
 <?php
 namespace App\Controller;
 
+use App\Entity\CompanyRequisite;
 use App\Services\AddWordDocument;
 use App\Services\CreateFile;
+use App\Services\FileService;
 use App\Services\GetPDF;
-use App\Services\TemplateFileService;
+use App\Services\Metadata\FindTemplate;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Entity\CompanyRequisite;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -23,36 +24,43 @@ final class TemplateController extends AbstractController
         private CreateFile $createFile,
         private readonly ZipFiles $zipFiles,
         private GetPDF $getPDF,
+        private FindTemplate $findTemplate,
         private AddWordDocument $addWordDocument,
-        private TemplateFileService $templateFileService,
+        private FileService $fileService
     ) {}
 
     // ───── GET  /api/templates/all ─────
     #[Route('/api/templates/all', name: 'api_templates_all', methods: ['GET'])]
     public function all(): JsonResponse
     {
-        $dir = $this->getTemplatesDir();
-        if (! is_dir($dir)) {
+        if ($this->fileService->getBaseFullPath('templates') === null) {
             return new JsonResponse(['error' => 'Templates directory not found'], 500);
         }
 
         return new JsonResponse(
-            $this->scanDirectory($dir)
+            $this->filterTemplatesOnly($this->fileService->listDirectory('templates'))
         );
+    }
+
+    #[Route('/api/templates/id/{id}', name: 'api_templates_id', methods: ['GET'])]
+    public function byId(string $id): JsonResponse
+    {
+        return new JsonResponse($this->findTemplate->findByTemplateId($id));
     }
 
     // ───── GET  /api/templates/{category} ─────
     #[Route('/api/templates/{category}', name: 'api_templates_category', methods: ['GET'])]
     public function byCategory(string $category): JsonResponse
     {
-        $dir = $this->getTemplatesDir() . '/' . $category;
-        if (! is_dir($dir)) {
-            return new JsonResponse(['error' => 'Category not found'], 404);
+        $items = $this->fileService->listDirectory('templates', $category);
+        if ($items === []) {
+            $resolved = $this->fileService->resolvePath('templates', $category);
+            if ($resolved === null || ! is_dir($resolved)) {
+                return new JsonResponse(['error' => 'Category not found'], 404);
+            }
         }
 
-        return new JsonResponse([
-            'templates' => $this->scanDirectory($dir),
-        ]);
+        return new JsonResponse(['templates' => $this->filterTemplatesOnly($items)]);
     }
 
     // ───── GET  /api/templates/{category}/{subcategory} ─────
@@ -68,49 +76,6 @@ final class TemplateController extends AbstractController
     //         'templates' => $this->scanDirectory($dir),
     //     ]);
     // }
-
-    /**
-     * POST /api/template/delete
-     * Ištrina šabloną templates/{path}.
-     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx" }
-     */
-    #[Route('/api/template/delete', name: 'api_template_delete', methods: ['POST'])]
-    public function delete(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        $path = is_array($data) ? trim((string) ($data['directory'] ?? '')) : '';
-
-        if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
-        }
-
-        $status = $this->templateFileService->delete($path);
-        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
-    }
-
-    /**
-     * POST /api/template/rename
-     * Pervadina šabloną.
-     * Body: { "path": "4 Tvarkos/3 Mobingo Tvarka 2023.docx", "newName": "Naujas pavadinimas.docx" }
-     */
-    #[Route('/api/template/rename', name: 'api_template_rename', methods: ['POST'])]
-    public function rename(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        if (!is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
-        }
-
-        $path = trim((string) ($data['directory'] ?? ''));
-        $newName = trim((string) ($data['name'] ?? ''));
-
-        if ($path === '' || $newName === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
-        }
-
-        $status = $this->templateFileService->rename($path, $newName);
-        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
-    }
 
     /**
      * POST /api/template/createFolder
@@ -144,6 +109,7 @@ final class TemplateController extends AbstractController
     public function fillFile(Request $request): JsonResponse
     {
         $directory = $request->request->get('directory');
+
         if ($directory === null || trim((string) $directory) === '') {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
@@ -176,8 +142,11 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Invalid JSON body'], 400);
         }
 
+        $user = $this->getUser();
+
         $companyId = $data['companyId'] ?? null;
         $templates = $data['templates'] ?? null;
+        $name = isset($data['name']) ? trim((string) $data['name']) : null;
 
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
             return new JsonResponse(['error' => 'companyId is required'], 400);
@@ -194,21 +163,25 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Company not found'], 404);
         }
 
-        $documentDate = $company->getDocumentDate()
-            ?? (new \DateTimeImmutable())->format('Y-m-d');
+        $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
 
-        $code = (string) $company->getCode();
+        $code        = (string) $company->getCode();
         $companyData = [
             'kompanija'   => (string) $company->getCompanyName(),
             'kodas'       => $code,
             'data'        => (string) $documentDate,
             'role'        => (string) ($company->getRole() ?? ''),
             'tipas'       => (string) ($company->getCompanyType() ?? ''),
+            'tipasPilnas' => (string) ($company->getCategory() ?? ''),
             'adresas'     => (string) ($company->getAddress() ?? ''),
-            'managerType'   => (string) ($company->getManagerType() ?? ''),
-            'managerGender' => (string) ($company->getManagerGender() ?? ''),
-            'vardas'        => (string) ($company->getManagerFirstName() ?? ''),
-            'pavarde'      => (string) ($company->getManagerLastName() ?? ''),
+            'managerType' => (string) ($company->getManagerType() ?? ''),
+            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+
+            'userId'      => (string) ($user->getId() ?? ''),
+            'userName'    => (string) ($user->getFirstName() ?? ''),
+            'userSurname' => (string) ($user->getLastName() ?? ''),
+            'companyId'   => (string) $company->getId(),
         ];
 
         if (isset($data['replacements']) && is_array($data['replacements'])) {
@@ -239,10 +212,13 @@ final class TemplateController extends AbstractController
             $template = basename($tplPath);
 
             try {
-                $generatedPath = $this->createFile->createWordDocument(array_merge($companyData, [
-                    'directory' => $directory,
-                    'template'  => $template,
-                ]));
+                $generatedPath = $this->createFile->createWordDocument(
+                    array_merge($companyData, [
+                        'directory' => $directory,
+                        'template'  => $template,
+                    ]),
+                    $name
+                );
 
                 $generatedFiles[] = $generatedPath;
 
@@ -283,9 +259,8 @@ final class TemplateController extends AbstractController
             return $response;
         }
 
-        $companySlug = $this->sanitizeForFilename((string) $company->getCompanyName()) ?: $code;
         try {
-            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $companySlug);
+            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $code);
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'status'  => 'FAIL',
@@ -298,7 +273,7 @@ final class TemplateController extends AbstractController
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'generated_' . $companySlug . '.zip'
+            'generated_' . $code . '.zip'
         );
         $response->deleteFileAfterSend(true);
 
@@ -327,6 +302,45 @@ final class TemplateController extends AbstractController
         }
 
         return new JsonResponse(['status' => 'SUCCESS']);
+    }
+
+    /**
+     * POST /api/template/rename
+     * Body: { "path": "4 Tvarkos/file.docx", "newName": "Naujas pavadinimas.docx" }
+     */
+    #[Route('/api/template/rename', name: 'api_template_rename', methods: ['POST'])]
+    public function rename(Request $request): JsonResponse
+    {
+        $data    = json_decode($request->getContent(), true);
+        $path    = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
+        $newName = trim((string) (is_array($data) ? ($data['name'] ?? $request->request->get('name') ?? $request->request->get('name')) : ''));
+
+        if ($path === '' || $newName === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
+        }
+
+        $status = $this->fileService->rename('templates', $path, $newName);
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
+    /**
+     * POST /api/template/delete
+     * Body: { "path": "4 Tvarkos/file.docx" }
+     */
+    #[Route('/api/template/delete', name: 'api_template_delete', methods: ['POST'])]
+    public function delete(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data = json_decode($request->getContent(), true);
+        $path = trim((string) (is_array($data) ? ($data['path'] ?? '') : $request->request->get('path') ?? ''));
+
+        if ($path === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+        }
+
+        $status = $this->fileService->delete('templates', $path);
+        return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
     /**
@@ -383,14 +397,6 @@ final class TemplateController extends AbstractController
 
     // ─────────────────── Helpers ───────────────────
 
-    private function sanitizeForFilename(string $name): string
-    {
-        $s = trim($name);
-        $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
-        $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
-        return $s !== '' ? $s : '';
-    }
-
     private function getTemplatesDir(): string
     {
         return $this->getParameter('kernel.project_dir') . '/templates';
@@ -430,41 +436,29 @@ final class TemplateController extends AbstractController
     }
 
     /**
-     * Recursively scans a directory and returns doc/docx files.
-     * Ignores temp files (~$, ~WRL) and system files.
+     * Filtruoja listDirectory rezultatą – palieka tik doc/docx failus.
+     *
+     * @param array $items
+     * @return array
      */
-    private function scanDirectory(string $dir): array
+    private function filterTemplatesOnly(array $items): array
     {
         $result = [];
-        $items  = scandir($dir);
-
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..'
-                || str_starts_with($item, '~')
-                || $item === 'desktop.ini'
-            ) {
-                continue;
-            }
-
-            $path = $dir . '/' . $item;
-
-            if (is_dir($path)) {
+            if ($item['type'] === 'directory') {
                 $result[] = [
-                    'name'     => $item,
+                    'name'     => $item['name'],
                     'type'     => 'directory',
-                    'children' => $this->scanDirectory($path),
+                    'path'     => $item['path'] ?? $item['name'],
+                    'children' => $this->filterTemplatesOnly($item['children'] ?? []),
                 ];
             } else {
-                $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+                $ext = strtolower(pathinfo($item['name'], PATHINFO_EXTENSION));
                 if (in_array($ext, ['doc', 'docx'], true)) {
-                    $result[] = [
-                        'name' => $item,
-                        'type' => 'file',
-                    ];
+                    $result[] = $item;
                 }
             }
         }
-
         return $result;
     }
 }
