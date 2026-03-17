@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Entity\CompanyRequisite;
 use App\Repository\CompanyRequisiteRepository;
+use App\Services\AuditLogger;
 use App\Services\ManagerGenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,6 +20,7 @@ final class CompanyController extends AbstractController
         private EntityManagerInterface $em,
         private ValidatorInterface $validator,
         private ManagerGenderResolver $genderResolver,
+        private AuditLogger $auditLogger,
     ) {}
 
     #[Route('/create', name: 'api_company_create', methods: ['POST'])]
@@ -68,6 +70,8 @@ final class CompanyController extends AbstractController
         $this->em->persist($company);
         $this->em->flush();
 
+        $this->auditLogger->log("Sukurta įmonė \"{$company->getCompanyName()}\" (ID: {$company->getId()})");
+
         return new JsonResponse(
             $this->toArray($company), 201);
     }
@@ -75,9 +79,7 @@ final class CompanyController extends AbstractController
     #[Route('/all', name: 'api_company_all', methods: ['GET'])]
     public function getAll(CompanyRequisiteRepository $repo): JsonResponse
     {
-        // $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
-        $companies = $repo->findAll();
+        $companies = $repo->findBy(['deleted' => false]);
         $result    = [];
         foreach ($companies as $company) {
             $result[] = $this->toArray($company);
@@ -89,7 +91,7 @@ final class CompanyController extends AbstractController
     #[Route('/companies', name: 'api_company_public', methods: ['GET'])]
     public function getCompanies(CompanyRequisiteRepository $repo): JsonResponse
     {
-        $companies = $repo->findAll();
+        $companies = $repo->findBy(['deleted' => false]);
         $result    = [];
         foreach ($companies as $company) {
             $result[] = $this->toArray($company);
@@ -196,6 +198,8 @@ final class CompanyController extends AbstractController
 
         $this->em->flush();
 
+        $this->auditLogger->log("Atnaujinta įmonė \"{$company->getCompanyName()}\" (ID: {$id})");
+
         return $this->json([
             'status'  => 'SUCCESS',
             'data' => $company,
@@ -212,8 +216,11 @@ final class CompanyController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
         }
 
-        $this->em->remove($company);
+        $company->setDeleted(true);
+        $company->setDeletedDate(new \DateTimeImmutable());
         $this->em->flush();
+
+        $this->auditLogger->log("Įmonė \"{$company->getCompanyName()}\" (ID: {$id}) pažymėta ištrinimui");
 
         return new JsonResponse(['status' => 'SUCCESS']);
     }

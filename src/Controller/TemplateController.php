@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Entity\CompanyRequisite;
 use App\Services\AddWordDocument;
+use App\Services\AuditLogger;
 use App\Services\CreateFile;
 use App\Services\FileService;
 use App\Services\GetPDF;
@@ -26,7 +27,8 @@ final class TemplateController extends AbstractController
         private GetPDF $getPDF,
         private FindTemplate $findTemplate,
         private AddWordDocument $addWordDocument,
-        private FileService $fileService
+        private FileService $fileService,
+        private AuditLogger $auditLogger,
     ) {}
 
     // ───── GET  /api/templates/all ─────
@@ -95,7 +97,9 @@ final class TemplateController extends AbstractController
         $directory = trim((string) $directory);
 
         $status = $this->addWordDocument->createFolder($directory);
-
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Sukurtas šablonų katalogas: {$directory}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
@@ -121,7 +125,9 @@ final class TemplateController extends AbstractController
         }
 
         $status = $this->addWordDocument->addWordDocument($file, $directory);
-
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Įkeltas šablonas į templates/{$directory}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
@@ -240,6 +246,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'results' => $results], 500);
         }
 
+        $this->auditLogger->log("Sugeneruoti dokumentai (" . count($generatedFiles) . " vnt.) įmonei \"{$company->getCompanyName()}\" (ID: {$companyId})");
+
         if (count($generatedFiles) === 1) {
             $docxPath = $generatedFiles[0];
 
@@ -301,6 +309,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Upload failed (invalid file type or save error)'], 400);
         }
 
+        $this->auditLogger->log("Įkeltas šablonas: {$directory}");
+
         return new JsonResponse(['status' => 'SUCCESS']);
     }
 
@@ -320,6 +330,9 @@ final class TemplateController extends AbstractController
         }
 
         $status = $this->fileService->rename('templates', $path, $newName);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Šablonas pervadintas: {$path} → {$newName}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
@@ -340,6 +353,9 @@ final class TemplateController extends AbstractController
         }
 
         $status = $this->fileService->delete('templates', $path);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Šablonas ištrintas (perkeltas į /deleted): {$path}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 

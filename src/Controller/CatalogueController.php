@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Services\AuditLogger;
 use App\Services\CreateCatalogue;
 use App\Services\DeleteCatalogue;
 use App\Services\UpdateCatalogue;
@@ -12,20 +13,21 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Katalogų valdymas: create, update, delete.
- * Veikia su templates ir var/generated.
+ * Veikia su templates ir generated.
  * Body laukas "baseDir": "templates" (default) arba "generated".
  */
 final class CatalogueController extends AbstractController
 {
     private const BASE_DIR_MAP = [
         'templates' => 'templates',
-        'generated' => 'var/generated',
+        'generated' => 'generated',
     ];
 
     public function __construct(
         private CreateCatalogue $createCatalogue,
         private UpdateCatalogue $updateCatalogue,
         private DeleteCatalogue $deleteCatalogue,
+        private AuditLogger $auditLogger,
     ) {}
 
     /**
@@ -49,7 +51,9 @@ final class CatalogueController extends AbstractController
         }
 
         $status = $this->createCatalogue->create($directory, $folderName, $baseDir);
-
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Sukurtas katalogas: {$baseDir}/{$directory}/{$folderName}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
@@ -74,6 +78,9 @@ final class CatalogueController extends AbstractController
         }
 
         $status = $this->updateCatalogue->update($oldDirectory, $newDirectory, $baseDir);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Katalogas pervadintas: {$oldDirectory} → {$newDirectory}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
@@ -98,7 +105,10 @@ final class CatalogueController extends AbstractController
         }
 
         $status = $this->deleteCatalogue->delete($directory, $folderName, $baseDir);
-
+        if ($status === 'SUCCESS') {
+            $target = $folderName !== '' ? "{$directory}/{$folderName}" : $directory;
+            $this->auditLogger->log("Katalogas ištrintas (perkeltas į /deleted): {$baseDir}/{$target}");
+        }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 

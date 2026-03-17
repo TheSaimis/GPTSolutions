@@ -2,6 +2,7 @@
 namespace App\Controller;
 
 use App\Services\AddWordDocument;
+use App\Services\AuditLogger;
 use App\Services\FileService;
 use App\Services\GetPDF;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +21,7 @@ final class FileController extends AbstractController
         private readonly FileService $fileService,
         private AddWordDocument $addWordDocument,
         private GetPDF $getPDF,
+        private AuditLogger $auditLogger,
     ) {}
 
     #[Route('/change-directory', name: 'api_files_change_directory', methods: ['POST'])]
@@ -51,6 +53,8 @@ final class FileController extends AbstractController
         $fileName = basename($directory);
         $newPath  = trim($newDirectory, '/') . '/' . $fileName;
 
+        $this->auditLogger->log("Failas perkeltas: {$baseDir}/{$directory} → {$newPath}");
+
         return new JsonResponse([
             'status'  => 'SUCCESS',
             'oldPath' => $directory,
@@ -80,12 +84,8 @@ final class FileController extends AbstractController
         }
 
         $result = $this->addWordDocument->addWordDocument($file, $path, $root);
-        // if ($result !== 'SUCCESS') {
-        //     return new JsonResponse([
-        //         'status' => 'FAIL',
-        //         'error'  => 'Upload failed (invalid file type or save error)',
-        //     ], 400);
-        // }
+
+        $this->auditLogger->log("Įkeltas failas į {$root}/{$path}");
 
         return new JsonResponse($result);
     }
@@ -115,6 +115,9 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
         }
         $status = $this->fileService->rename($root, $path, $newName);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Failas pervadintas: {$root}/{$path} → {$newName}");
+        }
         return new JsonResponse(
             ['status' => $status],
             $status === 'SUCCESS' ? 200 : 500
@@ -146,6 +149,9 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
         }
         $status = $this->fileService->delete($root, $path);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Failas ištrintas (perkeltas į /deleted): {$root}/{$path}");
+        }
         return new JsonResponse(
             ['status' => $status],
             $status === 'SUCCESS' ? 200 : 500
@@ -187,7 +193,7 @@ final class FileController extends AbstractController
         if (! in_array($root, ['templates', 'generated'], true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
-        $baseDir = $root === 'generated' ? 'var/generated' : 'templates';
+        $baseDir = $root === 'generated' ? 'generated' : 'templates';
 
         $resolved = $this->fileService->resolvePath($root, $path);
         if ($resolved === null || ! is_file($resolved)) {

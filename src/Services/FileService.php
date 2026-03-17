@@ -8,7 +8,7 @@ namespace App\Services;
  * Bendras failų servisas – operuoja su bet kuriuo katalogu.
  * BaseDir perduodamas per kiekvieną metodą ir tikrinamas.
  *
- * @param string $baseDir Katalogas nuo projectDir (pvz. "templates", "var/generated")
+ * @param string $baseDir Katalogas nuo projectDir (pvz. "templates", "generated")
  */
 final class FileService
 {
@@ -44,6 +44,8 @@ final class FileService
     }
 
     /**
+     * Soft-delete: perkelia failą į /deleted/{baseDir}/{path} struktūrą.
+     *
      * @return 'SUCCESS'|'FAIL'
      */
     public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx']): string
@@ -60,7 +62,13 @@ final class FileService
             if ($allowedExtensions !== [] && ! $this->isAllowedExtension($fullPath, $allowedExtensions)) {
                 return self::FAIL;
             }
-            return unlink($fullPath) ? self::SUCCESS : self::FAIL;
+
+            $deletedDir = $this->projectDir . '/deleted/' . $baseDir . '/' . dirname($path);
+            if (! is_dir($deletedDir)) {
+                mkdir($deletedDir, 0775, true);
+            }
+            $dest = $deletedDir . '/' . basename($path);
+            return rename($fullPath, $dest) ? self::SUCCESS : self::FAIL;
         } catch (\Throwable) {
             return self::FAIL;
         }
@@ -208,7 +216,7 @@ final class FileService
         $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
         $mapped = match ($baseDir) {
             'templates' => 'templates',
-            'generated' => 'var/generated',
+            'generated' => 'generated',
             default     => null,
         };
         if ($mapped === null) {

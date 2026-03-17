@@ -22,7 +22,7 @@ final class DeleteCatalogue
      *
      * @param string $directory  Kelias po baseDir (pvz. "4 Tvarkos")
      * @param string $folderName Katalogo pavadinimas trinimui. Jei tuščias – trinamas pats directory
-     * @param string $baseDir    "templates" arba "var/generated"
+     * @param string $baseDir    "templates" arba "generated"
      * @return 'SUCCESS'|'FAIL'
      */
     public function delete(string $directory, string $folderName = '', string $baseDir = 'templates'): string
@@ -47,8 +47,17 @@ final class DeleteCatalogue
             if (! is_dir($targetPath)) {
                 return self::FAIL;
             }
-            $this->removeDirectory($targetPath);
-            return ! is_dir($targetPath) ? self::SUCCESS : self::FAIL;
+
+            $relativePath = substr($targetPath, strlen($base) + 1);
+            $deletedBase  = $this->projectDir . '/deleted/' . $baseDir . '/' . $relativePath;
+            $parentDir    = dirname($deletedBase);
+            if (! is_dir($parentDir)) {
+                mkdir($parentDir, 0775, true);
+            }
+            if (is_dir($deletedBase)) {
+                $this->removeDirectory($deletedBase);
+            }
+            return rename($targetPath, $deletedBase) ? self::SUCCESS : self::FAIL;
         } catch (\Throwable) {
             return self::FAIL;
         }

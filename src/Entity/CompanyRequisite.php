@@ -71,6 +71,12 @@ class CompanyRequisite
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $deleted = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $deletedDate = null;
+
     #[ORM\PrePersist]
     public function onCreate(): void
     {
@@ -252,6 +258,28 @@ class CompanyRequisite
     public function setModifiedAt(?\DateTimeImmutable $modifiedAt): static
     {
         $this->modifiedAt = $modifiedAt;
+        return $this;
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->deleted;
+    }
+
+    public function setDeleted(bool $deleted): static
+    {
+        $this->deleted = $deleted;
+        return $this;
+    }
+
+    public function getDeletedDate(): ?\DateTimeImmutable
+    {
+        return $this->deletedDate;
+    }
+
+    public function setDeletedDate(?\DateTimeImmutable $deletedDate): static
+    {
+        $this->deletedDate = $deletedDate;
         return $this;
     }
 }

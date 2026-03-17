@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Services\AuditLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,7 +15,8 @@ final class UserController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private UserPasswordHasherInterface $passwordHasher
+        private UserPasswordHasherInterface $passwordHasher,
+        private AuditLogger $auditLogger,
     ) {}
 
     #[Route('/users/create', name: 'app_user_create', methods: ['POST'])]
@@ -62,6 +64,8 @@ final class UserController extends AbstractController
         $this->em->persist($user);
         $this->em->flush();
 
+        $this->auditLogger->log("Sukurtas naudotojas \"{$user->getFirstName()} {$user->getLastName()}\" (ID: {$user->getId()})");
+
         return new JsonResponse([
             'status' => 'SUCCESS',
             'data' => [
@@ -79,7 +83,7 @@ final class UserController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
-        $users = $repo->findAll();
+        $users = $repo->findBy(['deleted' => false]);
         $data = [];
         foreach ($users as $user) {
             $data[] = [
@@ -156,6 +160,8 @@ final class UserController extends AbstractController
 
         $this->em->flush();
 
+        $this->auditLogger->log("Atnaujintas naudotojas \"{$user->getFirstName()} {$user->getLastName()}\" (ID: {$id})");
+
         return new JsonResponse([
             'status' => 'SUCCESS',
             'data' => [
@@ -178,8 +184,11 @@ final class UserController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'error' => 'User not found'], 404);
         }
 
-        $this->em->remove($user);
+        $user->setDeleted(true);
+        $user->setDeletedDate(new \DateTimeImmutable());
         $this->em->flush();
+
+        $this->auditLogger->log("Naudotojas \"{$user->getFirstName()} {$user->getLastName()}\" (ID: {$id}) pažymėtas ištrinimui");
 
         return new JsonResponse(['status' => 'SUCCESS']);
     }

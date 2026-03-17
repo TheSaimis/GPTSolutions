@@ -29,7 +29,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json')]
     private array $roles = [];
 
-    // Getters & setters
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $deleted = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $deletedDate = null;
 
     public function getId(): ?int
     {
@@ -85,4 +89,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return (string) $this->email;
     }
 
+    public function isDeleted(): bool
+    {
+        return $this->deleted;
+    }
+
+    public function setDeleted(bool $deleted): static
+    {
+        $this->deleted = $deleted;
+        return $this;
+    }
+
+    public function getDeletedDate(): ?\DateTimeImmutable
+    {
+        return $this->deletedDate;
+    }
+
+    public function setDeletedDate(?\DateTimeImmutable $deletedDate): static
+    {
+        $this->deletedDate = $deletedDate;
+        return $this;
+    }
 }

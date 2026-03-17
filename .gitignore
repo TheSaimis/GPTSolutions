@@ -8,6 +8,8 @@
 /var/
 /vendor/
 /templates/
+/generated/
+/deleted/
 ###< symfony/framework-bundle ###
 
 ###> phpunit/phpunit ###
