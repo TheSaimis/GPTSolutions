@@ -27,10 +27,17 @@ export type Metadata = {
     custom?: CustomMetadata;
 };
 
+export type CreateFileResponse = {
+    status: "SUCCESS" | "FAIL";
+    file?: TemplateList;
+    error?: string;
+  };
+
 export type TemplateList = {
     name: string;
     type: "file" | "directory";
-    path?: string;
+    path: string;
+    size?: number;
     children?: TemplateList[];
     metadata?: Metadata;
     createdAt?: string;

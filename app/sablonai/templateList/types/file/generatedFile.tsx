@@ -12,6 +12,7 @@ import InputFieldText from "@/components/inputFields/inputFieldText";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { Metadata } from "@/lib/types/TemplateList";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { FilesApi } from "@/lib/api/files";
 import { TemplateApi } from "@/lib/api/templates";
 
 type List = {
@@ -41,7 +42,7 @@ export default function GeneratedFiles({ name, path, fileType, metadata }: List)
   }
 
   function previewPDF() {
-    GeneratedFilesApi.getGeneratedPDF(path).then(
+    FilesApi.getPDF(fileType || "generated", path).then(
       (res: any) => {
         setPDFToView(res);
       },

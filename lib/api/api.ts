@@ -129,7 +129,7 @@ async function request<T>({
       }
 
       if (res.status === 401 || res.status === 403) {
-        window.location.href = "/prisijungimas";
+        // window.location.href = "/prisijungimas";
       }
 
       MessageStore.push({

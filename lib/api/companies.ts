@@ -20,10 +20,8 @@ export const CompanyApi = {
     },
 
     companyCreate: async (company: Company, errorMessage?: string, errorTitle?: string) => {
-        const res = await api.post<ApiStatus<Company>>("/api/company/create", company);
-        if (res.status === "SUCCESS" && res.data) {
-            CompanyStore.push(res.data);
-        }
+        const res = await api.post<Company>("/api/company/create", company);
+        CompanyStore.push(res);
         return res;
     },
 

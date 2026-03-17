@@ -2,82 +2,89 @@
 
 import { useRouter } from "next/navigation";
 import styles from "../../fileList.module.scss";
-import { TemplateApi } from "@/lib/api/templates";
+import { FilesApi } from "@/lib/api/files";
+import { downloadBlob } from "@/lib/functions/downloadBlob";
+import { renameFileInTree } from "@/app/sablonai/components/utilities/renameFile";
+import { removeFileFromTree } from "@/app/sablonai/components/utilities/deleteFile";
 import CheckBox from "@/components/inputFields/checkBox";
 import { File } from "lucide-react";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
 import { DirectoryStore, useDirectoryStore, } from "@/lib/globalVariables/directoriesToSend";
+import { formatFileSize } from "@/lib/functions/formatFileSize";
+import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
+import type { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
-import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
-import { Metadata } from "@/lib/types/TemplateList";
 
 type List = {
-  name: string;
-  path: string;
-  fileType?: string;
-  metadata?: Metadata;
+  data: TemplateList;
+  fileType: string;
 };
 
-export default function Files({ name, path, fileType, metadata }: List) {
+export default function Files({ data, fileType }: List) {
 
   const router = useRouter();
   const role = localStorage.getItem("role");
 
-  const { search, setSearch } = useCatalogueTree();
   const [rename, setRename] = useState<boolean>(false);
-  const [deleted, setDeleted] = useState<boolean>(false);
-  const [currentName, setCurrentName] = useState<string>(name);
-  const selected = useDirectoryStore((s) =>
-    s.isSelected(path),
-  );
-  const [newName, setNewName] = useState<string>(name);
+  const selected = useDirectoryStore((s) => s.isSelected(data.path));
+  const [newName, setNewName] = useState<string>(data.name);
   const { openMenuFromEvent } = useContextMenu();
+  const { setCatalogueTree } = useCatalogueTree();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function clicked() {
-    router.push(`/sablonai/${path}`);
+    if (fileType == "generated") {
+      if (data.metadata?.custom?.templateId === undefined || data.metadata?.custom?.userId === undefined || data.metadata?.custom?.companyId === undefined) return
+      router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${data.metadata.custom.userId}/${data.metadata.custom.companyId}/${data.metadata.custom.created}/${data.path}`);
+    } else if (fileType == "templates") {
+      router.push(`/sablonai/${data.path}`);
+    }
   }
 
   function previewPDF() {
-    TemplateApi.getTemplatePDF(path).then(
+    if (!fileType) return;
+    FilesApi.getPDF(fileType, data.path).then(
       (res: any) => {
         setPDFToView(res);
       },
     );
   }
 
-  function renameTemplate() {
-    TemplateApi.renameTemplate(path, newName).then(
+  function renameFile() {
+    if (!fileType) return;
+    FilesApi.renameFile(data.path, newName, fileType).then(
       (res) => {
         if (res.status === "SUCCESS") {
-          console.log("successed");
           setRename(false);
-          setCurrentName(newName);
+          setCatalogueTree((prev) => renameFileInTree(prev, data.path, newName));
         }
       },
     );
   }
 
   function deleteTemplate() {
-    TemplateApi.deleteTemplate(path).then((res) => {
+    if (!fileType) return;
+    FilesApi.deleteFile(data.path, fileType).then((res) => {
       if (res.status === "SUCCESS") {
-        DirectoryStore.remove(path);
-        setDeleted(true);
+        DirectoryStore.remove(data.path);
+        setCatalogueTree((prev) => removeFileFromTree(prev, data.path));
       }
     });
+  }
+
+  function downloadFile() {
+    FilesApi.downloadFile(`${fileType}/${data.path}`).then((res) => { downloadBlob(res); });
   }
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [rename]);
 
-  if (search && !currentName.toLowerCase().includes(search.toLowerCase())) {
-    return null;
-  }
-
-  if (deleted) return null;
+  useEffect(() => {
+    console.log(data);
+  },[data]);
 
   return (
     <div>
@@ -92,14 +99,21 @@ export default function Files({ name, path, fileType, metadata }: List) {
             },
             {
               id: "preview",
-              label: "Peržiūrėti šabloną",
+              label: "Peržiūrėti failą",
               onClick: previewPDF,
             },
             {
-              id: "add",
-              label: "Pasirinkti",
-              onClick: () => DirectoryStore.add(`${path}`),
+              id: "download",
+              label: "Atsisiųsti",
+              onClick: downloadFile,
             },
+            ...(fileType === "templates" ? [
+              {
+                id: "add",
+                label: "Pasirinkti",
+                onClick: () => DirectoryStore.add(`${data.path}`),
+              },
+            ] : []),
             ...(role === "ROLE_ADMIN"
               ? [
                 {
@@ -112,7 +126,7 @@ export default function Files({ name, path, fileType, metadata }: List) {
                 },
                 {
                   id: "delete",
-                  label: `Ištrinti šabloną ${currentName}`,
+                  label: `Ištrinti šabloną ${data.name}`,
                   onClick: deleteTemplate,
                 },
               ]
@@ -120,19 +134,18 @@ export default function Files({ name, path, fileType, metadata }: List) {
           ])
         }
       >
-
         <div className={styles.itemContainer}>
           <div className={styles.item} onClick={clicked}>
             <File className={styles.file} />
             {rename ? (
               <div onClick={(e) => e.stopPropagation()}>
-                <InputFieldText ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameTemplate, Escape: () => setRename(false), }} />
+                <InputFieldText ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
               </div>
             ) : (
               <div className={styles.header}>
-                <p className={styles.name}>{currentName}</p>
-                {metadata?.custom?.created &&
-                  <p className={styles.date}>Sukurta {metadata?.custom?.created}</p>
+                <p className={styles.name}>{data.name}</p>
+                {data.metadata?.custom?.created &&
+                  <p className={styles.date}>Sukurta {data.metadata?.custom?.created} {formatFileSize(data.size || 0)}</p>
                 }
               </div>
             )}
@@ -146,8 +159,8 @@ export default function Files({ name, path, fileType, metadata }: List) {
             <CheckBox
               value={selected}
               onChange={(checked: boolean) => {
-                if (checked) DirectoryStore.add(path);
-                else DirectoryStore.remove(path);
+                if (checked) DirectoryStore.add(data.path);
+                else DirectoryStore.remove(data.path);
               }}
             />
           </div>

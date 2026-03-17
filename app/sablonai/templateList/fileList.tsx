@@ -10,12 +10,12 @@ import { useCatalogueTree } from "../catalogueTreeContext";
 import Filters from "../components/filters/filters";
 
 type FileListProps = {
-    fileType?: string;
+    fileType: string;
 };
 
 export default function FileList({ fileType }: FileListProps) {
     const { filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
-    const Component = fileType === "generated" ? GeneratedFiles : Files;
+    // const Component = fileType === "generated" ? GeneratedFiles : Files;
 
     return (
         <div className={styles.container}>
@@ -33,12 +33,11 @@ export default function FileList({ fileType }: FileListProps) {
                     <div className={styles.catalogueTree}>
                         {filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
-                                <Component
+                                <Files
                                     key={node.path ?? node.name}
-                                    name={node.name}
-                                    path={node.path ?? ""}
-                                    metadata={node.metadata}
                                     fileType={fileType}
+                                    data={node}
+                                    // metadata={node.metadata}
                                 />
                             ) : (
                                 <Directory

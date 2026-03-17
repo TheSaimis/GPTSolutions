@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { Building2, FileText, Download, ArrowRight, User, CircleQuestionMark } from "lucide-react";
+import { Building2, FileText, NotepadTextDashed, Download, ArrowRight, User, Users, CircleQuestionMark, ScrollText } from "lucide-react";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -38,7 +38,7 @@ export default function Home() {
       <div className={styles.grid}>
         <Link href="/sablonai" className={styles.card}>
           <div className={styles.cardIcon}>
-            <FileText size={28} />
+            <NotepadTextDashed size={28} />
           </div>
           <h2 className={styles.cardTitle}>Šablonų katalogas</h2>
           <p className={styles.cardDescription}>
@@ -76,20 +76,48 @@ export default function Home() {
             </span>
           </Link>
         }
+        <Link href="/imones/sarasas" className={styles.card}>
+          <div className={styles.cardIcon}>
+            <ScrollText size={28} />
+          </div>
+          <h2 className={styles.cardTitle}>Įmonių sarašas</h2>
+          <p className={styles.cardDescription}>
+            Visų egzisutojančių įmonių sarašas, informacijos laukai, bei ju redagavimas.
+          </p>
+          <span className={styles.cardButton}>
+            Įmonių sarašas <ArrowRight size={16} />
+          </span>
+        </Link>
         {role == "ROLE_ADMIN" && (
-          <Link href={"/naudotojai"} className={styles.card}>
-            <div className={styles.cardIcon}>
-              <User size={28} />
-            </div>
-            <h2 className={styles.cardTitle}>Pridėti naudotoją</h2>
-            <p className={styles.cardDescription}>
-              Registruokite naują naudotoją sistemoje.
-            </p>
-            <span className={styles.cardButton}>
-              Registruoti naudotoją <ArrowRight size={16} />
-            </span>
-          </Link>
+          <>
+            <Link href={"/naudotojai"} className={styles.card}>
+              <div className={styles.cardIcon}>
+                <User size={28} />
+              </div>
+              <h2 className={styles.cardTitle}>Pridėti naudotoją</h2>
+              <p className={styles.cardDescription}>
+                Registruokite naują naudotoją sistemoje.
+              </p>
+              <span className={styles.cardButton}>
+                Registruoti naudotoją <ArrowRight size={16} />
+              </span>
+            </Link>
+
+            <Link href={"/naudotojai/sarasas"} className={styles.card}>
+              <div className={styles.cardIcon}>
+                <Users size={28} />
+              </div>
+              <h2 className={styles.cardTitle}>Naudotojų sarašas</h2>
+              <p className={styles.cardDescription}>
+                Visų egzisutojančių naudotojų sarašas, informacijos laukai, bei ju redagavimas.
+              </p>
+              <span className={styles.cardButton}>
+                Naudotojų sarašas <ArrowRight size={16} />
+              </span>
+            </Link>
+          </>
         )}
+
 
         <button className={styles.card} onClick={getGeneratedFiles}>
           <div className={styles.cardIcon}>
