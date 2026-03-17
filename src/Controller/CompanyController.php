@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Controller;
 
 use App\Entity\CompanyRequisite;
@@ -11,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 #[Route('/api/company')]
 final class CompanyController extends AbstractController
@@ -27,7 +27,7 @@ final class CompanyController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $data = json_decode($request->getContent(), true);
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
         }
 
@@ -48,10 +48,10 @@ final class CompanyController extends AbstractController
             trim((string) ($data['directory'] ?? '')) !== ''
                 ? trim((string) $data['directory'])
                 : $this->buildCompanyDirectory(
-                    $company->getCompanyType() ?? $data['companyType'] ?? '',
-                    $company->getCompanyName() ?? '',
-                    $company->getCode() ?? ''
-                )
+                $company->getCompanyType() ?? $data['companyType'] ?? '',
+                $company->getCompanyName() ?? '',
+                $company->getCode() ?? ''
+            )
         );
         $company->setCreatedAt(new \DateTimeImmutable());
 
@@ -78,7 +78,7 @@ final class CompanyController extends AbstractController
         // $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $companies = $repo->findAll();
-        $result = [];
+        $result    = [];
         foreach ($companies as $company) {
             $result[] = $this->toArray($company);
         }
@@ -90,7 +90,7 @@ final class CompanyController extends AbstractController
     public function getCompanies(CompanyRequisiteRepository $repo): JsonResponse
     {
         $companies = $repo->findAll();
-        $result = [];
+        $result    = [];
         foreach ($companies as $company) {
             $result[] = $this->toArray($company);
         }
@@ -104,7 +104,7 @@ final class CompanyController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $company = $repo->find($id);
-        if (!$company) {
+        if (! $company) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
         }
 
@@ -117,21 +117,39 @@ final class CompanyController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $company = $repo->find($id);
-        if (!$company) {
+        if (! $company) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
         }
 
         $data = json_decode($request->getContent(), true);
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
         }
 
-        if (isset($data['companyName']))      $company->setCompanyName($data['companyName']);
-        if (isset($data['code']))             $company->setCode($data['code']);
-        if (array_key_exists('email', $data)) $company->setEmail($data['email']);
-        if (array_key_exists('companyType', $data))      $company->setCompanyType($data['companyType']);
-        if (array_key_exists('address', $data))          $company->setAddress($data['address']);
-        if (array_key_exists('cityOrDistrict', $data))   $company->setCityOrDistrict($data['cityOrDistrict']);
+        if (isset($data['companyName'])) {
+            $company->setCompanyName($data['companyName']);
+        }
+
+        if (isset($data['code'])) {
+            $company->setCode($data['code']);
+        }
+
+        if (array_key_exists('email', $data)) {
+            $company->setEmail($data['email']);
+        }
+
+        if (array_key_exists('companyType', $data)) {
+            $company->setCompanyType($data['companyType']);
+        }
+
+        if (array_key_exists('address', $data)) {
+            $company->setAddress($data['address']);
+        }
+
+        if (array_key_exists('cityOrDistrict', $data)) {
+            $company->setCityOrDistrict($data['cityOrDistrict']);
+        }
+
         if (array_key_exists('managerType', $data)) {
             $managerType = $data['managerType'];
             $company->setManagerType($managerType);
@@ -141,10 +159,22 @@ final class CompanyController extends AbstractController
                     : null
             );
         }
-        if (array_key_exists('managerFirstName', $data)) $company->setManagerFirstName($data['managerFirstName']);
-        if (array_key_exists('managerLastName', $data))  $company->setManagerLastName($data['managerLastName']);
-        if (array_key_exists('documentDate', $data))     $company->setDocumentDate($data['documentDate']);
-        if (array_key_exists('role', $data))             $company->setRole($data['role']);
+        if (array_key_exists('managerFirstName', $data)) {
+            $company->setManagerFirstName($data['managerFirstName']);
+        }
+
+        if (array_key_exists('managerLastName', $data)) {
+            $company->setManagerLastName($data['managerLastName']);
+        }
+
+        if (array_key_exists('documentDate', $data)) {
+            $company->setDocumentDate($data['documentDate']);
+        }
+
+        if (array_key_exists('role', $data)) {
+            $company->setRole($data['role']);
+        }
+
         if (array_key_exists('directory', $data)) {
             $company->setDirectory(trim((string) $data['directory']) !== '' ? $data['directory'] : null);
         } elseif (isset($data['companyName']) || array_key_exists('companyType', $data)) {
@@ -166,7 +196,10 @@ final class CompanyController extends AbstractController
 
         $this->em->flush();
 
-        return new JsonResponse(['status' => 'SUCCESS']);
+        return $this->json([
+            'status'  => 'SUCCESS',
+            'data' => $company,
+        ], Response::HTTP_OK);
     }
 
     #[Route('/delete/{id}', name: 'api_company_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -175,7 +208,7 @@ final class CompanyController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $company = $repo->find($id);
-        if (!$company) {
+        if (! $company) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
         }
 
@@ -196,7 +229,7 @@ final class CompanyController extends AbstractController
     /** Grąžina kelią: {tipas}/{pavadinimas} (pvz. UAB/UAB_Test_Company) */
     private function buildCompanyDirectory(string $tipas, string $companyName, string $code): string
     {
-        $tipasSlug = $this->sanitizeForFilename($tipas) ?: 'Kita';
+        $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
         $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
         return $tipasSlug . '/' . $companySlug;
     }
@@ -218,7 +251,7 @@ final class CompanyController extends AbstractController
             'role'             => $c->getRole(),
             'directory'        => $c->getDirectory(),
             'createdAt'        => $c->getCreatedAt()?->format('Y-m-d H:i:s'),
-            'modifiedAt'        => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
+            'modifiedAt'       => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
         ];
     }
 }

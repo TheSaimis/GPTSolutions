@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 final class GeneratedFileController extends AbstractController
 {
-    private const GENERATED_BASE = 'var/generated';
+    private const GENERATED_BASE = 'generated';
     private const TEMPLATES_BASE = 'templates';
 
     public function __construct(
@@ -66,7 +66,7 @@ final class GeneratedFileController extends AbstractController
     public function listDirectories(): JsonResponse
     {
         return new JsonResponse(
-            $this->fileService->listDirectory('var/generated')
+            $this->fileService->listDirectory('generated')
         );
     }
     /**

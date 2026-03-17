@@ -62,17 +62,29 @@ final class DocxMetadataService
                 continue;
             }
 
-            $existing = $xpath->query('/cp:Properties/cp:property');
-            $alreadyExists = false;
+            $existingNode = null;
+            $existing     = $xpath->query('/cp:Properties/cp:property');
+
             if ($existing !== false) {
                 foreach ($existing as $prop) {
-                    if ($prop instanceof \DOMElement && $prop->getAttribute('name') === $name) {
-                        $alreadyExists = true;
+                    if ($prop instanceof \DOMElement  && $prop->getAttribute('name') === $name) {
+                        $existingNode = $prop;
                         break;
                     }
                 }
             }
-            if ($alreadyExists) {
+            if ($existingNode instanceof \DOMElement) {
+                if ($name === 'modifiedAt') {
+                    while ($existingNode->firstChild) {
+                        $existingNode->removeChild($existingNode->firstChild);
+                    }
+                    $vt = $doc->createElementNS(
+                        'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes',
+                        'vt:lpwstr',
+                        $value
+                    );
+                    $existingNode->appendChild($vt);
+                }
                 continue;
             }
 

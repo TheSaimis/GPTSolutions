@@ -182,6 +182,7 @@ final class FileService
                 $entry = [
                     'name'       => $item,
                     'type'       => 'file',
+                    'size'       => filesize($itemPath),
                     'path'       => $relPath,
                     'createdAt'  => date('Y-m-d H:i:s', filectime($itemPath)),
                     'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),
@@ -204,8 +205,16 @@ final class FileService
      */
     public function getBaseFullPath(string $baseDir): ?string
     {
-        $baseDir  = trim(str_replace('\\', '/', $baseDir), '/');
-        $fullPath = $this->projectDir . '/' . $baseDir;
+        $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+        $mapped = match ($baseDir) {
+            'templates' => 'templates',
+            'generated' => 'var/generated',
+            default     => null,
+        };
+        if ($mapped === null) {
+            return null;
+        }
+        $fullPath = $this->projectDir . '/' . $mapped;
         $resolved = realpath($fullPath);
         return ($resolved !== false && is_dir($resolved)) ? $resolved : null;
     }

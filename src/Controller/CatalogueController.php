@@ -74,7 +74,6 @@ final class CatalogueController extends AbstractController
         }
 
         $status = $this->updateCatalogue->update($oldDirectory, $newDirectory, $baseDir);
-
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 

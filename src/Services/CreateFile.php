@@ -162,6 +162,7 @@ final class CreateFile
             'templateId' => $templateId,
             'documentId' => $this->generateUuidV4(),
             'created'    => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'modifiedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'createdBy'  => $createdBy,
             'userId'     => $userId,
             'type'       => $tipas,

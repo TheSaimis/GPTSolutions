@@ -24,6 +24,7 @@ final class GetPDF
     {
         $relativePath = str_replace('\\', '/', urldecode($relativePath));
         $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+        
         $sourceDir = $this->projectDir . '/' . $baseDir;
         $filePath = realpath($sourceDir . '/' . $relativePath);
 

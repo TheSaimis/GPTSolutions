@@ -404,7 +404,7 @@ final class TemplateController extends AbstractController
 
     private function getGeneratedDir(): string
     {
-        return $this->getParameter('kernel.project_dir') . '/var/generated';
+        return $this->getParameter('kernel.project_dir') . '/generated';
     }
 
     /**

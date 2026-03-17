@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Services;
 
@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 final class AddWordDocument
 {
     private const SUCCESS = 'SUCCESS';
-    private const FAIL = 'FAIL';
+    private const FAIL    = 'FAIL';
 
     public function __construct(
         private readonly string $projectDir,
@@ -27,9 +27,10 @@ final class AddWordDocument
      *
      * @param UploadedFile $file      Įkeltas .docx failas
      * @param string       $directory Katalogas po templates/ (pvz. "4 Tvarkos" arba "4 Tvarkos/3 Mobingo")
+     * @param string       $root      Šakninis katalogas (pvz. "templates")
      * @return 'SUCCESS'|'FAIL'
      */
-    public function addWordDocument(UploadedFile $file, string $directory): string
+    public function addWordDocument(UploadedFile $file, string $directory, string $root): array
     {
         $directory = trim(str_replace('\\', '/', $directory));
         if ($directory === '' || $directory === '.') {
@@ -37,63 +38,107 @@ final class AddWordDocument
         }
 
         $ext = strtolower($file->getClientOriginalExtension());
-
-        // Metadata service works only with DOCX
         if ($ext !== 'docx') {
-            return self::FAIL;
+            return [
+                'status' => self::FAIL,
+                'error'  => 'Invalid file type. Only .docx is allowed.',
+            ];
         }
 
-        $templatesDir = $this->projectDir . '/templates';
-        $targetDir = $templatesDir . ($directory !== '' ? '/' . $directory : '');
-
         try {
-            if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-                return self::FAIL;
+            $baseDir = match ($root) {
+                'generated' => rtrim($this->projectDir, '/\\') . '/var/generated',
+                'templates' => rtrim($this->projectDir, '/\\') . '/templates',
+                default     => throw new \InvalidArgumentException('Invalid root folder'),
+            };
+
+            $targetDir = $baseDir . ($directory !== '' ? '/' . $directory : '');
+
+            if (! is_dir($targetDir) && ! mkdir($targetDir, 0775, true) && ! is_dir($targetDir)) {
+                return [
+                    'status' => self::FAIL,
+                    'error'  => 'Failed to create target directory.',
+                ];
             }
 
-            $filename = trim($file->getClientOriginalName());
-            if ($filename === '') {
-                $filename = 'template_' . date('Ymd_His') . '.docx';
+            $originalFilename = trim($file->getClientOriginalName());
+            if ($originalFilename === '') {
+                $originalFilename = 'template_' . date('Ymd_His') . '.docx';
             }
 
-            // Basic filename sanitization
-            $filename = str_replace(['\\', '/'], '_', $filename);
-
+            $filename   = str_replace(['\\', '/'], '_', $originalFilename);
             $targetPath = $targetDir . '/' . $filename;
 
             $file->move($targetDir, $filename);
 
-            if (!file_exists($targetPath) || !is_readable($targetPath)) {
-                return self::FAIL;
+            if (! file_exists($targetPath) || ! is_readable($targetPath)) {
+                return [
+                    'status' => self::FAIL,
+                    'error'  => 'Saved file is not readable.',
+                ];
             }
-
-            $this->docxMetadataService->setDocxCustomProperties($targetPath, [
-                'templateId' => $this->generateUuidV4(),
-                'uploadedAt' => date('Y-m-d H:i:s'),
-                'originalName' => $filename,
-            ]);
-
-            return self::SUCCESS;
-        } catch (\Throwable) {
-            return self::FAIL;
+        } catch (\Throwable $e) {
+            return [
+                'status' => self::FAIL,
+                'error'  => $e->getMessage(),
+            ];
         }
+
+        $metadata = [];
+
+        try {
+            $existing = $this->docxMetadataService->readDocxCustomProperties($targetPath);
+
+            $metadataToEnsure = [
+                'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
+                'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
+                'originalName' => $existing['originalName'] ?? $filename,
+            ];
+
+            $this->docxMetadataService->setDocxCustomProperties($targetPath, $metadataToEnsure);
+            $metadata = $this->docxMetadataService->readDocxCustomProperties($targetPath);
+        } catch (\Throwable) {
+            $metadata = [];
+        }
+
+        $directory = trim(str_replace('\\', '/', $directory), '/');
+
+        if ($directory !== '' && str_starts_with($directory, $root . '/')) {
+            $directory = substr($directory, strlen($root) + 1);
+        }
+
+        return [
+            'status' => self::SUCCESS,
+            'file'   => [
+                'name'     => $filename,
+                'type'     => 'file',
+                'path'     => ($directory !== '' ? $directory . '/' : '') . $filename,
+                'root'     => $root,
+                'mimeType' => $file->getClientMimeType(),
+                'size'     => filesize($targetPath),
+                'metadata' => [
+                    'custom' => $metadata,
+                ],
+            ],
+        ];
     }
 
     /**
      * Sukuria naują katalogą templates/{directory}/.
      *
      * @param string $directory Kelias po templates/ (pvz. "4 Tvarkos" arba "4 Tvarkos/Naujas")
+     * @param string $root      Šakninis katalogas (pvz. "templates")
      * @return 'SUCCESS'|'FAIL'
      */
-    public function createFolder(string $directory): string
+    public function createFolder(string $directory, string $root): string
     {
         $directory = trim(str_replace('\\', '/', $directory));
         if ($directory === '' || $directory === '.') {
             return self::FAIL;
         }
 
-        $templatesDir = $this->projectDir . '/templates';
-        $targetDir = $templatesDir . '/' . $directory;
+        $templatesDir = rtrim($this->projectDir, '/\\') . '/' . trim($root, '/\\');
+        $targetDir    = $templatesDir . '/' . $directory;
 
         try {
             if (is_dir($targetDir)) {
@@ -110,26 +155,28 @@ final class AddWordDocument
      * Masinis šablonų įkėlimas į templates/{directory}/.
      *
      * @param UploadedFile[] $files
+     * @param string         $directory
+     * @param string         $root
      * @return array{
      *   status: 'SUCCESS'|'FAIL',
      *   results: array<array{file: string, status: 'SUCCESS'|'FAIL'}>
      * }
      */
-    public function addWordDocumentsBulk(array $files, string $directory): array
+    public function addWordDocumentsBulk(array $files, string $directory, string $root): array
     {
-        $results = [];
+        $results    = [];
         $allSuccess = true;
 
         foreach ($files as $file) {
-            if (!$file instanceof UploadedFile) {
+            if (! $file instanceof UploadedFile) {
                 continue;
             }
 
             $filename = $file->getClientOriginalName() ?: 'unknown';
-            $status = $this->addWordDocument($file, $directory);
+            $status   = $this->addWordDocument($file, $directory, $root);
 
             $results[] = [
-                'file' => $filename,
+                'file'   => $filename,
                 'status' => $status,
             ];
 
@@ -139,7 +186,7 @@ final class AddWordDocument
         }
 
         return [
-            'status' => $allSuccess ? self::SUCCESS : self::FAIL,
+            'status'  => $allSuccess ? self::SUCCESS : self::FAIL,
             'results' => $results,
         ];
     }

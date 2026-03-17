@@ -1,20 +1,25 @@
 <?php
-
 namespace App\Controller;
 
+use App\Services\AddWordDocument;
 use App\Services\FileService;
+use App\Services\GetPDF;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/files')]
 final class FileController extends AbstractController
 {
-    private const ALLOWED_BASE_DIRS = ['templates', 'var/generated'];
+    private const ALLOWED_BASE_DIRS = ['templates', 'generated'];
 
     public function __construct(
         private readonly FileService $fileService,
+        private AddWordDocument $addWordDocument,
+        private GetPDF $getPDF,
     ) {}
 
     #[Route('/change-directory', name: 'api_files_change_directory', methods: ['POST'])]
@@ -26,8 +31,8 @@ final class FileController extends AbstractController
         }
 
         $baseDir      = (string) ($data['baseDir'] ?? 'templates');
-        $directory     = (string) ($data['directory'] ?? '');
-        $newDirectory  = (string) ($data['newDirectory'] ?? '');
+        $directory    = (string) ($data['directory'] ?? '');
+        $newDirectory = (string) ($data['newDirectory'] ?? '');
 
         if (! in_array($baseDir, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid baseDir. Allowed: ' . implode(', ', self::ALLOWED_BASE_DIRS)], 400);
@@ -52,4 +57,164 @@ final class FileController extends AbstractController
             'newPath' => $newPath,
         ]);
     }
+
+    #[Route('/create', name: 'api_files_upload', methods: ['POST'])]
+    public function upload(Request $request): JsonResponse
+    {
+        $root = trim((string) $request->request->get('root', ''));
+        $path = trim((string) $request->request->get('directory', ''));
+        $file = $request->files->get('template');
+        if (! $file) {
+            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
+        }
+        if (! in_array($root, ['templates', 'generated'], true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+        if ($path === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'directory is required'], 400);
+        }
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, $root . '/')) {
+            $path = substr($path, strlen($root) + 1);
+        }
+
+        $result = $this->addWordDocument->addWordDocument($file, $path, $root);
+        // if ($result !== 'SUCCESS') {
+        //     return new JsonResponse([
+        //         'status' => 'FAIL',
+        //         'error'  => 'Upload failed (invalid file type or save error)',
+        //     ], 400);
+        // }
+
+        return new JsonResponse($result);
+    }
+
+    #[Route('/rename', name: 'api_file_rename', methods: ['POST'])]
+    public function rename(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data    = json_decode($request->getContent(), true);
+        $root    = trim((string) (is_array($data) ? ($data['root'] ?? $request->request->get('root')) : ''));
+        $path    = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
+        $newName = trim((string) (is_array($data) ? ($data['name'] ?? $request->request->get('name')) : ''));
+        if (! in_array($root, ['templates', 'generated'], true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+        if ($path === '' || $newName === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
+        }
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, $root . '/')) {
+            $path = substr($path, strlen($root) + 1);
+        }
+        $resolved = $this->fileService->resolvePath($root, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+        $status = $this->fileService->rename($root, $path, $newName);
+        return new JsonResponse(
+            ['status' => $status],
+            $status === 'SUCCESS' ? 200 : 500
+        );
+    }
+
+    #[Route('/delete', name: 'api_file_delete', methods: ['POST'])]
+    public function delete(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data = json_decode($request->getContent(), true);
+        $root = trim((string) (is_array($data) ? ($data['root'] ?? $request->request->get('root')) : ''));
+        $path = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
+
+        if (! in_array($root, ['templates', 'generated'], true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+        if ($path === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+        }
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, $root . '/')) {
+            $path = substr($path, strlen($root) + 1);
+        }
+        $resolved = $this->fileService->resolvePath($root, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+        $status = $this->fileService->delete($root, $path);
+        return new JsonResponse(
+            ['status' => $status],
+            $status === 'SUCCESS' ? 200 : 500
+        );
+    }
+
+    #[Route('/download/{root}/{path}', name: 'api_downlaod_file', methods: ['GET'], requirements: ['path' => '.+'], utf8: true)]
+    public function getGeneratedFile(string $path, string $root): JsonResponse | BinaryFileResponse
+    {
+        if (! in_array($root, ['templates', 'generated'], true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+
+        $resolved = $this->fileService->resolvePath($root, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+        $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['doc', 'docx'], true)) {
+            return new JsonResponse(['error' => 'Leidžiami tik Word failai'], 400);
+        }
+        $response = new BinaryFileResponse($resolved);
+        $response->headers->set(
+            'Content-Type',
+            $ext === 'docx'
+                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : 'application/msword'
+        );
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($resolved)
+        );
+        return $response;
+    }
+
+    #[Route('/pdf/{root}/{path}', name: 'api_file_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function viewAsPdf(string $root, string $path): JsonResponse | BinaryFileResponse
+    {
+        if (! in_array($root, ['templates', 'generated'], true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+        $baseDir = $root === 'generated' ? 'var/generated' : 'templates';
+
+        $resolved = $this->fileService->resolvePath($root, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['doc', 'docx'], true)) {
+            return new JsonResponse(['error' => 'Palaikomi tik .doc ir .docx failai'], 400);
+        }
+
+        try {
+            $pdfPath = $this->getPDF->convertToPdf($path, $baseDir);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'PDF generavimas nepavyko: ' . $e->getMessage()], 500);
+        }
+
+        $response = new BinaryFileResponse($pdfPath);
+        $response->headers->set('Content-Type', 'application/pdf');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            pathinfo($path, PATHINFO_FILENAME) . '.pdf'
+        );
+
+        return $response;
+    }
+
 }
