@@ -4,6 +4,7 @@
 
 import { TemplateApi } from "@/lib/api/templates";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { FilesApi } from "@/lib/api/files";
 import { CompanyApi } from "@/lib/api/companies";
 import { UsersApi } from "@/lib/api/users";
 import type { Company } from "@/lib/types/Company";
@@ -46,7 +47,7 @@ export default function Page() {
                 UsersApi.getById(Number(userId)),
             ]);
             setTemplatePath(templateRes);
-            setCompany(companyRes);
+            setCompany(companyRes ?? null);
             setUser(userRes);
         }
         getItems();
@@ -61,6 +62,7 @@ export default function Page() {
     async function updateDocument() {
         if (!templatePath) return;
         const res = await TemplateApi.createDocument(Number(companyId), [templatePath], fullPath.split("/").pop());
+        downloadBlob(res);
         const today = nowSqlDate();
         if (res) setDate(today);
     }
@@ -70,7 +72,7 @@ export default function Page() {
     }
 
     async function previewPDF() {
-        GeneratedFilesApi.getGeneratedPDF(fullPath).then((res) => setPDFToView(res));
+        FilesApi.getPDF("generated", fullPath).then((res) => setPDFToView(res));
     }
 
     return (
@@ -92,7 +94,13 @@ export default function Page() {
                 <div className={style.infoRow}>
                   <span className={style.label}>Šablonas</span>
                   <span className={style.value}>
-                    {templatePath?.split("/").pop() || "Šablonas nerastas, tikriausiai ištrintas"}
+
+                    {typeof templatePath === "string" ? (
+                      templatePath?.split("/")?.pop()
+                    ) : (
+                      "Šablonas nerastas, tikriausiai ištrintas"
+                    )}
+                  
                   </span>
                 </div>
       

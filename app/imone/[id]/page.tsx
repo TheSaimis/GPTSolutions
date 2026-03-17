@@ -75,7 +75,7 @@ export default function ImonesRedagavimasPage() {
         });
         if (res?.status === "SUCCESS") {
             MessageStore.push({ title: "Sėkmingai", message: "Įmonė atnaujinta", backgroundColor: "#22C55E" });
-            router.push("/imones/sarasas");
+            router.back();
         }
     }
 
@@ -96,7 +96,7 @@ export default function ImonesRedagavimasPage() {
             <div className={styles.topBar}>
                 <Link href="/imones/sarasas" className={styles.backLink}>
                     <ArrowLeft size={16} />
-                    Grįžti į sąrašą
+                    Grįžti į įmonių sąrašą
                 </Link>
             </div>
 

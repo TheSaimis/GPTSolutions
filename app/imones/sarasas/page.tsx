@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import CompanyCard from "@/components/companyCard/CompanyCard";
+import CompanyCard from "@/components/companyCard/companyCard";
 import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
 import styles from "./page.module.scss";

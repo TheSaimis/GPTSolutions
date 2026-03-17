@@ -3,6 +3,7 @@
 import styles from "../../fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { TemplateApi } from "@/lib/api/templates";
+import { FilesApi } from "@/lib/api/files";
 import { useRef, useEffect, useState } from "react";
 import { ChevronDown, Folder, ArrowUpToLine } from "lucide-react";
 import Files from "../file/file";
@@ -17,8 +18,8 @@ import GeneratedFiles from "../file/generatedFile";
 
 type List = {
     name: string;
+    fileType: string,
     children?: TemplateList[]
-    fileType?: string,
     path?: string
 }
 
@@ -38,15 +39,25 @@ export default function Directory({ name, children, path, fileType }: List) {
     }
 
     useEffect(() => {
-        if (file?.name && file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-            TemplateApi.createTemplate(file, path ?? "").then((res) => {
-                if (res.status === "SUCCESS") {
-                    setCatalogueTree((prev) => addFileToTree(prev, path ?? "", file.name));
+        if (
+            file?.name &&
+            file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" &&
+            fileType
+        ) {
+            FilesApi.createFile(file, path ?? "", fileType).then((res) => {
+                if (res.status === "SUCCESS" && res.file) {
+                    const fileNode = {
+                        ...res.file
+                    };
+                    setCatalogueTree((prev) =>
+                        addFileToTree(prev, path ?? "", fileNode)
+                    );
                 }
+
                 setFile(null);
-            })
+            });
         }
-    }, [file])
+    }, [file, fileType, path, setCatalogueTree]);
 
     return (
         <DropZone onFile={setFile} accept=".docx" className={styles.directory} >
@@ -87,7 +98,7 @@ export default function Directory({ name, children, path, fileType }: List) {
                     <Folder size={16} />
 
                     {rename ? (
-                        <RenameDirectory name={name} path={path} onFocus={setRename} folders={children?.filter((child) => child.type === "directory")} />
+                        <RenameDirectory name={name} path={path} onFocus={setRename} fileType={fileType} folders={children?.filter((child) => child.type === "directory")} />
                     ) : (
                         <p>{name}</p>
                     )}
@@ -106,7 +117,7 @@ export default function Directory({ name, children, path, fileType }: List) {
                     <CreateDirectory key={"createDirectory"} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
                 }
                 {(children ?? []).map((child) => child.type === "file" ? (
-                    <Component key={child.path ?? child.name} name={child.name} path={child.path ?? ""} metadata={child.metadata} fileType={fileType} />
+                    <Files key={child.path ?? child.name} fileType={fileType} data={child} />
                 ) : (
                     <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
                 )
