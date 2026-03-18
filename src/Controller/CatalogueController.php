@@ -37,12 +37,14 @@ final class CatalogueController extends AbstractController
     #[Route('/api/catalogue/create', name: 'api_catalogue_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $baseDir    = $this->resolveBaseDir($data);
+        $baseDir    = trim((string) ($data['root'] ?? 'templates'));
         $directory  = trim((string) ($data['directory'] ?? ''));
         $folderName = trim((string) ($data['folderName'] ?? ''));
 
@@ -64,12 +66,14 @@ final class CatalogueController extends AbstractController
     #[Route('/api/catalogue/update', name: 'api_catalogue_update', methods: ['POST'])]
     public function update(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $baseDir      = $this->resolveBaseDir($data);
+        $baseDir      = trim((string) ($data['root']));
         $oldDirectory = trim((string) ($data['oldDirectory'] ?? $data['directory'] ?? ''));
         $newDirectory = trim((string) ($data['newDirectory'] ?? ''));
 
@@ -91,22 +95,23 @@ final class CatalogueController extends AbstractController
     #[Route('/api/catalogue/delete', name: 'api_catalogue_delete', methods: ['POST'])]
     public function delete(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $baseDir    = $this->resolveBaseDir($data);
+        $baseDir    = trim((string) ($data['root'] ?? 'you need to specify the root folder'));
         $directory  = trim((string) ($data['directory'] ?? ''));
-        $folderName = trim((string) ($data['folderName'] ?? ''));
 
         if ($baseDir === null || $directory === '') {
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $status = $this->deleteCatalogue->delete($directory, $folderName, $baseDir);
+        $status = $this->deleteCatalogue->delete($directory, $baseDir);
         if ($status === 'SUCCESS') {
-            $target = $folderName !== '' ? "{$directory}/{$folderName}" : $directory;
+            $target = str_replace('\\', '/', $directory);
             $this->auditLogger->log("Katalogas ištrintas (perkeltas į /deleted): {$baseDir}/{$target}");
         }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);

@@ -199,7 +199,7 @@ final class CreateFile
 
     private function getGeneratedDir(): string
     {
-        return $this->projectDir . '/var/generated';
+        return $this->projectDir . '/generated';
     }
 
     private function resolveTemplatePath(string $directory, string $templateFile): ?string

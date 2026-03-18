@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 /**
- * Ištrina katalogą /${baseDir}/{directory}/{folderName}.
- * delete(directory, folderName, baseDir) → SUCCESS | FAIL
+ * Ištrina katalogą {baseDir}/{directory}.
+ * delete(directory, baseDir) → SUCCESS | FAIL
  */
 final class DeleteCatalogue
 {
@@ -18,66 +18,91 @@ final class DeleteCatalogue
     ) {}
 
     /**
-     * Ištrina katalogą {baseDir}/{directory}/{folderName} arba {baseDir}/{directory}.
+     * Ištrina katalogą {baseDir}/{directory}.
      *
-     * @param string $directory  Kelias po baseDir (pvz. "4 Tvarkos")
-     * @param string $folderName Katalogo pavadinimas trinimui. Jei tuščias – trinamas pats directory
-     * @param string $baseDir    "templates" arba "generated"
+     * Leidžiami tik baseDir:
+     * - templates
+     * - generated
+     *
+     * @param string $directory Kelias po baseDir (pvz. "4 Tvarkos/Naujas")
+     * @param string $baseDir   "templates" arba "generated"
      * @return 'SUCCESS'|'FAIL'
      */
-    public function delete(string $directory, string $folderName = '', string $baseDir = 'templates'): string
+    public function delete(string $directory, string $baseDir): string
     {
-        $directory  = trim(str_replace('\\', '/', $directory));
-        $folderName = trim(str_replace(['\\', '/'], '', $folderName));
+        $directory = trim(str_replace('\\', '/', $directory), '/');
+        if ($directory === '' || $directory === '.') {
+            return "Invalid directory";
+        }
 
         $base = $this->resolveBase($baseDir);
         if ($base === null) {
-            return self::FAIL;
+            return "Invalid base directory";
         }
 
-        $targetPath = $folderName !== ''
-            ? $base . '/' . $directory . '/' . $folderName
-            : $base . '/' . $directory;
+        $targetPath = $base . '/' . $directory;
+        $resolvedTarget = realpath($targetPath);
 
-        if ($targetPath === $base || $directory === '') {
-            return self::FAIL;
+        if ($resolvedTarget === false || !is_dir($resolvedTarget)) {
+            return "Not a directory";
+        }
+
+        // extra safety: must stay inside allowed base
+        if (!str_starts_with($resolvedTarget, $base . DIRECTORY_SEPARATOR) && $resolvedTarget !== $base) {
+            return "Can't delete outside base directory";
+        }
+
+        // never allow deleting the base root itself
+        if ($resolvedTarget === $base) {
+            return "Can't delete base directory";
         }
 
         try {
-            if (! is_dir($targetPath)) {
-                return self::FAIL;
+            $deletedBase = $this->projectDir . '/deleted/' . $baseDir . '/' . $directory;
+            $parentDir = dirname($deletedBase);
+
+            if (!is_dir($parentDir) && !mkdir($parentDir, 0775, true) && !is_dir($parentDir)) {
+                return "Failed to create $parentDir";
             }
 
-            $relativePath = substr($targetPath, strlen($base) + 1);
-            $deletedBase  = $this->projectDir . '/deleted/' . $baseDir . '/' . $relativePath;
-            $parentDir    = dirname($deletedBase);
-            if (! is_dir($parentDir)) {
-                mkdir($parentDir, 0775, true);
-            }
             if (is_dir($deletedBase)) {
                 $this->removeDirectory($deletedBase);
             }
-            return rename($targetPath, $deletedBase) ? self::SUCCESS : self::FAIL;
+
+            return rename($resolvedTarget, $deletedBase) ? self::SUCCESS : "Failed to rename $resolvedTarget to $deletedBase";
         } catch (\Throwable) {
-            return self::FAIL;
+            return "Some sort of error happened or sum shi";
         }
     }
 
     private function removeDirectory(string $dir): void
     {
         $items = array_diff(scandir($dir) ?: [], ['.', '..']);
+
         foreach ($items as $item) {
             $path = $dir . '/' . $item;
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
+
         rmdir($dir);
     }
 
     private function resolveBase(string $baseDir): ?string
     {
-        $baseDir  = trim(str_replace('\\', '/', $baseDir), '/');
-        $fullPath = $this->projectDir . '/' . $baseDir;
+        $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+
+        $fullPath = match ($baseDir) {
+            'templates' => $this->projectDir . '/templates',
+            'generated' => $this->projectDir . '/generated',
+            default => null,
+        };
+
+        if ($fullPath === null) {
+            return null;
+        }
+
         $resolved = realpath($fullPath);
+
         return ($resolved !== false && is_dir($resolved)) ? $resolved : null;
     }
 }

@@ -20,13 +20,13 @@ final class ZipFiles
      */
     public function zipDirectory(string $directory): string
     {
-        $sourceDir = $this->projectDir . '/var/generated/' . $directory;
+        $sourceDir = $this->projectDir . '/generated/' . $directory;
 
         if (! is_dir($sourceDir)) {
             throw new \InvalidArgumentException("Katalogas nerastas: {$directory}");
         }
 
-        $zipPath = $this->projectDir . '/var/generated/' . $directory . '.zip';
+        $zipPath = $this->projectDir . '/generated/' . $directory . '.zip';
 
         $zip = new ZipArchive();
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {

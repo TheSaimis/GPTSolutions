@@ -23,7 +23,7 @@ final class CreateCatalogue
      * @param string $baseDir    "templates" arba "var/generated"
      * @return 'SUCCESS'|'FAIL'
      */
-    public function create(string $directory, string $folderName, string $baseDir = 'templates'): string
+    public function create(string $directory, string $folderName, string $baseDir): string
     {
         $directory  = trim(str_replace('\\', '/', $directory));
         $folderName = trim(str_replace(['\\', '/'], '', $folderName));

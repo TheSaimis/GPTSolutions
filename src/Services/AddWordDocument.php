@@ -47,7 +47,7 @@ final class AddWordDocument
 
         try {
             $baseDir = match ($root) {
-                'generated' => rtrim($this->projectDir, '/\\') . '/var/generated',
+                'generated' => rtrim($this->projectDir, '/\\') . '/generated',
                 'templates' => rtrim($this->projectDir, '/\\') . '/templates',
                 default     => throw new \InvalidArgumentException('Invalid root folder'),
             };
