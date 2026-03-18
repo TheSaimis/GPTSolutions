@@ -18,9 +18,3 @@ export const AuthApi = {
         return res.token;
       },
 }
-
-function parseJwt(token: string) {
-  const base64 = token.split(".")[1];
-  const json = atob(base64);
-  return JSON.parse(json);
-}

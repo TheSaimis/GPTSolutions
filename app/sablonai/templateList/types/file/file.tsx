@@ -13,6 +13,7 @@ import { DirectoryStore, useDirectoryStore, } from "@/lib/globalVariables/direct
 import { formatFileSize } from "@/lib/functions/formatFileSize";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
+import { useConfirmAction } from "@/components/confirmationPanel/confirmationPanel";
 import type { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
@@ -33,6 +34,7 @@ export default function Files({ data, fileType }: List) {
   const { openMenuFromEvent } = useContextMenu();
   const { setCatalogueTree } = useCatalogueTree();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { confirmAction } = useConfirmAction();
 
   function clicked() {
     if (fileType == "generated") {
@@ -64,8 +66,17 @@ export default function Files({ data, fileType }: List) {
     );
   }
 
-  function deleteTemplate() {
+  async function deleteTemplate() {
     if (!fileType) return;
+    const confirmed = await confirmAction({
+      type: "delete",
+      title: "Ištrinti failą?",
+      message: "Ištrynus failą jis bus saugomas ištrintų failų kataloge 7 dienas. Po 7 dienu failas bus ištrintas visam laikui.",
+      confirmText: "Ištrinti",
+      cancelText: "Atšaukti",
+      icon: File,
+    })
+    if (!confirmed) return;
     FilesApi.deleteFile(data.path, fileType).then((res) => {
       if (res.status === "SUCCESS") {
         DirectoryStore.remove(data.path);
@@ -84,7 +95,7 @@ export default function Files({ data, fileType }: List) {
 
   useEffect(() => {
     console.log(data);
-  },[data]);
+  }, [data]);
 
   return (
     <div>
@@ -156,13 +167,15 @@ export default function Files({ data, fileType }: List) {
               Peržiūrėti failą
             </button>
 
-            <CheckBox
-              value={selected}
-              onChange={(checked: boolean) => {
-                if (checked) DirectoryStore.add(data.path);
-                else DirectoryStore.remove(data.path);
-              }}
-            />
+            {fileType === "templates" &&
+              <CheckBox
+                value={selected}
+                onChange={(checked: boolean) => {
+                  if (checked) DirectoryStore.add(data.path);
+                  else DirectoryStore.remove(data.path);
+                }}
+              />
+            }
           </div>
         </div>
       </div>

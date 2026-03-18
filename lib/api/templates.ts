@@ -9,8 +9,8 @@ export const TemplateApi = {
   getById: (id: string) =>
     api.get<string>(`/api/templates/id/${id}`),
 
-  getTemplatePDF: (path: string) =>
-    api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
+  // getTemplatePDF: (path: string) =>
+  //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
   getTemplatesZip: () =>
     api.getBlob("/api/templates/zip"),
@@ -33,9 +33,9 @@ export const TemplateApi = {
       { loadingMessage: "Kuriami dokumentai..." }
     ),
 
-  renameTemplate: (directory: string, name: string) =>
-    api.post<{ status: string }>("/api/template/rename", { directory, name }),
+  // renameTemplate: (directory: string, name: string) =>
+  //   api.post<{ status: string }>("/api/template/rename", { directory, name }),
 
-  deleteTemplate: (path: string) =>
-    api.post<{ status: string }>("/api/template/delete", { path }),
+  // deleteTemplate: (path: string) =>
+  //   api.post<{ status: string }>("/api/template/delete", { path }),
 };
