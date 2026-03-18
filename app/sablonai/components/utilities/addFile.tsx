@@ -11,6 +11,16 @@ export function addFileToTree(
     children: undefined,
   };
 
+  if (parentPath === "") {
+    const alreadyExists = nodes.some(
+      (node) => node.type === "file" && node.path === normalizedFile.path,
+    );
+
+    if (alreadyExists) return nodes;
+
+    return [...nodes, normalizedFile];
+  }
+
   return nodes.map((node) => {
     if (node.type !== "directory") return node;
 

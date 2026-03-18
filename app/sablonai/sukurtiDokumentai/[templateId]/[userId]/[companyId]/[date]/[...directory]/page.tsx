@@ -37,7 +37,7 @@ export default function Page() {
     const companyId = params.companyId;
     const directory = params.directory;
     const [date, setDate] = useState(decodeURIComponent(params.date));
-    const fullPath = directory.join("/");
+    const fullPath = decodeURIComponent(directory.join("/"));
 
     useEffect(() => {
         async function getItems() {
@@ -62,7 +62,6 @@ export default function Page() {
     async function updateDocument() {
         if (!templatePath) return;
         const res = await TemplateApi.createDocument(Number(companyId), [templatePath], fullPath.split("/").pop());
-        downloadBlob(res);
         const today = nowSqlDate();
         if (res) setDate(today);
     }

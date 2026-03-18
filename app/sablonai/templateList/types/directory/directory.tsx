@@ -2,28 +2,25 @@
 
 import styles from "../../fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
-import { TemplateApi } from "@/lib/api/templates";
-import { FilesApi } from "@/lib/api/files";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { ChevronDown, Folder, ArrowUpToLine } from "lucide-react";
 import Files from "../file/file";
 import InputFieldFile from "@/components/inputFields/inputFieldFile";
 import DropZone from "@/components/inputFields/dropZone";
 import CreateDirectory from "./functions/createDirectory";
 import RenameDirectory from "./functions/renameDirectory";
-import { addFileToTree } from "@/app/sablonai/components/utilities/addFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
-import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
-import GeneratedFiles from "../file/generatedFile";
+import { useDeleteFolder } from "./functions/deleteDirectory";
+import { useCreateFile } from "./functions/createFile";
 
-type List = {
+type DirectoryList = {
     name: string;
     fileType: string,
     children?: TemplateList[]
     path?: string
 }
 
-export default function Directory({ name, children, path, fileType }: List) {
+export default function Directory({ name, children, path, fileType }: DirectoryList) {
 
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [rename, setRename] = useState<boolean>(false);
@@ -31,68 +28,63 @@ export default function Directory({ name, children, path, fileType }: List) {
     const [file, setFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
-    const { setCatalogueTree } = useCatalogueTree();
-    const Component = fileType === "generated" ? GeneratedFiles : Files;
+    const { deleteFolder } = useDeleteFolder();
+    const { createFile } = useCreateFile();
 
     function clicked() {
         setCollapsed(!collapsed);
     }
 
     useEffect(() => {
-        if (
-            file?.name &&
-            file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" &&
-            fileType
-        ) {
-            FilesApi.createFile(file, path ?? "", fileType).then((res) => {
-                if (res.status === "SUCCESS" && res.file) {
-                    const fileNode = {
-                        ...res.file
-                    };
-                    setCatalogueTree((prev) =>
-                        addFileToTree(prev, path ?? "", fileNode)
-                    );
-                }
-
-                setFile(null);
-            });
+        if (file) {
+            createFile(file, path ?? "", fileType);
+            setFile(null);
         }
-    }, [file, fileType, path, setCatalogueTree]);
+    }, [file, fileType, path, createFile]);
+
+    function deleteCatalogue() {
+        deleteFolder(fileType, path ?? "");
+    }
+
+    const menuItems = useMemo(
+        () => [
+            {
+                id: "newFolder",
+                label: "Naujas aplankas",
+                onClick: () => {
+                    setCreate(true);
+                },
+            },
+            {
+                id: "newTemplate",
+                label: "Naujas failas",
+                onClick: () => {
+                    fileInputRef.current?.click();
+                },
+            },
+            {
+                id: "renameFolder",
+                label: `Pervadinti aplanką "${name}"`,
+                onClick: () => {
+                    setRename(true);
+                },
+            },
+            {
+                id: "deleteFolder",
+                label: `Ištrinti aplanką "${name}"`,
+                onClick: () => {
+                    deleteFolder(fileType, path ?? "");
+                },
+            },
+        ],
+        [name, fileType, path, deleteFolder]
+    );
 
     return (
         <DropZone onFile={setFile} accept=".docx" className={styles.directory} >
-            <div className={styles.itemContainer} onContextMenu={(e) =>
-                openMenuFromEvent(e, [
-                    {
-                        id: "newFolder",
-                        label: "Naujas aplankas",
-                        onClick: () => {
-                            setCreate(true);
-                        },
-                    },
-                    {
-                        id: "newTemplate",
-                        label: `Naujas failas`,
-                        onClick: () => {
-                            fileInputRef.current?.click();
-                        },
-                    },
-                    {
-                        id: "renameFolder",
-                        label: `Pervadintį aplanką "${name}"`,
-                        onClick: () => {
-                            setRename(true);
-                        },
-                    },
-                    {
-                        id: "deleteFolder",
-                        label: `Ištrinti aplanką "${name}"`,
-                        onClick: () => {
-                            console.log("Delete:", path);
-                        },
-                    },
-                ])
-            }>
+            <div className={styles.itemContainer}
+                onContextMenu={(e) => openMenuFromEvent(e, menuItems)}
+            >
                 <div className={styles.item} onClick={clicked}>
                     <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
                     <Folder size={16} />
@@ -114,7 +106,7 @@ export default function Directory({ name, children, path, fileType }: List) {
 
             <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
                 {create &&
-                    <CreateDirectory key={"createDirectory"} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
+                    <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
                 }
                 {(children ?? []).map((child) => child.type === "file" ? (
                     <Files key={child.path ?? child.name} fileType={fileType} data={child} />

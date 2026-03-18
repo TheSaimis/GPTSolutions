@@ -36,6 +36,7 @@ export type CreateFileResponse = {
 export type TemplateList = {
     name: string;
     type: "file" | "directory";
+    fileType?: string;
     path: string;
     size?: number;
     children?: TemplateList[];

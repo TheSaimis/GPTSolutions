@@ -3,6 +3,9 @@ import { MessageStore } from "@/lib/globalVariables/messages";
 import { useLoadingStore } from "../globalVariables/isLoading";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL!;
+if (!BASE) {
+  throw new Error("NEXT_PUBLIC_BACKEND_API_URL is not defined");
+}
 
 export type Json =
   | null
@@ -17,8 +20,6 @@ export type DownloadResult = {
   filename: string;
   status?: string;
 };
-
-type ResponseType = "json" | "blob";
 
 type BaseRequestConfig = {
   method: string;
@@ -130,6 +131,7 @@ async function request<T>({
 
       if (res.status === 401 || res.status === 403) {
         // window.location.href = "/prisijungimas";
+        return Promise.reject(new Error(details));
       }
 
       MessageStore.push({

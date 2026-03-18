@@ -7,6 +7,7 @@ import MessagePanel from "../components/messages/messagePanel";
 import PdfViewer from "@/components/pdfViewer/pdfViewer";
 import ContextMenu from "@/components/contextMenu/contextMenu";
 import { ContextMenuProvider } from "@/components/contextMenu/menuComponents/contextMenuProvider";
+import { ConfirmActionProvider } from "@/components/confirmationPanel/confirmationPanel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,14 +36,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <ContextMenuProvider>
-          <ContextMenu />
-          <PdfViewer />
-          <Header />
-          <MessagePanel />
-          {children}
-          <Footer />
-        </ContextMenuProvider>
+        <ConfirmActionProvider>
+          <ContextMenuProvider>
+            <ContextMenu />
+            <PdfViewer />
+            <MessagePanel />
+            <Header />
+            {children}
+            <Footer />
+          </ContextMenuProvider>
+        </ConfirmActionProvider>
       </body>
     </html>
   );

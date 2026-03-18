@@ -1,13 +1,18 @@
 "use client";
 
 import styles from "./fileList.module.scss";
-import { Search } from "lucide-react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import Directory from "./types/directory/directory";
 import Files from "./types/file/file";
-import GeneratedFiles from "./types/file/generatedFile";
-import { useCatalogueTree } from "../catalogueTreeContext";
+import CreateDirectory from "./types/directory/functions/createDirectory";
 import Filters from "../components/filters/filters";
+import DropZone from "@/components/inputFields/dropZone";
+import InputFieldFile from "@/components/inputFields/inputFieldFile";
+import { Search } from "lucide-react";
+import { useCatalogueTree } from "../catalogueTreeContext";
+import { useCreateFile } from "./types/directory/functions/createFile";
+import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
+import { useEffect, useState, useMemo, useRef } from "react";
 
 type FileListProps = {
     fileType: string;
@@ -15,11 +20,43 @@ type FileListProps = {
 
 export default function FileList({ fileType }: FileListProps) {
     const { filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
-    // const Component = fileType === "generated" ? GeneratedFiles : Files;
+    const [file, setFile] = useState<File | null>(null);
+    const [create, setCreate] = useState(false);
+    const { createFile } = useCreateFile();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { openMenuFromEvent } = useContextMenu();
+
+    useEffect(() => {
+        if (file) {
+            createFile(file, "", fileType);
+            setFile(null);
+        }
+    }, [file, fileType, createFile]);
+
+    const menuItems = useMemo(
+        () => [
+            {
+                id: "newFolder",
+                label: "Naujas aplankas",
+                onClick: () => {
+                    setCreate(true);
+                },
+            },
+            {
+                id: "newTemplate",
+                label: "Naujas failas",
+                onClick: () => {
+                    fileInputRef.current?.click();
+                },
+            },
+        ], []);
 
     return (
-        <div className={styles.container}>
-            <div className={styles.templateList}>
+        <DropZone accept=".docx" onFile={setFile} className={styles.container}>
+            <div style={{ display: "none" }}>
+                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+            </div>
+            <div className={styles.templateList} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
                 <div className={styles.card}>
                     <div>
                         <InputFieldText
@@ -29,15 +66,16 @@ export default function FileList({ fileType }: FileListProps) {
                             icon={Search}
                         />
                     </div>
-
                     <div className={styles.catalogueTree}>
+                        {create && (
+                            <CreateDirectory fileType={fileType} onFocus={setCreate} />
+                        )}
                         {filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
                                     key={node.path ?? node.name}
                                     fileType={fileType}
                                     data={node}
-                                    // metadata={node.metadata}
                                 />
                             ) : (
                                 <Directory
@@ -53,6 +91,6 @@ export default function FileList({ fileType }: FileListProps) {
                 </div>
             </div>
             <Filters />
-        </div>
+        </DropZone>
     );
 }

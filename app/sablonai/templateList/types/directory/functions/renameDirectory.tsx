@@ -17,7 +17,7 @@ type List = {
     onFocus?: (b: boolean) => void;
 }
 
-export default function RenameDirectory({ name, path, onFocus, folders, fileType}: List) {
+export default function RenameDirectory({ name, path, onFocus, folders, fileType }: List) {
 
     const [folderName, setFolderName] = useState<string>(name ?? "");
     const [focused, setFocused] = useState<boolean>(true);
@@ -33,7 +33,8 @@ export default function RenameDirectory({ name, path, onFocus, folders, fileType
             })
             return;
         };
-        const res = await CatalougeApi.catalogueRename(`${fileType}/${path ?? ""}`, folderName);
+
+        const res = await CatalougeApi.catalogueRename(fileType ?? "", path ?? "", folderName);
         if (res.status != "SUCCESS") return;
 
         setCatalogueTree((prev) =>
