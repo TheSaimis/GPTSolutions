@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import UserCard from "@/components/userCard/userCard";
@@ -10,6 +10,10 @@ import styles from "./page.module.scss";
 
 export default function NaudotojuSarasasPage() {
     const [users, setUsers] = useState<User[] | null>(null);
+    const [search, setSearch] = useState("");
+    const [selectedRole, setSelectedRole] = useState("all");
+    const [sortBy, setSortBy] = useState("name-asc");
+    const [viewMode, setViewMode] = useState<"large" | "compact" | "mini">("large");
 
     useEffect(() => {
         document.title = "Naudotojų sąrašas";
@@ -17,6 +21,51 @@ export default function NaudotojuSarasasPage() {
             .then((data) => setUsers(Array.isArray(data) ? data : []))
             .catch(() => setUsers([]));
     }, []);
+
+    const normalizeRole = (role?: string | string[] | null) => {
+        const rawRole = Array.isArray(role) ? role[0] : role;
+        const value = typeof rawRole === "string" ? rawRole.toUpperCase() : "";
+        if (value.includes("ROLE_ADMIN") || value.includes("ADMIN")) return "ROLE_ADMIN";
+        if (value.includes("ROLE_USER") || value.includes("USER")) return "ROLE_USER";
+        return "";
+    };
+
+    const roleLabel = (role?: string) => {
+        const normalized = normalizeRole(role);
+        if (normalized === "ROLE_ADMIN") return "Administratorius";
+        if (normalized === "ROLE_USER") return "Naudotojas";
+        return "Nenurodyta";
+    };
+
+    const filteredUsers = useMemo(() => {
+        if (!users) return [];
+        const searchLower = search.trim().toLowerCase();
+        const startsWithSearch = (value?: string) => (value ?? "").toLowerCase().startsWith(searchLower);
+
+        const list = users.filter((user) => {
+            const normalizedRole = normalizeRole(user.role);
+            const matchesRole = selectedRole === "all" || normalizedRole === selectedRole;
+            if (!matchesRole) return false;
+
+            if (!searchLower) return true;
+            const searchableValues = [user.firstName, user.lastName, user.email, roleLabel(user.role)];
+            return searchableValues.some((value) => startsWithSearch(value));
+        });
+
+        const sortedList = [...list];
+        sortedList.sort((a, b) => {
+            const aFullName = `${a.firstName ?? ""} ${a.lastName ?? ""}`.trim();
+            const bFullName = `${b.firstName ?? ""} ${b.lastName ?? ""}`.trim();
+
+            if (sortBy === "name-asc") return aFullName.localeCompare(bFullName, "lt");
+            if (sortBy === "name-desc") return bFullName.localeCompare(aFullName, "lt");
+            if (sortBy === "email-asc") return (a.email ?? "").localeCompare(b.email ?? "", "lt");
+            if (sortBy === "email-desc") return (b.email ?? "").localeCompare(a.email ?? "", "lt");
+            return 0;
+        });
+
+        return sortedList;
+    }, [users, search, selectedRole, sortBy]);
 
     return (
         <div className={styles.page}>
@@ -29,13 +78,65 @@ export default function NaudotojuSarasasPage() {
 
             <div className={styles.content}>
                 <h1 className={styles.pageTitle}>Naudotojų sąrašas</h1>
+                {users && users.length > 0 && (
+                    <section className={styles.controls}>
+                        <div className={styles.searchRow}>
+                            <input
+                                type="text"
+                                placeholder="Paieška pagal vardą, pavardę, el. paštą, rolę..."
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                className={styles.searchInput}
+                            />
+                        </div>
+
+                        <div className={styles.filtersRow}>
+                            <select
+                                value={selectedRole}
+                                onChange={(event) => setSelectedRole(event.target.value)}
+                                className={styles.select}
+                            >
+                                <option value="all">Visos rolės</option>
+                                <option value="ROLE_ADMIN">Administratorius</option>
+                                <option value="ROLE_USER">Naudotojas</option>
+                            </select>
+
+                            <select
+                                value={sortBy}
+                                onChange={(event) => setSortBy(event.target.value)}
+                                className={styles.select}
+                            >
+                                <option value="name-asc">Rikiuoti: vardas A-Z</option>
+                                <option value="name-desc">Rikiuoti: vardas Z-A</option>
+                                <option value="email-asc">Rikiuoti: el. paštas A-Z</option>
+                                <option value="email-desc">Rikiuoti: el. paštas Z-A</option>
+                            </select>
+
+                            <select
+                                value={viewMode}
+                                onChange={(event) =>
+                                    setViewMode(event.target.value as "large" | "compact" | "mini")
+                                }
+                                className={styles.select}
+                            >
+                                <option value="large">Išdėstymas: dideliais langeliais</option>
+                                <option value="compact">Išdėstymas: eilutėmis</option>
+                                <option value="mini">Išdėstymas: mažais langeliais</option>
+                            </select>
+                        </div>
+                    </section>
+                )}
                 {users === null ? (
                     <p className={styles.message}>Kraunama...</p>
                 ) : users.length === 0 ? (
                     <p className={styles.message}>Naudotojų nėra.</p>
+                ) : filteredUsers.length === 0 ? (
+                    <p className={styles.message}>Pagal pasirinktus filtrus naudotojų nerasta.</p>
                 ) : (
-                    <div className={styles.cardList}>
-                        {users.map((user) =>
+                    <div
+                        className={`${styles.cardList} ${viewMode === "compact" ? styles.compactList : ""} ${viewMode === "mini" ? styles.miniList : ""}`}
+                    >
+                        {filteredUsers.map((user) =>
                             user.id != null ? (
                                 <UserCard
                                     key={user.id}
@@ -44,6 +145,7 @@ export default function NaudotojuSarasasPage() {
                                     firstName={user.firstName}
                                     lastName={user.lastName}
                                     role={user.role}
+                                    variant={viewMode}
                                 />
                             ) : null
                         )}
