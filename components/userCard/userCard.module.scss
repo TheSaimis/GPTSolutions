@@ -90,3 +90,75 @@ $border: #E2E8F0;
         word-break: break-word;
     }
 }
+
+.compact {
+    padding: 18px;
+
+    .cardHeader {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+
+        .userName {
+            font-size: 1rem;
+        }
+    }
+
+    .fields {
+        gap: 8px;
+
+        .row {
+            grid-template-columns: 110px 1fr;
+            gap: 8px;
+        }
+
+        .label {
+            font-size: 0.75rem;
+        }
+
+        .value {
+            font-size: 0.86rem;
+        }
+    }
+}
+
+.mini {
+    padding: 14px;
+
+    .cardHeader {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+
+        .cardIcon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        .userName {
+            font-size: 0.95rem;
+            line-height: 1.25;
+        }
+
+        .editButton {
+            width: 30px;
+            height: 30px;
+        }
+    }
+
+    .fields {
+        gap: 6px;
+
+        .row {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+
+        .label {
+            font-size: 0.72rem;
+        }
+
+        .value {
+            font-size: 0.84rem;
+        }
+    }
+}
