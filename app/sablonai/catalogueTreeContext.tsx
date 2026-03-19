@@ -53,7 +53,10 @@ export function CatalogueTreeProvider({
   const [catalogueTree, setCatalogueTree] = useState<TemplateList[]>(initialTree ?? []);
 
   useEffect(() => {
-    setCatalogueTree(initialTree ?? []);
+    async function fetchCatalogueTree(initialTree: TemplateList[]) {
+      setCatalogueTree(initialTree);
+    }
+    fetchCatalogueTree(initialTree);
   }, [initialTree]);
 
   const filteredCatalogueTree = useMemo(() => {

@@ -12,7 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 // idk what types to think of go crazy ig
-type ConfirmType = "delete" | "edit" | "info"; 
+type ConfirmType = "delete" | "warning" | "edit" | "info"; 
 
 type ConfirmOptions = {
   type?: ConfirmType;
