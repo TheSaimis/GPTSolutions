@@ -1,12 +1,18 @@
 "use client";
 
+// rushed code for features but it works so far
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
+import { FilesApi } from "@/lib/api/files";
+import { extractUnknownVariablesFromDocx } from "@/lib/functions/wordVariableParser";
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import InputFieldText from "@/components/inputFields/inputFieldText";
 import { FileText, Download, ArrowLeft } from "lucide-react";
+import { getCachedWordFile, setCachedWordFile } from "@/lib/cache/wordFileCache";
 import Link from "next/link";
 import styles from "./page.module.scss";
 
@@ -17,6 +23,9 @@ export default function TemplatePage() {
     const fileName = Array.isArray(template) ? template.at(-1) : template;
     const [directory, setDirectory] = useState(decodeURIComponent(templatePath || ""));
     const [documentName, setDocumentName] = useState(fileName);
+    const [customFields, setCustomFields] = useState<string[]>([]);
+    const [fake, setFake] = useState<string>("");
+    const [templateFile, setTemplateFile] = useState<Blob | null>(null);
 
     const [companies, setCompanies] = useState<Company[]>([]);
     const [company, setCompany] = useState("");
@@ -56,6 +65,25 @@ export default function TemplatePage() {
         window.URL.revokeObjectURL(url);
     }
 
+    useEffect(() => {
+        async function getTemplateWord() {
+            // cache the files since the user might go back and forth a lot and keep having to download the .docx file again
+            const cacheKey = `templates/${directory}`;
+            const cachedBlob = getCachedWordFile(cacheKey);
+            if (cachedBlob) {
+                setTemplateFile(cachedBlob);
+                extractUnknownVariablesFromDocx(cachedBlob).then((result) => setCustomFields(result));
+                return;
+            }
+            const { blob } = await FilesApi.downloadFile(cacheKey);
+            setCachedWordFile(cacheKey, blob);
+            setTemplateFile(blob);
+            downloadBlob(blob, "nzn.docx");
+            extractUnknownVariablesFromDocx(blob).then((result) => console.log(result));
+        }
+        getTemplateWord();
+    })
+
     async function getCompanies() {
         const data = await CompanyApi.getAll();
         setCompanies(data);
@@ -94,6 +122,15 @@ export default function TemplatePage() {
                         value: String(c.id),
                         label: `${c.companyType} ${c.companyName}`
                     }))} />
+                </div>
+
+                <div>
+                    <p>Papildomi laukai</p>
+                    {customFields && customFields.map((field, index) => (
+                        <div key={index}>
+                            <InputFieldText placeholder={field} value={fake} onChange={setFake} />
+                        </div>
+                    ))}
                 </div>
 
                 <button className={styles.submitButton} onClick={createDocument}>

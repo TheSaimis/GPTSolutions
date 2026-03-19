@@ -15,9 +15,7 @@ export default function Home() {
     }
     getRole();
     document.title = "Pagrindinis";
-  },
-
-    []);
+  },[]);
 
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAllZip();

@@ -39,3 +39,21 @@ export const COMPANY_TYPES = [
     "IĮ",
     "IND V."
 ] as const;
+
+export const wordVariables = [
+    "${kompanija}",
+    "${tipas}",
+    "${tipasPilnas}",
+    "${adresas}",
+    "${kodas}",
+    "${data}",
+    "${vadovas}",
+    "${vadovo}",
+    "${vardas}",
+    "${vardo}",
+    "${vardes}",
+    "${pavarde}",
+    "${pavardes}",
+    "${pavardo}",
+    "${role}",
+] as const;

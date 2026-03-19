@@ -14,12 +14,9 @@ import { useCreateFile } from "./types/directory/functions/createFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useEffect, useState, useMemo, useRef } from "react";
 
-type FileListProps = {
-    fileType: string;
-};
 
-export default function FileList({ fileType }: FileListProps) {
-    const { catalogueTree, filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
+export default function FileList() {
+    const { catalogueTree, filteredCatalogueTree, filters, setFilters, fileType } = useCatalogueTree();
     const [file, setFile] = useState<File | null>(null);
     const [create, setCreate] = useState(false);
     const { createFile } = useCreateFile();
@@ -70,7 +67,7 @@ export default function FileList({ fileType }: FileListProps) {
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
-                        {catalogueTree.length > 0 ? (filteredCatalogueTree.map((node) =>
+                        {catalogueTree ? (filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
                                     key={node.path ?? node.name}

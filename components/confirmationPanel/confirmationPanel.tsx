@@ -98,7 +98,7 @@ export function ConfirmActionProvider({ children }: { children: ReactNode }) {
             </div>
 
             {confirmState.message && (
-              <p style={messageStyle}>{confirmState.message}</p>
+              <p className="whitespace-pre-line" style={messageStyle}>{confirmState.message}</p>
             )}
 
             <div style={buttonRowStyle}>

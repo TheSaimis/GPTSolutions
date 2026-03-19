@@ -6,12 +6,13 @@ import Link from "next/link";
 import CompanyCard from "@/components/companyCard/companyCard";
 import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
+import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import styles from "./page.module.scss";
 
 export default function ImoniuSarasasPage() {
     const [companies, setCompanies] = useState<Company[] | null>(null);
     const [search, setSearch] = useState("");
-    const [selectedType, setSelectedType] = useState("all");
+    const [selectedType, setSelectedType] = useState("Visi tipai");
     const [sortBy, setSortBy] = useState("name-asc");
     const [viewMode, setViewMode] = useState<"large" | "compact" | "mini">("large");
 
@@ -23,14 +24,15 @@ export default function ImoniuSarasasPage() {
     }, []);
 
     const companyTypes = useMemo(() => {
-        if (!companies) return [];
-        return Array.from(
+        if (!companies) return ["Visi tipai"];
+        const types = Array.from(
             new Set(
                 companies
                     .map((company) => company.companyType?.trim())
                     .filter((value): value is string => Boolean(value))
             )
         ).sort((a, b) => a.localeCompare(b, "lt"));
+        return ["Visi tipai", ...types];
     }, [companies]);
 
     const filteredCompanies = useMemo(() => {
@@ -39,7 +41,7 @@ export default function ImoniuSarasasPage() {
         const searchLower = search.trim().toLowerCase();
         const startsWithSearch = (value?: string) => (value ?? "").toLowerCase().startsWith(searchLower);
         const list = companies.filter((company) => {
-            const matchesType = selectedType === "all" || company.companyType === selectedType;
+            const matchesType = selectedType === "Visi tipai" || company.companyType === selectedType;
             if (!matchesType) return false;
 
             if (!searchLower) return true;
@@ -96,43 +98,36 @@ export default function ImoniuSarasasPage() {
                         </div>
 
                         <div className={styles.filtersRow}>
-                            <select
-                                value={selectedType}
-                                onChange={(event) => setSelectedType(event.target.value)}
-                                className={styles.select}
-                            >
-                                <option value="all">Visi įmonių tipai</option>
-                                {companyTypes.map((type) => (
-                                    <option key={type} value={type}>
-                                        {type}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <select
-                                value={sortBy}
-                                onChange={(event) => setSortBy(event.target.value)}
-                                className={styles.select}
-                            >
-                                <option value="name-asc">Rikiuoti: pavadinimas A-Z</option>
-                                <option value="name-desc">Rikiuoti: pavadinimas Z-A</option>
-                                <option value="code-asc">Rikiuoti: kodas A-Z</option>
-                                <option value="code-desc">Rikiuoti: kodas Z-A</option>
-                                <option value="created-newest">Rikiuoti: naujausios pirmiau</option>
-                                <option value="created-oldest">Rikiuoti: seniausios pirmiau</option>
-                            </select>
-
-                            <select
-                                value={viewMode}
-                                onChange={(event) =>
-                                    setViewMode(event.target.value as "large" | "compact" | "mini")
-                                }
-                                className={styles.select}
-                            >
-                                <option value="large">Išdėstymas: dideliais langeliais</option>
-                                <option value="compact">Išdėstymas: eilutėmis</option>
-                                <option value="mini">Išdėstymas: mažais langeliais</option>
-                            </select>
+                            <InputFieldSelect
+                                options={companyTypes}
+                                selected={"Imonės tipas"}
+                                placeholder="Pasirinkite tipą"
+                                onChange={setSelectedType}
+                            />
+                            <InputFieldSelect
+                                options={[
+                                    { value: "Nerikiuoti", label: "Nerikiuoti" },
+                                    { value: "name-asc", label: "Pagal pavadinimą (A-Z)" },
+                                    { value: "name-desc", label: "Pagal pavadinimą (Z-A)" },
+                                    { value: "code-asc", label: "Pagal kodą (A-Z)" },
+                                    { value: "code-desc", label: "Pagal kodą (Z-A)" },
+                                    { value: "created-newest", label: "Pagal sukurimo datą (Nuo naujausių)" },
+                                    { value: "created-oldest", label: "Pagal sukurimo datą (Nuo seniausių)" },
+                                ]}
+                                selected={"Rikiavimas"}
+                                placeholder="Pasirinkite rikiavimo tipą"
+                                onChange={setSortBy}
+                            />
+                            <InputFieldSelect
+                                options={[
+                                    { value: "large", label: "Kortelėmis" },
+                                    { value: "compact", label: "Eilutėmis" },
+                                    { value: "mini", label: "Kompaktiškas" },
+                                ]}
+                                selected={"Įmonių išdėstymas"}
+                                placeholder="Įmonių išdėstymas"
+                                onChange={setViewMode as any}
+                            />
                         </div>
                     </section>
                 )}

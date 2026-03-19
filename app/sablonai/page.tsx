@@ -1,11 +1,12 @@
 "use client";
 
-import { TemplateApi } from "@/lib/api/templates";
-import { TemplateList } from "@/lib/types/TemplateList";
-import { useEffect, useState } from "react";
 import FileList from "./templateList/fileList";
 import DirectoryMenu from "./components/directoryMenu/directoryMenu";
 import styles from "./page.module.scss";
+import { getCachedCatalogueTree, setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
+import { TemplateApi } from "@/lib/api/templates";
+import { TemplateList } from "@/lib/types/TemplateList";
+import { useEffect, useState } from "react";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { Download, ExternalLink } from "lucide-react";
 import { CatalogueTreeProvider } from "./catalogueTreeContext";
@@ -13,13 +14,21 @@ import { useRouter } from "next/navigation";
 
 export default function TemplatePage() {
   const [templateList, setTemplateList] = useState<TemplateList[]>([]);
+  const [fileType, setFileType] = useState("templates");
   const router = useRouter();
 
   useEffect(() => {
     document.title = "Šablonai";
     async function getTemplateList() {
-      const data: TemplateList[] = await TemplateApi.getAll();
-      setTemplateList(data);
+      const cacheKey = fileType;
+      const cachedTree = getCachedCatalogueTree(cacheKey);
+      if (cachedTree) {
+        setTemplateList(cachedTree);
+        return;
+      }
+      const tree = await TemplateApi.getAll();
+      setCachedCatalogueTree(cacheKey, tree);
+      setTemplateList(tree);
     }
     getTemplateList();
   }, []);
@@ -59,8 +68,8 @@ export default function TemplatePage() {
         </div>
       </div>
 
-      <CatalogueTreeProvider initialTree={templateList}>
-        <FileList fileType="templates" />
+      <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
+        <FileList/>
       </CatalogueTreeProvider>
     </div>
   );

@@ -71,7 +71,7 @@ export default function Files({ data, fileType }: List) {
     const confirmed = await confirmAction({
       type: "delete",
       title: "Ištrinti failą?",
-      message: "Ištrynus failą jis bus saugomas ištrintų failų kataloge 7 dienas. Po 7 dienu failas bus ištrintas visam laikui.",
+      message: "Ištrynus failą jis bus saugomas ištrintų failų kataloge 7 dienas.\n Po 7 dienu failas bus ištrintas visam laikui.\n Jeigu trinate šabloną, su juo susije sukurti dokumentai negalės būti atnaujinami.",
       confirmText: "Ištrinti",
       cancelText: "Atšaukti",
       icon: File,
@@ -137,7 +137,7 @@ export default function Files({ data, fileType }: List) {
                 },
                 {
                   id: "delete",
-                  label: `Ištrinti šabloną ${data.name}`,
+                  label: `Ištrinti failą ${data.name}`,
                   onClick: deleteTemplate,
                 },
               ]
