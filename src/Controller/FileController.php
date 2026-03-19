@@ -74,9 +74,6 @@ final class FileController extends AbstractController
         if (! in_array($root, ['templates', 'generated'], true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
-        if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'directory is required'], 400);
-        }
         $path = str_replace('\\', '/', $path);
         $path = ltrim($path, '/');
         if (str_starts_with($path, $root . '/')) {
