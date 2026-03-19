@@ -48,10 +48,6 @@ type RequestOptions = {
   fallbackFilename?: string;
 };
 
-async function getClientToken(): Promise<string | null> {
-  return localStorage.getItem("token");
-}
-
 function filenameFromDisposition(
   disposition: string | null,
   fallback: string
@@ -71,11 +67,9 @@ function filenameFromDisposition(
   return fallback;
 }
 
-// overloads
 async function request<T>(config: JsonRequestConfig): Promise<T>;
 async function request(config: BlobRequestConfig): Promise<DownloadResult>;
 
-// implementation
 async function request<T>({
   method,
   path,
@@ -86,7 +80,6 @@ async function request<T>({
   errorTitle,
   fallbackFilename = "document.docx",
 }: RequestConfig): Promise<T | DownloadResult> {
-  const token = await getClientToken();
   const headers: HeadersInit = {};
   let finalBody: BodyInit | undefined;
 
@@ -101,10 +94,6 @@ async function request<T>({
     finalBody = JSON.stringify(body);
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   useLoadingStore.getState().setLoading(true, loadingMessage ?? "Kraunama...");
 
   try {
@@ -112,6 +101,7 @@ async function request<T>({
       method,
       headers,
       body: finalBody,
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -131,7 +121,6 @@ async function request<T>({
 
       if (res.status === 401 || res.status === 403) {
         // window.location.href = "/prisijungimas";
-        return Promise.reject(new Error(details));
       }
 
       MessageStore.push({

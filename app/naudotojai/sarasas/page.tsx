@@ -7,6 +7,7 @@ import UserCard from "@/components/userCard/userCard";
 import { UsersApi } from "@/lib/api/users";
 import type { User } from "@/lib/types/User";
 import styles from "./page.module.scss";
+import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 
 export default function NaudotojuSarasasPage() {
     const [users, setUsers] = useState<User[] | null>(null);
@@ -91,38 +92,39 @@ export default function NaudotojuSarasasPage() {
                         </div>
 
                         <div className={styles.filtersRow}>
-                            <select
-                                value={selectedRole}
-                                onChange={(event) => setSelectedRole(event.target.value)}
-                                className={styles.select}
-                            >
-                                <option value="all">Visos rolės</option>
-                                <option value="ROLE_ADMIN">Administratorius</option>
-                                <option value="ROLE_USER">Naudotojas</option>
-                            </select>
+                            <InputFieldSelect
+                                options={[
+                                    { value: "all", label: "Visi" },
+                                    { value: "ROLE_ADMIN", label: "Administratoriai" },
+                                    { value: "ROLE_USER", label: "Naudotojai" },
+                                ]}
+                                placeholder="Pareigos"
+                                selected={"Pareigos"}
+                                onChange={setSelectedRole}
+                            />
 
-                            <select
-                                value={sortBy}
-                                onChange={(event) => setSortBy(event.target.value)}
-                                className={styles.select}
-                            >
-                                <option value="name-asc">Rikiuoti: vardas A-Z</option>
-                                <option value="name-desc">Rikiuoti: vardas Z-A</option>
-                                <option value="email-asc">Rikiuoti: el. paštas A-Z</option>
-                                <option value="email-desc">Rikiuoti: el. paštas Z-A</option>
-                            </select>
+                            <InputFieldSelect
+                                options={[
+                                    { value: "name-asc", label: "Vardas (A-Z)" },
+                                    { value: "name-desc", label: "Vardas (Z-A)" },
+                                    { value: "email-asc", label: "El. paštas (A-Z)" },
+                                    { value: "email-desc", label: "El. paštas (Z-A)" },
+                                ]}
+                                placeholder="Rikiavimas"
+                                selected={"Rikiavimas"}
+                                onChange={setSortBy}
+                            />
 
-                            <select
-                                value={viewMode}
-                                onChange={(event) =>
-                                    setViewMode(event.target.value as "large" | "compact" | "mini")
-                                }
-                                className={styles.select}
-                            >
-                                <option value="large">Išdėstymas: dideliais langeliais</option>
-                                <option value="compact">Išdėstymas: eilutėmis</option>
-                                <option value="mini">Išdėstymas: mažais langeliais</option>
-                            </select>
+                            <InputFieldSelect
+                                options={[
+                                    { value: "compact", label: "Eilutėmis" },
+                                    { value: "large", label: "Kortelėmis" },
+                                    { value: "mini", label: "Kompaktiškas" },
+                                ]}
+                                placeholder="Vartotojų išdėstymas"
+                                selected={"Vartotojų išdėstymas"}
+                                onChange={setViewMode as any}
+                            />
                         </div>
                     </section>
                 )}

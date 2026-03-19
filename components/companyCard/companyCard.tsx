@@ -18,6 +18,11 @@ const MINI_FIELDS: (keyof Company)[] = ["companyType"];
 
 export default function CompanyCard({ id, company: companyProp, variant = "large" }: CompanyCardProps) {
     const [company, setCompany] = useState<Company | null>(companyProp ?? null);
+    const [role, setRole] = useState("");
+
+    useEffect(() => {
+        setRole(localStorage.getItem("role") || "");
+    }, []);
 
     useEffect(() => {
         if (companyProp) {
@@ -38,11 +43,11 @@ export default function CompanyCard({ id, company: companyProp, variant = "large
                     MINI_FIELDS.includes(key as keyof Company) && value !== null && value !== undefined
             )
             : variant === "compact"
-            ? Object.entries(company).filter(
-                ([key, value]) =>
-                    COMPACT_FIELDS.includes(key as keyof Company) && value !== null && value !== undefined
-            )
-            : Object.entries(company).filter(([, value]) => value !== null && value !== undefined);
+                ? Object.entries(company).filter(
+                    ([key, value]) =>
+                        COMPACT_FIELDS.includes(key as keyof Company) && value !== null && value !== undefined
+                )
+                : Object.entries(company).filter(([, value]) => value !== null && value !== undefined);
 
     return (
         <article
@@ -53,9 +58,11 @@ export default function CompanyCard({ id, company: companyProp, variant = "large
                     <Building2 size={22} />
                 </div>
                 <h2 className={styles.companyName}>{company.companyName}</h2>
-                <Link href={`/imone/${id}`} className={styles.editButton} title="Redaguoti įmonę">
-                    <Pencil size={18} />
-                </Link>
+                {role === "ROLE_ADMIN" &&
+                    <Link href={`/imone/${id}`} className={styles.editButton} title="Redaguoti įmonę">
+                        <Pencil size={18} />
+                    </Link>
+                }
             </div>
             <dl className={styles.rekvizitai}>
                 {fieldsToRender.map(([key, value]) => (
