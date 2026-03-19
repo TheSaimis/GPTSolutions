@@ -10,7 +10,10 @@ export default function Home() {
 
   const [role, setRole] = useState<string>("");
   useEffect(() => {
-    setRole(localStorage.getItem("role") || "");
+    async function getRole() {
+      setRole(localStorage.getItem("role") || "");
+    }
+    getRole();
     document.title = "Pagrindinis";
   },
 

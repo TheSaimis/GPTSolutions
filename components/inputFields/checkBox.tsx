@@ -2,7 +2,7 @@ import styles from "./styles/inputFields.module.scss";
 import { Check } from "lucide-react";
 
 type Props = {
-    value: any;
+    value: boolean;
     onChange: (next: boolean) => void;
 }
 

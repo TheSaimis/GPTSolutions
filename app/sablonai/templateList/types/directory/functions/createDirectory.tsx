@@ -8,15 +8,18 @@ import { useEffect, useRef, useState } from "react";
 import { useMessageStore } from "@/lib/globalVariables/messages";
 import { addDirectoryToTree } from "@/app/sablonai/components/utilities/addDirectory";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
+import { LucideIcon } from "lucide-react";
 
 type List = {
     path?: string
     fileType?: string
     folders?: TemplateList[];
+    placeholder?: string
+    icon?: LucideIcon
     onFocus?: (b: boolean) => void;
 }
 
-export default function CreateDirectory({ path, onFocus, folders, fileType }: List) {
+export default function CreateDirectory({ path, onFocus, folders, fileType, placeholder, icon }: List) {
 
     const [folderName, setFolderName] = useState<string>("");
     const [focused, setFocused] = useState<boolean>(true);
@@ -56,7 +59,7 @@ export default function CreateDirectory({ path, onFocus, folders, fileType }: Li
     return (
         <div className={styles.createDirectoryContainer}>
             <div className={`${styles.inputContainer} ${focused ? "" : styles.create}`}>
-                <InputFieldText ref={inputRef} value={folderName} onChange={setFolderName} onFocus={setFocused} onKeyDown={{ Enter: createDirectory, Escape: () => clearState() }} />
+                <InputFieldText ref={inputRef} placeholder={placeholder} icon={icon} value={folderName} onChange={setFolderName} onFocus={setFocused} onKeyDown={{ Enter: createDirectory, Escape: () => clearState() }} />
             </div>
         </div>
     );

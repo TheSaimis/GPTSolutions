@@ -8,7 +8,7 @@ import CreateDirectory from "./types/directory/functions/createDirectory";
 import Filters from "../components/filters/filters";
 import DropZone from "@/components/inputFields/dropZone";
 import InputFieldFile from "@/components/inputFields/inputFieldFile";
-import { Search } from "lucide-react";
+import { Search, FolderPlus } from "lucide-react";
 import { useCatalogueTree } from "../catalogueTreeContext";
 import { useCreateFile } from "./types/directory/functions/createFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
@@ -19,7 +19,7 @@ type FileListProps = {
 };
 
 export default function FileList({ fileType }: FileListProps) {
-    const { filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
+    const { catalogueTree, filteredCatalogueTree, filters, setFilters } = useCatalogueTree();
     const [file, setFile] = useState<File | null>(null);
     const [create, setCreate] = useState(false);
     const { createFile } = useCreateFile();
@@ -70,7 +70,7 @@ export default function FileList({ fileType }: FileListProps) {
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
-                        {filteredCatalogueTree.map((node) =>
+                        {catalogueTree.length > 0 ? (filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
                                     key={node.path ?? node.name}
@@ -86,7 +86,13 @@ export default function FileList({ fileType }: FileListProps) {
                                     fileType={fileType}
                                 />
                             )
-                        )}
+                        )) : 
+                        <div className={styles.empty}>
+                            <h1>Katalogas tuščias</h1>
+                            <CreateDirectory placeholder={"Naujas katalogas"} path={""} icon={FolderPlus} fileType={fileType} onFocus={setCreate} />
+                            <InputFieldFile placeholder="Naujas dokumentas" ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+                        </div>
+                        }
                     </div>
                 </div>
             </div>
