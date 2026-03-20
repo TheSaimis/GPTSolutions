@@ -22,17 +22,7 @@ class CompanyRequisite
     #[Assert\NotBlank(message: 'Įmonės pavadinimas yra privalomas.')]
     private ?string $companyName = null;
 
-    #[ORM\Column(length: 50)]
-    #[Assert\NotBlank(message: 'Įmonės kodas yra privalomas.')]
-    #[Assert\Length(
-        min: 9,
-        max: 9,
-        exactMessage: 'Įmonės kodas turi būti būtent {{ limit }} skaitmenų.'
-    )]
-    #[Assert\Regex(
-        pattern: '/^\d+$/',
-        message: 'Įmonės kodas gali susidėti tik iš skaitmenų.'
-    )]
+    #[ORM\Column(length: 50, nullable: true)]
     private ?string $code = null;
 
     #[ORM\Column(nullable: true)]
@@ -123,9 +113,9 @@ class CompanyRequisite
         return $this->code;
     }
 
-    public function setCode(string $v): static
+    public function setCode(?string $v): static
     {
-        $this->code = $v;
+        $this->code = $v !== null && trim($v) !== '' ? $v : null;
         return $this;
     }
 

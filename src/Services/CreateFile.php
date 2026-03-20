@@ -78,7 +78,7 @@ final class CreateFile
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
 
-        $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
+        $companySlug = $this->sanitizeForFilename($companyName) ?: ($code !== '' ? $code : 'be_kodo');
         $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
         $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
         if (! is_dir($outputDir)) {
@@ -179,13 +179,8 @@ final class CreateFile
     private function validateData(array $data): void
     {
         $companyName = $data['kompanija'] ?? $data['companyName'] ?? '';
-        $code        = $data['kodas'] ?? $data['code'] ?? '';
-        $required    = ['template'];
         if (empty($companyName) || ! is_string($companyName) || trim($companyName) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "kompanija" arba "companyName"');
-        }
-        if (empty($code) || ! is_string($code) || trim($code) === '') {
-            throw new \InvalidArgumentException('Būtinas laukas "kodas" arba "code"');
         }
         if (empty($data['template']) || ! is_string($data['template']) || trim($data['template']) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "template"');

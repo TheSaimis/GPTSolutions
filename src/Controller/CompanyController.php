@@ -57,6 +57,14 @@ final class CompanyController extends AbstractController
         );
         $company->setCreatedAt(new \DateTimeImmutable());
 
+        $repo = $this->em->getRepository(CompanyRequisite::class);
+        if ($repo->existsByName($company->getCompanyName() ?? '')) {
+            return new JsonResponse([
+                'status' => 'FAIL',
+                'errors' => ['companyName' => ['Įmonė su tokiu pavadinimu jau egzistuoja.']],
+            ], 400);
+        }
+
         $errors = $this->validator->validate($company);
         if (\count($errors) > 0) {
             $messages = [];
@@ -129,15 +137,19 @@ final class CompanyController extends AbstractController
         }
 
         if (isset($data['companyName'])) {
-            $company->setCompanyName($data['companyName']);
+            $newName = trim((string) $data['companyName']);
+            $repo    = $this->em->getRepository(CompanyRequisite::class);
+            if ($repo->existsByName($newName, $id)) {
+                return new JsonResponse([
+                    'status' => 'FAIL',
+                    'errors' => ['companyName' => ['Įmonė su tokiu pavadinimu jau egzistuoja.']],
+                ], 400);
+            }
+            $company->setCompanyName($newName);
         }
 
         if (isset($data['code'])) {
             $company->setCode($data['code']);
-        }
-
-        if (array_key_exists('email', $data)) {
-            $company->setEmail($data['email']);
         }
 
         if (array_key_exists('companyType', $data)) {
