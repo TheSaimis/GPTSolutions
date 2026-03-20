@@ -470,7 +470,7 @@ final class TemplateController extends AbstractController
                 ];
             } else {
                 $ext = strtolower(pathinfo($item['name'], PATHINFO_EXTENSION));
-                if (in_array($ext, ['doc', 'docx'], true)) {
+                if (in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
                     $result[] = $item;
                 }
             }

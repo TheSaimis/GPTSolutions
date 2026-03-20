@@ -38,10 +38,10 @@ final class AddWordDocument
         }
 
         $ext = strtolower($file->getClientOriginalExtension());
-        if ($ext !== 'docx') {
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
             return [
                 'status' => self::FAIL,
-                'error'  => 'Invalid file type. Only .docx is allowed.',
+                'error'  => 'Invalid file type. Only .doc, .docx, .xls, .xlsx are allowed.',
             ];
         }
 
@@ -63,7 +63,7 @@ final class AddWordDocument
 
             $originalFilename = trim($file->getClientOriginalName());
             if ($originalFilename === '') {
-                $originalFilename = 'template_' . date('Ymd_His') . '.docx';
+                $originalFilename = 'template_' . date('Ymd_His') . '.' . $ext;
             }
 
             $filename   = str_replace(['\\', '/'], '_', $originalFilename);
@@ -86,19 +86,21 @@ final class AddWordDocument
 
         $metadata = [];
 
-        try {
-            $existing = $this->docxMetadataService->readDocxCustomProperties($targetPath);
+        if (in_array($ext, ['docx', 'xlsx'], true)) {
+            try {
+                $existing = $this->docxMetadataService->readDocxCustomProperties($targetPath);
 
-            $metadataToEnsure = [
-                'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
-                'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
-                'originalName' => $existing['originalName'] ?? $filename,
-            ];
+                $metadataToEnsure = [
+                    'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
+                    'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
+                    'originalName' => $existing['originalName'] ?? $filename,
+                ];
 
-            $this->docxMetadataService->setDocxCustomProperties($targetPath, $metadataToEnsure);
-            $metadata = $this->docxMetadataService->readDocxCustomProperties($targetPath);
-        } catch (\Throwable) {
-            $metadata = [];
+                $this->docxMetadataService->setDocxCustomProperties($targetPath, $metadataToEnsure);
+                $metadata = $this->docxMetadataService->readDocxCustomProperties($targetPath);
+            } catch (\Throwable) {
+                $metadata = [];
+            }
         }
 
         $directory = trim(str_replace('\\', '/', $directory), '/');

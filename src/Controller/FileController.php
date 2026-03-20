@@ -167,16 +167,16 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
         }
         $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['doc', 'docx'], true)) {
-            return new JsonResponse(['error' => 'Leidžiami tik Word failai'], 400);
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+            return new JsonResponse(['error' => 'Leidžiami tik Word ir Excel failai'], 400);
         }
         $response = new BinaryFileResponse($resolved);
-        $response->headers->set(
-            'Content-Type',
-            $ext === 'docx'
-                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                : 'application/msword'
-        );
+        $response->headers->set('Content-Type', match ($ext) {
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc' => 'application/msword',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls' => 'application/vnd.ms-excel',
+        });
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
             basename($resolved)
@@ -198,8 +198,8 @@ final class FileController extends AbstractController
         }
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['doc', 'docx'], true)) {
-            return new JsonResponse(['error' => 'Palaikomi tik .doc ir .docx failai'], 400);
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+            return new JsonResponse(['error' => 'Palaikomi tik .doc, .docx, .xls, .xlsx failai'], 400);
         }
 
         try {

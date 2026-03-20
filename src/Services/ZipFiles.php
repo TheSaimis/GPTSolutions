@@ -133,7 +133,7 @@ final class ZipFiles
             }
 
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (! in_array($ext, ['doc', 'docx'], true)) {
+            if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
                 continue;
             }
 
@@ -148,7 +148,7 @@ final class ZipFiles
 
         if ($added === 0) {
             @unlink($zipPath);
-            throw new \InvalidArgumentException("Kataloge nėra .doc/.docx failų: {$directory}");
+            throw new \InvalidArgumentException("Kataloge nėra .doc/.docx/.xls/.xlsx failų: {$directory}");
         }
 
         return $zipPath;

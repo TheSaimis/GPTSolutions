@@ -48,7 +48,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx']): string
+    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -77,7 +77,7 @@ final class FileService
     /**
      * @return 'SUCCESS'|'FAIL'
      */
-    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx']): string
+    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -113,7 +113,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx']): string
+    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null || ! is_file($fullPath)) {
@@ -197,7 +197,7 @@ final class FileService
                 ];
 
                 $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
-                if ($ext === 'docx') {
+                if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
                 }
 

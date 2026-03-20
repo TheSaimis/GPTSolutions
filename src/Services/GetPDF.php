@@ -51,9 +51,9 @@ final class GetPDF
         }
     
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['doc', 'docx'], true)) {
+        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
             throw new \InvalidArgumentException(
-                "Palaikomi tik .doc/.docx. Bandytas: " . $filePath
+                "Palaikomi tik .doc/.docx/.xls/.xlsx. Bandytas: " . $filePath
             );
         }
     
