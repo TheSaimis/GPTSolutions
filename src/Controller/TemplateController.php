@@ -96,7 +96,7 @@ final class TemplateController extends AbstractController
         }
         $directory = trim((string) $directory);
 
-        $status = $this->addWordDocument->createFolder($directory);
+        $status = $this->addWordDocument->createFolder($directory, 'templates');
         if ($status === 'SUCCESS') {
             $this->auditLogger->log("Sukurtas šablonų katalogas: {$directory}");
         }
@@ -124,7 +124,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $status = $this->addWordDocument->addWordDocument($file, $directory);
+        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates');
+        $status = $result['status'] ?? 'FAIL';
         if ($status === 'SUCCESS') {
             $this->auditLogger->log("Įkeltas šablonas į templates/{$directory}");
         }
@@ -190,8 +191,9 @@ final class TemplateController extends AbstractController
             'companyId'   => (string) $company->getId(),
         ];
 
-        if (isset($data['replacements']) && is_array($data['replacements'])) {
-            $companyData['replacements'] = $data['replacements'];
+        $replacements = $data['replacements'] ?? $data['custom'] ?? [];
+        if (is_array($replacements)) {
+            $companyData['replacements'] = $replacements;
         }
 
         $results        = [];
@@ -303,7 +305,8 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Missing file field "template"'], 400);
         }
 
-        $status = $this->addWordDocument->addWordDocument($file, $directory);
+        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates');
+        $status = $result['status'] ?? 'FAIL';
 
         if ($status !== 'SUCCESS') {
             return new JsonResponse(['error' => 'Upload failed (invalid file type or save error)'], 400);
@@ -357,6 +360,40 @@ final class TemplateController extends AbstractController
             $this->auditLogger->log("Šablonas ištrintas (perkeltas į /deleted): {$path}");
         }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
+    /**
+     * GET /api/templates/file/{path}
+     * Atsisiunčia šablono failą (.docx, .doc, .xls, .xlsx) pagal kelią.
+     * Path pvz.: "4 Tvarkos/dokumentas.docx"
+     */
+    #[Route('/api/templates/file/{path}', name: 'api_templates_file', methods: ['GET'], requirements: ['path' => '.+'])]
+    public function getTemplateFile(string $path): JsonResponse | BinaryFileResponse
+    {
+        $resolved = $this->fileService->resolvePath('templates', $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+        }
+
+        $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+            return new JsonResponse(['error' => 'Leidžiami tik Word ir Excel failai'], 400);
+        }
+
+        $response = new BinaryFileResponse($resolved);
+        $response->headers->set('Content-Type', match ($ext) {
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc'  => 'application/msword',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls'  => 'application/vnd.ms-excel',
+            default => 'application/octet-stream',
+        });
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($resolved)
+        );
+
+        return $response;
     }
 
     /**

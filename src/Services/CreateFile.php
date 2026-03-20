@@ -303,18 +303,27 @@ final class CreateFile
 
     /**
      * Nustato vertę visiems raidžių dydžio variantams – ${vadovas}, ${VADOVAS}, ${Vadovas} sutampa.
+     * Jei kintamasis visiškai didžiosiomis (VADOVAS) – vertė taip pat didžiosiomis.
+     * Jei tik pirmoji didžioji (Vadovas) – vertė lieka normali.
      */
     private function setValueCaseInsensitive(TemplateProcessor $processor, string $placeholder, string $value): void
     {
-        $variants = array_unique([
-            $placeholder,
-            mb_strtolower($placeholder, 'UTF-8'),
-            mb_strtoupper($placeholder, 'UTF-8'),
-            mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
-        ]);
-        foreach ($variants as $v) {
+        $lower = mb_strtolower($placeholder, 'UTF-8');
+        $upper = mb_strtoupper($placeholder, 'UTF-8');
+        $title = mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8');
+
+        $variants = [
+            $upper => mb_strtoupper($value, 'UTF-8'),
+            $lower => mb_strtolower($value, 'UTF-8'),
+            $title => $value,
+        ];
+        if ($placeholder !== $upper && $placeholder !== $lower && $placeholder !== $title) {
+            $variants[$placeholder] = $value;
+        }
+
+        foreach ($variants as $v => $val) {
             if ($v !== '') {
-                $processor->setValue($v, $value);
+                $processor->setValue($v, $val);
             }
         }
     }

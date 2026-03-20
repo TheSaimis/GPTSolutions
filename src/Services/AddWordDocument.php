@@ -175,7 +175,8 @@ final class AddWordDocument
             }
 
             $filename = $file->getClientOriginalName() ?: 'unknown';
-            $status   = $this->addWordDocument($file, $directory, $root);
+            $result   = $this->addWordDocument($file, $directory, $root);
+            $status   = $result['status'] ?? self::FAIL;
 
             $results[] = [
                 'file'   => $filename,

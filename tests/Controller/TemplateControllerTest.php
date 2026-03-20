@@ -139,6 +139,17 @@ final class TemplateControllerTest extends ApiWebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testGetTemplateFileNotFound(): void
+    {
+        $client = $this->createAuthenticatedClient();
+
+        $client->request('GET', '/api/templates/file/__nonexistent/path.docx');
+
+        self::assertResponseStatusCodeSame(404);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        self::assertArrayHasKey('error', $data);
+    }
+
     private function removeTestDir(string $dir): void
     {
         $projectDir = dirname(__DIR__, 2);
