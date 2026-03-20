@@ -8,6 +8,7 @@ final class DocxMetadataService
 {
     /**
      * Prideda custom metaduomenis į DOCX. Jei savybė jau egzistuoja – neperrašo.
+     * Išimtis: modifiedAt visada perrašomas.
      */
     public function setDocxCustomProperties(string $docxPath, array $properties): void
     {
@@ -62,29 +63,33 @@ final class DocxMetadataService
                 continue;
             }
 
-            $existingNode = null;
-            $existing     = $xpath->query('/cp:Properties/cp:property');
-
+            $existing = $xpath->query('/cp:Properties/cp:property');
+            $existingProperty = null;
             if ($existing !== false) {
                 foreach ($existing as $prop) {
-                    if ($prop instanceof \DOMElement  && $prop->getAttribute('name') === $name) {
-                        $existingNode = $prop;
+                    if ($prop instanceof \DOMElement && $prop->getAttribute('name') === $name) {
+                        $existingProperty = $prop;
                         break;
                     }
                 }
             }
-            if ($existingNode instanceof \DOMElement) {
-                if ($name === 'modifiedAt') {
-                    while ($existingNode->firstChild) {
-                        $existingNode->removeChild($existingNode->firstChild);
-                    }
-                    $vt = $doc->createElementNS(
-                        'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes',
-                        'vt:lpwstr',
-                        $value
-                    );
-                    $existingNode->appendChild($vt);
+
+            $nameNorm = strtolower(str_replace('_', '', $name));
+            $alwaysOverwrite = ($nameNorm === 'modifiedat');
+            if ($existingProperty !== null && !$alwaysOverwrite) {
+                continue;
+            }
+
+            if ($existingProperty instanceof \DOMElement) {
+                while ($existingProperty->firstChild) {
+                    $existingProperty->removeChild($existingProperty->firstChild);
                 }
+                $vt = $doc->createElementNS(
+                    'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes',
+                    'vt:lpwstr',
+                    $value
+                );
+                $existingProperty->appendChild($vt);
                 continue;
             }
 
