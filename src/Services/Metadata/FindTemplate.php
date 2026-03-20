@@ -11,7 +11,7 @@ final class FindTemplate
     ) {}
 
     /**
-     * Find a DOCX template by templateId metadata.
+     * Find a Word (.docx) arba Excel (.xlsx) šabloną pagal templateId metaduomenyse.
      * Falls back to documentId for older templates.
      */
     public function findByTemplateId(string $templateId): ?string
@@ -31,7 +31,8 @@ final class FindTemplate
                 continue;
             }
 
-            if (strtolower($file->getExtension()) !== 'docx') {
+            $ext = strtolower($file->getExtension());
+            if (! in_array($ext, ['docx', 'xlsx'], true)) {
                 continue;
             }
 
@@ -61,7 +62,7 @@ final class FindTemplate
     }
 
     /**
-     * Read DOCX custom metadata.
+     * Read OOXML (DOCX / XLSX) custom metadata.
      */
     private function readCustomMetadata(string $docxPath): array
     {
