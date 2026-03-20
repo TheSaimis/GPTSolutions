@@ -67,29 +67,31 @@ export default function FileList() {
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
-                        {catalogueTree ? (filteredCatalogueTree.map((node) =>
-                            node.type === "file" ? (
-                                <Files
-                                    key={node.path ?? node.name}
-                                    fileType={fileType}
-                                    data={node}
-                                />
-                            ) : (
-                                <Directory
-                                    key={node.path ?? node.name}
-                                    name={node.name}
-                                    children={node.children}
-                                    path={node.path}
-                                    fileType={fileType}
-                                />
+                        {catalogueTree && catalogueTree.length > 0 ? (
+                            filteredCatalogueTree.map((node) =>
+                                node.type === "file" ? (
+                                    <Files
+                                        key={node.path ?? node.name}
+                                        fileType={fileType}
+                                        data={node}
+                                    />
+                                ) : (
+                                    <Directory
+                                        key={node.path ?? node.name}
+                                        name={node.name}
+                                        children={node.children}
+                                        path={node.path}
+                                        fileType={fileType}
+                                    />
+                                )
                             )
-                        )) : 
-                        <div className={styles.empty}>
-                            <h1>Katalogas tuščias</h1>
-                            <CreateDirectory placeholder={"Naujas katalogas"} path={""} icon={FolderPlus} fileType={fileType} onFocus={setCreate} />
-                            <InputFieldFile placeholder="Naujas dokumentas" ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
-                        </div>
-                        }
+                        ) : (
+                            <div className={styles.empty}>
+                                <h1>Katalogas tuščias</h1>
+                                <CreateDirectory placeholder={"Naujas katalogas"} path={""} icon={FolderPlus} fileType={fileType} onFocus={setCreate} />
+                                <InputFieldFile placeholder="Naujas dokumentas" ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -9,9 +9,11 @@ import { User } from "lucide-react";
 export default function Header() {
 
     const [name, setName] = useState<string | null>(null);
+    const [role, setRole] = useState<string>("");
 
     useEffect(() => {
         setName(localStorage.getItem("name"));
+        setRole(localStorage.getItem("role") || "");
     }, []);
 
     return (
@@ -30,6 +32,9 @@ export default function Header() {
                 <Link href="/sablonai" className={styles.navLink}>Šablonai</Link>
                 <Link href="/imones" className={styles.navLink}>Įmonės</Link>
                 <Link href="/atsisiusti" className={styles.navLink}>Atsisiusti</Link>
+                {role === "ROLE_ADMIN" && (
+                    <Link href="/admin" className={styles.navLink}>Admin</Link>
+                )}
                 {name &&
                     <Link href="/profilis" className={styles.navLink}><User size={16} /> {name}</Link>
                 }

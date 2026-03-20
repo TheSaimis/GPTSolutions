@@ -9,6 +9,7 @@ export type CatalogueFilters = {
   search: string;
   types: string[];
   companies: string[];
+  languages: string[];
   createdBy: string[];
   userIds: string[];
   companyIds: string[];
@@ -35,6 +36,7 @@ const defaultFilters: CatalogueFilters = {
   search: "",
   types: [],
   companies: [],
+  languages: [],
   createdBy: [],
   userIds: [],
   companyIds: [],

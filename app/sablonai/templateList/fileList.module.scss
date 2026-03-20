@@ -7,8 +7,15 @@ $border: #E2E8F0;
 
 .container {
     display: flex;
+    gap: 18px;
+    align-items: stretch;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
 
     .templateList {
+        flex: 1;
+        min-width: 0;
         // min-width: 30vw;
         // max-width: 100%;
         // flex: 1;
@@ -30,6 +37,9 @@ $border: #E2E8F0;
             display: flex;
             gap: 4px;
             flex-direction: column;
+            min-height: 360px;
+            overflow-y: auto;
+            max-height: calc(100vh - 260px);
         }
 
         .files {
@@ -39,9 +49,11 @@ $border: #E2E8F0;
 
             .header {
                 position: relative;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
 
                 .date {
-                    position: absolute;
                     color: #b1b5b9;
                     font-size: 12px;
                 }
@@ -50,6 +62,19 @@ $border: #E2E8F0;
 
         .files.selected {
             background-color: #FDE8E8;
+        }
+
+        .empty {
+            width: 100%;
+            padding: 34px 16px 28px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid $border;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
 
 
@@ -139,14 +164,24 @@ $border: #E2E8F0;
         }
 
         .child {
-            max-height: 1000px;
+            // Kad turinys nebutu nukirptas ir "nepersidengtų" su kitais folderiais,
+            // naudokime didele max-height verte ir uzlaikome overflow.
+            max-height: 99999px;
             transition: max-height 0.3s ease, opacity 0.25s ease;
             opacity: 1;
+            overflow: hidden;
             border-left: 2px solid $border;
             display: flex;
             flex-direction: column;
             margin-left: 24px;
             padding-left: 4px;
         }
+    }
+}
+
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        max-width: none;
     }
 }

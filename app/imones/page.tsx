@@ -27,9 +27,20 @@ export default function ImonesPage() {
     }, []);
 
     async function handleSubmit() {
-        const res = await CompanyApi.companyCreate({ companyType, companyName, address, code, managerFirstName, managerLastName, managerGender, role });
-        if (!res.status) {
+        try {
+            await CompanyApi.companyCreate({
+                companyType,
+                companyName,
+                address,
+                code,
+                managerFirstName,
+                managerLastName,
+                managerGender,
+                role,
+            });
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
+        } catch (e) {
+            MessageStore.push({ title: "Klaida", message: (e as Error)?.message ?? "Nepavyko sukurti įmonės", backgroundColor: "#e53e3e" });
         }
     }
 
@@ -57,7 +68,7 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                        <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
                         <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                     </div>
 

@@ -62,6 +62,31 @@ export default function Filters() {
           />
         </div>
 
+        {/* LANGUAGE FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Kalba</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              { code: "LT", label: "Lietuviu" },
+              { code: "RU", label: "Rusu" },
+              { code: "EN", label: "Anglu" },
+            ].map((lang) => (
+              <div key={lang.code} className={styles.types}>
+                <CheckBox
+                  value={filters.languages.includes(lang.code)}
+                  onChange={(checked) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      languages: toggleArrayValue(prev.languages, lang.code, checked),
+                    }))
+                  }
+                />
+                <span>{lang.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* CREATED BY FILTER */}
         <div className={`${styles.filter} ${styles.sectionCard}`}>
           <InputFieldText
