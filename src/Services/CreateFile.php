@@ -201,6 +201,12 @@ final class CreateFile
         $tipasPilnas  = (string) ($data['tipasPilnas'] ?? $data['companyType'] ?? '');
         $adresas      = (string) ($data['adresas'] ?? $data['address'] ?? '');
 
+        $companyId   = (string) ($data['companyId'] ?? '');
+        $userId      = (string) ($data['userId'] ?? '');
+        $userName    = (string) ($data['userName'] ?? $data['firstName'] ?? '');
+        $userSurname = (string) ($data['userSurname'] ?? $data['lastName'] ?? '');
+        $createdBy   = trim($userName . ' ' . $userSurname);
+
         if ($tipasPilnas === '') {
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
@@ -313,6 +319,24 @@ final class CreateFile
         $writer = new XlsxWriter($spreadsheet);
         $writer->save($outputPath);
         $spreadsheet->disconnectWorksheets();
+
+        if (strtolower(pathinfo($outputPath, PATHINFO_EXTENSION)) === 'xlsx') {
+            $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
+            $templateId       = (string) ($templateMetadata['templateId'] ?? '');
+
+            $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+                'templateId' => $templateId,
+                'documentId' => $this->generateUuidV4(),
+                'created'    => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'modifiedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'createdBy'  => $createdBy,
+                'userId'     => $userId,
+                'type'       => $tipas,
+                'company'    => $companyName,
+                'companyId'  => $companyId,
+                'language'   => $lang,
+            ]);
+        }
 
         return $outputPath;
     }
