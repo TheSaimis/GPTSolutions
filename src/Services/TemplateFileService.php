@@ -14,7 +14,6 @@ final class TemplateFileService
     public function __construct(
         private readonly FileService $fileService,
     ) {}
-
     /**
      * Ištrina šabloną templates/{path}.
      *
