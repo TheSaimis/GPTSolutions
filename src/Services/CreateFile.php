@@ -5,6 +5,8 @@ declare (strict_types = 1);
 namespace App\Services;
 
 use App\Services\Metadata\DocxMetadataService;
+use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 /**
@@ -51,6 +53,18 @@ final class CreateFile
     {
         $this->validateData($data);
 
+        $template = (string) ($data['template'] ?? '');
+        $ext = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['xls', 'xlsx'], true)) {
+            return $this->createSpreadsheetDocument($data, $name);
+        }
+
+        return $this->createDocxDocument($data, $name);
+    }
+
+    private function createDocxDocument(array $data, ?string $name = null): string
+    {
         $directory    = (string) ($data['directory'] ?? '');
         $template     = (string) ($data['template'] ?? '');
         $companyName  = (string) ($data['kompanija'] ?? $data['companyName'] ?? '');
@@ -170,6 +184,136 @@ final class CreateFile
             'companyId'  => $companyId,
             'language'   => $lang,
         ]);
+        return $outputPath;
+    }
+
+    private function createSpreadsheetDocument(array $data, ?string $name = null): string
+    {
+        $directory    = (string) ($data['directory'] ?? '');
+        $template     = (string) ($data['template'] ?? '');
+        $companyName  = (string) ($data['kompanija'] ?? $data['companyName'] ?? '');
+        $code         = (string) ($data['kodas'] ?? $data['code'] ?? '');
+        $documentDate = (string) ($data['data'] ?? $data['documentDate'] ?? '');
+        $role         = (string) ($data['role'] ?? '');
+        $vardas       = (string) ($data['vardas'] ?? $data['managerFirstName'] ?? '');
+        $pavarde      = (string) ($data['pavarde'] ?? $data['managerLastName'] ?? '');
+        $tipas        = (string) ($data['tipas'] ?? $data['companyType'] ?? '');
+        $tipasPilnas  = (string) ($data['tipasPilnas'] ?? $data['companyType'] ?? '');
+        $adresas      = (string) ($data['adresas'] ?? $data['address'] ?? '');
+
+        if ($tipasPilnas === '') {
+            $tipasPilnas = $this->mapTipasPilnas($tipas);
+        }
+
+        $templatePath = $this->resolveTemplatePath($directory, $template);
+        if ($templatePath === null || ! is_readable($templatePath)) {
+            throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
+        }
+
+        $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
+        $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
+        $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        if (! is_dir($outputDir)) {
+            mkdir($outputDir, 0775, true);
+        }
+
+        $ext = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        $baseName   = pathinfo($template, PATHINFO_FILENAME);
+        $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
+        $outputPath = $outputDir . '/' . $outputName;
+
+        $lang = $this->detectLanguage($template);
+        $managerType = (string) ($data['managerType'] ?? '');
+        $lytis       = trim((string) ($data['managerGender'] ?? $data['lytis'] ?? ''));
+        if ($lytis === '') {
+            $lytis = $this->resolveGender($managerType);
+        }
+
+        $vadovas = $this->formatManagerFullName(
+            $data['managerFirstName'] ?? $data['vardas'] ?? null,
+            $data['managerLastName'] ?? $data['pavarde'] ?? null
+        );
+
+        $replacements = [
+            'kompanija'    => $companyName,
+            'companyName'  => $companyName,
+            'kodas'        => $code,
+            'code'         => $code,
+            'data'         => $documentDate,
+            'documentDate' => $documentDate,
+            'role'         => $role,
+            'vardas'       => $vardas,
+            'pavarde'      => $pavarde,
+            'tipas'        => $tipas,
+            'tipasPilnas'  => $tipasPilnas,
+            'adresas'      => $adresas,
+            'vadovas'      => $vadovas,
+            'lytis'        => $lytis,
+        ];
+
+        if ($lang === 'LT') {
+            $vadovo   = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
+            $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
+            $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
+
+            $replacements += [
+                'vadovo'   => $vadovo,
+                'vardo'    => $vardo,
+                'pavardes' => $pavardes,
+                'varde'    => $varde,
+                'pavardeS' => $pavardeS,
+                'pavardo'  => $pavardes,
+                'vardes'   => $vardo,
+            ];
+        }
+
+        $customReplacements = $data['replacements'] ?? [];
+        if (is_array($customReplacements)) {
+            foreach ($customReplacements as $key => $value) {
+                if (is_int($key) && is_array($value) && count($value) >= 2) {
+                    $replacements[(string) $value[0]] = (string) $value[1];
+                } elseif (is_string($key)) {
+                    $replacements[$key] = (string) $value;
+                }
+            }
+        }
+
+        $spreadsheet = SpreadsheetIOFactory::load($templatePath);
+
+        foreach ($spreadsheet->getAllSheets() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                foreach ($row->getCellIterator() as $cell) {
+                    $cellValue = $cell->getValue();
+                    if (! is_string($cellValue) || ! str_contains($cellValue, '${')) {
+                        continue;
+                    }
+
+                    $newValue = $cellValue;
+                    foreach ($replacements as $placeholder => $replacement) {
+                        $variants = array_unique([
+                            $placeholder,
+                            mb_strtolower($placeholder, 'UTF-8'),
+                            mb_strtoupper($placeholder, 'UTF-8'),
+                            mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
+                        ]);
+                        foreach ($variants as $v) {
+                            $newValue = str_replace('${' . $v . '}', $replacement, $newValue);
+                        }
+                    }
+
+                    if ($newValue !== $cellValue) {
+                        $cell->setValue($newValue);
+                    }
+                }
+            }
+        }
+
+        $writer = new XlsxWriter($spreadsheet);
+        $writer->save($outputPath);
+        $spreadsheet->disconnectWorksheets();
+
         return $outputPath;
     }
 
