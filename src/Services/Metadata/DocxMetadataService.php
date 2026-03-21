@@ -6,16 +6,19 @@ namespace App\Services\Metadata;
 
 final class DocxMetadataService
 {
+    private const ALWAYS_OVERWRITE = ['modifiedat'];
+
     /**
-     * Prideda custom metaduomenis į DOCX. Jei savybė jau egzistuoja – neperrašo.
-     * Išimtis: modifiedAt visada perrašomas.
+     * Prideda custom metaduomenis į OOXML (DOCX / XLSX) failą.
+     * Jei savybė jau egzistuoja – neperrašo.
+     * Išimtis: modifiedAt visada perrašomas (nepriklausomai ar jau yra, ar ne).
      */
     public function setDocxCustomProperties(string $docxPath, array $properties): void
     {
         $zip = new \ZipArchive();
 
         if ($zip->open($docxPath) !== true) {
-            throw new \RuntimeException("Nepavyko atidaryti DOCX failo: {$docxPath}");
+            throw new \RuntimeException("Nepavyko atidaryti failo: {$docxPath}");
         }
 
         $customXml = $zip->getFromName('docProps/custom.xml');
@@ -50,7 +53,7 @@ final class DocxMetadataService
 
         $nextPid = 2;
         foreach ($xpath->query('/cp:Properties/cp:property') as $node) {
-            if ($node instanceof \DOMElement  && $node->hasAttribute('pid')) {
+            if ($node instanceof \DOMElement && $node->hasAttribute('pid')) {
                 $nextPid = max($nextPid, ((int) $node->getAttribute('pid')) + 1);
             }
         }
@@ -63,11 +66,13 @@ final class DocxMetadataService
                 continue;
             }
 
-            $existing = $xpath->query('/cp:Properties/cp:property');
             $existingProperty = null;
-            if ($existing !== false) {
-                foreach ($existing as $prop) {
-                    if ($prop instanceof \DOMElement && $prop->getAttribute('name') === $name) {
+            $allProps = $xpath->query('/cp:Properties/cp:property');
+            if ($allProps !== false) {
+                foreach ($allProps as $prop) {
+                    if ($prop instanceof \DOMElement
+                        && strcasecmp($prop->getAttribute('name'), $name) === 0
+                    ) {
                         $existingProperty = $prop;
                         break;
                     }
@@ -75,8 +80,9 @@ final class DocxMetadataService
             }
 
             $nameNorm = strtolower(str_replace('_', '', $name));
-            $alwaysOverwrite = ($nameNorm === 'modifiedat');
-            if ($existingProperty !== null && !$alwaysOverwrite) {
+            $alwaysOverwrite = in_array($nameNorm, self::ALWAYS_OVERWRITE, true);
+
+            if ($existingProperty !== null && ! $alwaysOverwrite) {
                 continue;
             }
 

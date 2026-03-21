@@ -168,11 +168,13 @@ final class GeneratedFileController extends AbstractController
 
         $zip->close();
 
+        $downloadName = sprintf('generated_%s.zip', (new \DateTimeImmutable())->format('Y-m-d'));
+
         $response = new BinaryFileResponse($zipPath);
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'generated.zip'
+            $downloadName
         );
 
         return $response;
