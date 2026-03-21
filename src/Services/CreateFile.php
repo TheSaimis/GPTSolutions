@@ -103,6 +103,11 @@ final class CreateFile
         $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
 
+        $existingOutputMeta = [];
+        if (file_exists($outputPath) && is_readable($outputPath)) {
+            $existingOutputMeta = $this->docxMetadataService->readDocxCustomProperties($outputPath);
+        }
+
         $lang = $this->detectLanguage($template);
 
         $processor = new TemplateProcessor($templatePath);
@@ -172,11 +177,15 @@ final class CreateFile
         $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
         $templateId       = (string) ($templateMetadata['templateId'] ?? '');
 
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $created    = $existingOutputMeta['created'] ?? $now;
+        $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
+
         $this->docxMetadataService->setDocxCustomProperties($outputPath, [
             'templateId' => $templateId,
-            'documentId' => $this->generateUuidV4(),
-            'created'    => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            'modifiedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'documentId' => $documentId,
+            'created'    => $created,
+            'modifiedAt' => $now,
             'createdBy'  => $createdBy,
             'userId'     => $userId,
             'type'       => $tipas,
@@ -227,6 +236,11 @@ final class CreateFile
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
         $outputPath = $outputDir . '/' . $outputName;
+
+        $existingOutputMeta = [];
+        if (file_exists($outputPath) && is_readable($outputPath)) {
+            $existingOutputMeta = $this->docxMetadataService->readDocxCustomProperties($outputPath);
+        }
 
         $lang = $this->detectLanguage($template);
         $managerType = (string) ($data['managerType'] ?? '');
@@ -324,11 +338,15 @@ final class CreateFile
             $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
             $templateId       = (string) ($templateMetadata['templateId'] ?? '');
 
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+            $created    = $existingOutputMeta['created'] ?? $now;
+            $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
+
             $this->docxMetadataService->setDocxCustomProperties($outputPath, [
                 'templateId' => $templateId,
-                'documentId' => $this->generateUuidV4(),
-                'created'    => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-                'modifiedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'documentId' => $documentId,
+                'created'    => $created,
+                'modifiedAt' => $now,
                 'createdBy'  => $createdBy,
                 'userId'     => $userId,
                 'type'       => $tipas,
