@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, ArrowLeft, Save } from "lucide-react";
+import { Building2, Save } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { COMPANY_TYPES } from "@/lib/types/Company";
-import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
@@ -47,10 +47,7 @@ export default function ImonesPage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

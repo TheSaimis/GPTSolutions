@@ -2,8 +2,7 @@
 
 // rushed code for features but it works so far
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
@@ -11,14 +10,15 @@ import { extractUnknownVariablesFromDocx } from "@/lib/functions/wordVariablePar
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
-import { FileText, Download, ArrowLeft } from "lucide-react";
+import { FileText, Download } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import { getCachedWordFile, setCachedWordFile } from "@/lib/cache/wordFileCache";
-import Link from "next/link";
 import styles from "./page.module.scss";
 
-export default function TemplatePage() {
+type PageParams = Promise<{ template?: string | string[] }>;
 
-    const { template } = useParams();
+export default function TemplatePage({ params }: { params: PageParams }) {
+    const { template } = use(params);
     const templatePath = Array.isArray(template) ? template.join("/") : template;
     const fileName = Array.isArray(template) ? template.at(-1) : template;
     const [directory, setDirectory] = useState(decodeURIComponent(templatePath || ""));
@@ -98,10 +98,7 @@ export default function TemplatePage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/sablonai" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į šablonus
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

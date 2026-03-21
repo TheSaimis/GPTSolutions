@@ -6,8 +6,9 @@ import { notFound } from "next/navigation";
 import styles from "./page.module.scss";
 import { AuditApi } from "@/lib/api/audit";
 import type { AuditLog } from "@/lib/types/AuditLog";
-import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { GeneratedFilesApi, generatedZipFallbackName } from "@/lib/api/generatedFiles";
 import { Download } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function AdminPage() {
     const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -19,6 +20,7 @@ export default function AdminPage() {
     const [offset, setOffset] = useState(0);
 
     useEffect(() => {
+        document.title = "Administravimas";
         const role = localStorage.getItem("role") || "";
         const isAdmin = role === "ROLE_ADMIN";
         setAllowed(isAdmin);
@@ -29,7 +31,7 @@ export default function AdminPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename || "generated.zip";
+        a.download = filename || generatedZipFallbackName();
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -59,43 +61,32 @@ export default function AdminPage() {
     return (
         <div className={styles.page}>
             <div className={styles.content}>
+                <PageBackBar />
                 <div className={styles.topBar}>
-                    <div className={styles.pageTitle}>Admin Panel</div>
-                    <div className={styles.pageSubtitle}>Restricted to ROLE_ADMIN</div>
+                    <div className={styles.pageTitle}>Administratoriaus skydelis</div>
+                    <div className={styles.pageSubtitle}>Prieinama tik administratoriams (ROLE_ADMIN)</div>
                 </div>
 
                 {allowed === false && notFound()}
                 {allowed === null ? (
-                    <div className={styles.message}>Loading...</div>
+                    <div className={styles.message}>Kraunama...</div>
                 ) : (
                     <>
                         <div className={styles.grid}>
-                            <div className={`${styles.card} ${styles.cardCompanies}`}>
-                                <div className={styles.cardTitle}>Companies</div>
-                                <div className={styles.cardActions}>
-                                    <Link className={styles.linkButtonNeutral} href="/imones">
-                                        Add company
-                                    </Link>
-                                    <Link className={styles.linkButtonNeutral} href="/imones/sarasas">
-                                        Company list
-                                    </Link>
-                                </div>
-                            </div>
-
                             <div className={`${styles.card} ${styles.cardUsers}`}>
-                                <div className={styles.cardTitle}>Users</div>
+                                <div className={styles.cardTitle}>Naudotojai</div>
                                 <div className={styles.cardActions}>
                                     <Link className={styles.linkButtonNeutral} href="/naudotojai">
-                                        Add user
+                                        Pridėti naudotoją
                                     </Link>
                                     <Link className={styles.linkButtonNeutral} href="/naudotojai/sarasas">
-                                        User list
+                                        Naudotojų sąrašas
                                     </Link>
                                 </div>
                             </div>
 
                             <div className={`${styles.card} ${styles.cardGenerated}`}>
-                                <div className={styles.cardTitle}>Generated</div>
+                                <div className={styles.cardTitle}>Sukurti dokumentai</div>
                                 <div className={styles.cardActions}>
                                     <button
                                         type="button"
@@ -103,10 +94,10 @@ export default function AdminPage() {
                                         onClick={downloadGeneratedZip}
                                     >
                                         <Download size={16} />
-                                        Download generated zip
+                                        Atsisiųsti sukurtų dokumentų archyvą (.ZIP)
                                     </button>
                                     <Link className={styles.secondaryLinkButton} href="/sablonai">
-                                        Open templates
+                                        Atidaryti šablonus
                                     </Link>
                                 </div>
                             </div>

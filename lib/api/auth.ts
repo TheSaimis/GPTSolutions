@@ -15,6 +15,8 @@ export const AuthApi = {
             }
         );
 
+        localStorage.setItem("token", res.token);
+
         const decoded = parseJwtToken(res.token);
 
         localStorage.setItem("name", decoded.firstName);

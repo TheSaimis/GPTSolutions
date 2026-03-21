@@ -6,8 +6,9 @@ import styles from "./page.module.scss";
 import InputFieldPassword from "@/components/inputFields/inputFieldPassword";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import { useEffect, useState } from "react";
-import { Lock, User, LogIn } from "lucide-react";
+import { Lock, Mail, LogIn } from "lucide-react";
 import Image from "next/image";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function Login() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function Login() {
 
   return (
     <div className={styles.login}>
+      <div className={styles.loginInner}>
+        <PageBackBar className={styles.loginBack} />
       <div className={styles.loginCard}>
         <div className={styles.logoWrap}>
           <Image
@@ -45,9 +48,10 @@ export default function Login() {
           <div className={styles.inputFields}>
             <InputFieldText
               value={email}
-              placeholder="Vartotojo vardas"
+              type="email"
+              placeholder="El. paštas"
               onChange={setEmail}
-              icon={User}
+              icon={Mail}
             />
 
             
@@ -66,6 +70,7 @@ export default function Login() {
             Prisijungti
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

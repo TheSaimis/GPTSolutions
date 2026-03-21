@@ -5,9 +5,9 @@ import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
-import { FileText, Download, ArrowLeft } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { DirectoryStore, useDirectoryStore } from "@/lib/globalVariables/directoriesToSend";
-import Link from "next/link";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import styles from "../[...template]/page.module.scss";
 
 export default function TemplatePage() {
@@ -65,10 +65,7 @@ export default function TemplatePage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/sablonai" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į šablonus
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

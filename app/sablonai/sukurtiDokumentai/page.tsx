@@ -1,6 +1,6 @@
 "use client";
 
-import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { GeneratedFilesApi, generatedZipFallbackName } from "@/lib/api/generatedFiles";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
 import FileList from "../templateList/fileList";
@@ -9,6 +9,7 @@ import styles from "../page.module.scss";
 import { Download } from "lucide-react";
 import { CatalogueTreeProvider } from "../catalogueTreeContext";
 import { getCachedCatalogueTree, setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function GeneratedFilesPage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
@@ -35,7 +36,7 @@ export default function GeneratedFilesPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename || "generated.zip";
+        a.download = filename || generatedZipFallbackName();
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -44,6 +45,7 @@ export default function GeneratedFilesPage() {
 
     return (
         <div className={styles.templates}>
+            <PageBackBar className={styles.backBar} />
             <div className={styles.header}>
                 <div className={styles.headerText}>
                     <h1 className={styles.title}>Dokumentai</h1>

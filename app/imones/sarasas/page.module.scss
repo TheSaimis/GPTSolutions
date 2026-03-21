@@ -13,7 +13,7 @@ $text-muted: #64748B;
 
 .topBar {
     width: 100%;
-    max-width: 640px;
+    max-width: 1040px;
     margin-bottom: 20px;
 
     .backLink {
@@ -87,7 +87,7 @@ $text-muted: #64748B;
 
 .filtersRow {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -106,32 +106,39 @@ $text-muted: #64748B;
     }
 }
 
-.cardList {
+.expandableList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.listHeader {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: 36px minmax(72px, 0.9fr) minmax(0, 2.2fr) minmax(88px, 1fr) auto;
+    gap: 12px 16px;
+    align-items: center;
+    padding: 8px 16px 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    @media (max-width: 720px) {
+        display: none;
+    }
 }
 
-.compactList {
-    grid-template-columns: 1fr;
-    gap: 10px;
+.hChevron {
+    width: 36px;
 }
 
-.miniList {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+.hActions {
+    width: 36px;
 }
 
 @media (max-width: 900px) {
     .filtersRow {
         grid-template-columns: 1fr;
-    }
-
-    .cardList {
-        grid-template-columns: 1fr;
-    }
-
-    .miniList {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

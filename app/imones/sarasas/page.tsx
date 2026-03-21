@@ -1,20 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import CompanyCard from "@/components/companyCard/companyCard";
+import PageBackBar from "@/components/navigation/PageBackBar";
+import CompanyExpandableRow from "@/components/companyList/CompanyExpandableRow";
 import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import styles from "./page.module.scss";
+
+const SORT_OPTIONS: { value: string; label: string }[] = [
+    { value: "name-asc", label: "Pagal pavadinimą (A-Z)" },
+    { value: "name-desc", label: "Pagal pavadinimą (Z-A)" },
+    { value: "code-asc", label: "Pagal kodą (A-Z)" },
+    { value: "code-desc", label: "Pagal kodą (Z-A)" },
+    { value: "created-newest", label: "Pagal sukurimo datą (nuo naujausių)" },
+    { value: "created-oldest", label: "Pagal sukurimo datą (nuo seniausių)" },
+];
 
 export default function ImoniuSarasasPage() {
     const [companies, setCompanies] = useState<Company[] | null>(null);
     const [search, setSearch] = useState("");
     const [selectedType, setSelectedType] = useState("Visi tipai");
     const [sortBy, setSortBy] = useState("name-asc");
-    const [viewMode, setViewMode] = useState<"large" | "compact" | "mini">("large");
 
     useEffect(() => {
         document.title = "Įmonių sąrašas";
@@ -39,13 +46,23 @@ export default function ImoniuSarasasPage() {
         if (!companies) return [];
 
         const searchLower = search.trim().toLowerCase();
-        const startsWithSearch = (value?: string) => (value ?? "").toLowerCase().startsWith(searchLower);
+        const matchesSearch = (company: Company) => {
+            if (!searchLower) return true;
+            const hay = [
+                company.companyName,
+                company.code,
+                company.address,
+                company.cityOrDistrict,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            return hay.includes(searchLower);
+        };
         const list = companies.filter((company) => {
             const matchesType = selectedType === "Visi tipai" || company.companyType === selectedType;
             if (!matchesType) return false;
-
-            if (!searchLower) return true;
-            return startsWithSearch(company.companyName);
+            return matchesSearch(company);
         });
 
         const sortedList = [...list];
@@ -74,13 +91,14 @@ export default function ImoniuSarasasPage() {
         return sortedList;
     }, [companies, search, selectedType, sortBy]);
 
+    const sortLabel = useMemo(() => {
+        return SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? sortBy;
+    }, [sortBy]);
+
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.content}>
@@ -90,7 +108,7 @@ export default function ImoniuSarasasPage() {
                         <div className={styles.searchRow}>
                             <input
                                 type="text"
-                                placeholder="Paieška pagal pavadinimą, kodą, adresą..."
+                                placeholder="Paieška pagal pavadinimą, kodą, adresą, miestą..."
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 className={styles.searchInput}
@@ -99,34 +117,18 @@ export default function ImoniuSarasasPage() {
 
                         <div className={styles.filtersRow}>
                             <InputFieldSelect
+                                key={`type-${selectedType}`}
                                 options={companyTypes}
-                                selected={"Imonės tipas"}
-                                placeholder="Pasirinkite tipą"
+                                selected={selectedType}
+                                placeholder="Įmonės tipas"
                                 onChange={setSelectedType}
                             />
                             <InputFieldSelect
-                                options={[
-                                    { value: "Nerikiuoti", label: "Nerikiuoti" },
-                                    { value: "name-asc", label: "Pagal pavadinimą (A-Z)" },
-                                    { value: "name-desc", label: "Pagal pavadinimą (Z-A)" },
-                                    { value: "code-asc", label: "Pagal kodą (A-Z)" },
-                                    { value: "code-desc", label: "Pagal kodą (Z-A)" },
-                                    { value: "created-newest", label: "Pagal sukurimo datą (Nuo naujausių)" },
-                                    { value: "created-oldest", label: "Pagal sukurimo datą (Nuo seniausių)" },
-                                ]}
-                                selected={"Rikiavimas"}
-                                placeholder="Pasirinkite rikiavimo tipą"
+                                key={`sort-${sortBy}`}
+                                options={SORT_OPTIONS}
+                                selected={sortLabel}
+                                placeholder="Rikiavimas"
                                 onChange={setSortBy}
-                            />
-                            <InputFieldSelect
-                                options={[
-                                    { value: "large", label: "Kortelėmis" },
-                                    { value: "compact", label: "Eilutėmis" },
-                                    { value: "mini", label: "Kompaktiškas" },
-                                ]}
-                                selected={"Įmonių išdėstymas"}
-                                placeholder="Įmonių išdėstymas"
-                                onChange={setViewMode as any}
                             />
                         </div>
                     </section>
@@ -138,12 +140,17 @@ export default function ImoniuSarasasPage() {
                 ) : filteredCompanies.length === 0 ? (
                     <p className={styles.message}>Pagal pasirinktus filtrus įmonių nerasta.</p>
                 ) : (
-                    <div
-                        className={`${styles.cardList} ${viewMode === "compact" ? styles.compactList : ""} ${viewMode === "mini" ? styles.miniList : ""}`}
-                    >
+                    <div className={styles.expandableList}>
+                        <div className={styles.listHeader} aria-hidden>
+                            <span className={styles.hChevron} />
+                            <span>Tipas</span>
+                            <span>Pavadinimas</span>
+                            <span>Kodas</span>
+                            <span className={styles.hActions} />
+                        </div>
                         {filteredCompanies.map((company) =>
                             company.id != null ? (
-                                <CompanyCard key={company.id} id={company.id} company={company} variant={viewMode} />
+                                <CompanyExpandableRow key={company.id} company={company} />
                             ) : null
                         )}
                     </div>

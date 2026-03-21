@@ -13,7 +13,7 @@ export const TemplateApi = {
   //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
   getTemplatesZip: () =>
-    api.getBlob("/api/templates/zip"),
+    api.getBlob("/api/templates/zip", { fallbackFilename: "templates.zip" }),
 
   createTemplate: (file: File, directory: string) => {
     const form = new FormData();

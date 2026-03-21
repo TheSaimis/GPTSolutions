@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { User, ArrowLeft, Save } from "lucide-react";
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { User, Save } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import { UsersApi } from "@/lib/api/users";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import Link from "next/link";
@@ -15,10 +16,12 @@ const ROLE_OPTIONS = [
     { value: "ROLE_USER", label: "Naudotojas" },
 ];
 
-export default function NaudotojoRedagavimasPage() {
-    const params = useParams();
+type PageParams = Promise<{ id: string }>;
+
+export default function NaudotojoRedagavimasPage({ params }: { params: PageParams }) {
+    const { id: idParam } = use(params);
     const router = useRouter();
-    const id = typeof params.id === "string" ? parseInt(params.id, 10) : NaN;
+    const id = typeof idParam === "string" ? parseInt(idParam, 10) : NaN;
 
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState("");
@@ -76,10 +79,7 @@ export default function NaudotojoRedagavimasPage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/naudotojai/sarasas" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į sąrašą
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

@@ -6,6 +6,20 @@ $text-dark: #0F172A;
 $text-muted: #64748B;
 $border: #E2E8F0;
 
+.loginInner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.loginBack {
+  margin-bottom: 12px;
+}
+
 .login {
   flex: 1;
   min-height: 100%;
@@ -44,12 +58,15 @@ $border: #E2E8F0;
   text-align: center;
 }
 
+// ~10% tamsesnis už $primary-light (tamsesnis raudonos tonas + šiek tiek didesnis alfa)
+$logo-wrap-bg: rgba(215, 34, 37, 0.066);
+
 .logoWrap {
   margin-bottom: 24px;
   width: 88px;
   height: 88px;
   border-radius: 18px;
-  background: $primary-light;
+  background: $logo-wrap-bg;
   display: flex;
   align-items: center;
   justify-content: center;

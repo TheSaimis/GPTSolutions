@@ -2,7 +2,7 @@
 
 import styles from "./page.module.scss";
 import { Building2, FileText, NotepadTextDashed, Download, ArrowRight, User, Users, CircleQuestionMark, ScrollText } from "lucide-react";
-import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { GeneratedFilesApi, generatedZipFallbackName } from "@/lib/api/generatedFiles";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -21,7 +21,7 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename || "generated.zip";
+    a.download = filename || generatedZipFallbackName();
     document.body.appendChild(a);
     a.click();
     a.remove();

@@ -11,6 +11,7 @@ import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { Download, ExternalLink } from "lucide-react";
 import { CatalogueTreeProvider } from "./catalogueTreeContext";
 import { useRouter } from "next/navigation";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function TemplatePage() {
   const [templateList, setTemplateList] = useState<TemplateList[]>([]);
@@ -40,6 +41,7 @@ export default function TemplatePage() {
 
   return (
     <div className={styles.templates}>
+      <PageBackBar className={styles.backBar} />
       <DirectoryMenu />
       <div className={styles.header}>
         <div className={styles.headerText}>
