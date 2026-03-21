@@ -42,21 +42,55 @@ export const COMPANY_TYPES = [
 
 export const wordVariables = [
     "${kompanija}",
+    "${companyName}",
+  
     "${tipas}",
     "${tipasPilnas}",
+    "${TIPASPILNAS}",
+  
     "${adresas}",
     "${kodas}",
+    "${code}",
+  
     "${data}",
+    "${documentDate}",
+    "${dataSkaitmenimis}",
+  
+    "${role}",
+    "${lytis}",
+  
     "${vadovas}",
     "${vadovo}",
+    "${vadovui}",
+    "${vadovą}",
+    "${vadovu}",
+    "${vadove}",
+    "${vadovėje}",
+    "${vadovei}",
+    "${vadovę}",
+    "${vadovasNom}",
+    "${vadovasKreip}",
+    "${vadoves}",
+    "${vadovai}",
+  
     "${vardas}",
     "${vardo}",
+    "${vardui}",
+    "${vardą}",
+    "${vardu}",
+    "${vardviet}",
+    "${varde}",
     "${vardes}",
+  
     "${pavarde}",
     "${pavardes}",
+    "${pavardui}",
+    "${pavardą}",
+    "${pavardu}",
+    "${pavardviet}",
+    "${pavardeS}",
     "${pavardo}",
-    "${role}",
-] as const;
+  ] as const;
 
 // this is not exactly related to companies but its used everywhere where companies are involved
 export type CustomVariable = Record<string, string>;

@@ -2,7 +2,7 @@
 
 // rushed code for features but it works so far
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
@@ -10,13 +10,12 @@ import { extractUnknownVariablesFromOfficeFile } from "@/lib/functions/wordVaria
 import type { CustomVariable, Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
-import { FileText, Download, ArrowLeft } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
-import { getCachedWordFile, setCachedWordFile } from "@/lib/cache/wordFileCache";
-import Link from "next/link";
 import styles from "./page.module.scss";
 import { useParams } from "next/navigation";
 import PageBackBar from "@/components/navigation/PageBackBar";
+import CompanyCard from "@/components/companyCard/companyCard";
 
 export default function TemplatePage() {
     const { template } = useParams();
@@ -41,17 +40,7 @@ export default function TemplatePage() {
     useEffect(() => {
         async function getTemplateWord() {
             const cacheKey = `templates/${directory}`;
-            const cachedBlob = getCachedWordFile(cacheKey);
-
-            if (cachedBlob) {
-                const result = await extractUnknownVariablesFromOfficeFile(cachedBlob);
-                setCustomFields(result);
-                return;
-            }
-
             const { blob } = await FilesApi.downloadFile(cacheKey);
-            setCachedWordFile(cacheKey, blob);
-
             const result = await extractUnknownVariablesFromOfficeFile(blob);
             setCustomFields(result);
         }
@@ -59,21 +48,6 @@ export default function TemplatePage() {
         getTemplateWord();
     }, [directory]);
 
-    useEffect(() => {
-        async function getTemplateWord() {
-            // cache the files since the user might go back and forth a lot and keep having to download the .docx file again
-            const cacheKey = `templates/${directory}`;
-            const cachedBlob = getCachedWordFile(cacheKey);
-            if (cachedBlob) {
-                extractUnknownVariablesFromOfficeFile(cachedBlob).then((result) => setCustomFields(result));
-                return;
-            }
-            const { blob } = await FilesApi.downloadFile(cacheKey);
-            setCachedWordFile(cacheKey, blob);
-            extractUnknownVariablesFromOfficeFile(blob).then((result) => console.log(result));
-        }
-        getTemplateWord();
-    })
 
     async function getCompanies() {
         const data = await CompanyApi.getAll();
@@ -148,6 +122,11 @@ export default function TemplatePage() {
                     Sukurti dokumentą
                 </button>
             </div>
+
+            { company &&
+                <CompanyCard id={Number(company)} />
+            }
+
         </div>
     );
 }

@@ -10,7 +10,9 @@ $border: #E2E8F0;
     flex: 1;
     background: $bg;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
     align-items: center;
     padding: 32px 24px 48px;
 }

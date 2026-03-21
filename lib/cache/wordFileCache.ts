@@ -13,6 +13,7 @@ export function hasCachedWordFile(key: string) {
 }
 
 export function clearWordFileCache(key?: string) {
+  console.log("clearWordFileCache");
   if (key) {
     wordFileCache.delete(key);
     return;

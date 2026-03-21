@@ -13,7 +13,8 @@ export const CompanyApi = {
     },
 
     getById: async (id: number) => {
-        if (useCompanyStore.getState().companies.find((cmp) => cmp.id === id)) return useCompanyStore.getState().companies.find((cmp) => cmp.id === id);
+        const existing = useCompanyStore.getState().companies.find((cmp) => cmp.id === id);
+        if (existing) return existing;
         const res = await api.get<Company>(`/api/company/${id}`)
         CompanyStore.push(res);
         return res;

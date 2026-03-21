@@ -12,6 +12,8 @@ import RenameDirectory from "./functions/renameDirectory";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useDeleteFolder } from "./functions/deleteDirectory";
 import { useCreateFile } from "./functions/createFile";
+import { CatalougeApi } from "@/lib/api/catalouges";
+import { downloadBlob } from "@/lib/functions/downloadBlob";
 
 type DirectoryList = {
     name: string;
@@ -30,7 +32,7 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
     const { openMenuFromEvent } = useContextMenu();
     const { deleteFolder } = useDeleteFolder();
     const { createFile } = useCreateFile();
-
+    const role = localStorage.getItem("role");
     function clicked() {
         setCollapsed(!collapsed);
     }
@@ -41,6 +43,11 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
             setFile(null);
         }
     }, [file, fileType, path, createFile]);
+
+    async function downloadFolder() {
+        const res = await CatalougeApi.catalogueDownload(fileType ?? "", path ?? "");
+        downloadBlob(res);
+    }
 
     const menuItems = useMemo(
         () => [
@@ -59,19 +66,28 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
                 },
             },
             {
-                id: "renameFolder",
-                label: `Pervadinti aplanką "${name}"`,
+                id: "downloadFolder",
+                label: "Atsisiunti aplanką",
                 onClick: () => {
-                    setRename(true);
+                    downloadFolder();
                 },
             },
-            {
-                id: "deleteFolder",
-                label: `Ištrinti aplanką "${name}"`,
-                onClick: () => {
-                    deleteFolder(fileType, path ?? "");
+            ...(role === "ROLE_ADMIN" ? [
+                {
+                    id: "renameFolder",
+                    label: `Pervadinti aplanką "${name}"`,
+                    onClick: () => {
+                        setRename(true);
+                    },
                 },
-            },
+                {
+                    id: "deleteFolder",
+                    label: `Ištrinti aplanką "${name}"`,
+                    onClick: () => {
+                        deleteFolder(fileType, path ?? "");
+                    },
+                },
+            ] : [])
         ],
         [name, fileType, path, deleteFolder]
     );
@@ -94,7 +110,7 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
                     <div onClick={(e) => { fileInputRef.current?.click(); e.stopPropagation(); }}>
                         <ArrowUpToLine size={16} />
                         <div style={{ display: "none" }}>
-                            <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+                            <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".docx", ".xlsx"]} />
                         </div>
                     </div>
                 </div>
