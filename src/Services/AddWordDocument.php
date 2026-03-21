@@ -94,6 +94,7 @@ final class AddWordDocument
                     'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
                     'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
                     'originalName' => $existing['originalName'] ?? $filename,
+                    'mimeType'     => $existing['mimeType'] ?? $file->getClientMimeType(),
                 ];
 
                 $this->docxMetadataService->setDocxCustomProperties($targetPath, $metadataToEnsure);
