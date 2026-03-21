@@ -16,7 +16,7 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - directory, template – šablono kelias
  *   - kompanija / companyName – įmonės pavadinimas
  *   - kodas / code – įmonės kodas
- *   - data / documentDate – dokumento data
+ *   - data / documentDate – dokumento data pagal šablono kalbą (LT/EN/RU); ${dataSkaitmenimis} = Y-m-d
  *   - role – pareigos
  *   - vardas / managerFirstName – vadovo vardas
  *   - pavarde / managerLastName – vadovo pavardė
@@ -27,8 +27,10 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *
  * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
  * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
- * ${vadovo} (vadovo kilm.), ${vardo} (vardas kilm.), ${pavardes} (pavardė kilm.),
- * ${varde} (vardas šauksm.), ${pavardeS} (pavardė šauksm.)
+ * ${vadovo} (pareigų kilm.), ${vadovui}, ${vadovą}, ${vadovu}, ${vadove} (viet. vyr. pareigai),
+ * ${vadovėje}, ${vadovei}, ${vadovę}, ${vadovasNom}, ${vadovasKreip} (šauksm.), ${vadoves} (= vadovo, ASCII),
+ * ${vardo} (kilm.), ${vardui}, ${vardą}, ${vardu}, ${vardviet} (viet.),
+ * ${varde} (vardas šauksm.), ${pavardes}, ${pavardui}, ${pavardą}, ${pavardu}, ${pavardviet}, ${pavardeS}
  *
  * Savavališki pakeitimai (replacements): objektas arba masyvas porų.
  * Randa šablone ${placeholder} ir pakeičia į nurodytą vertę.
@@ -109,6 +111,8 @@ final class CreateFile
         }
 
         $lang = $this->detectLanguage($template);
+        $parsedDocumentDate  = $this->parseDateTimeFromString(trim($documentDate));
+        $documentDateDisplay = $this->formatLocalizedLongDate($parsedDocumentDate, $documentDate, $lang);
 
         $processor = new TemplateProcessor($templatePath);
 
@@ -123,9 +127,19 @@ final class CreateFile
         }
 
         if ($lang === 'LT') {
-            $vadovo   = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
+            $td = $this->namer->declineManagerTitle($managerType);
+
+            $vadovo   = $td['genitive'];
             $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $vardui   = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
+            $varda    = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
+            $varduIns = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
+            $vardviet = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
             $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $pavardui = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
+            $pavarda  = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
+            $pavardu  = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
+            $pavardviet = $pavarde !== '' ? $this->namer->locative($pavarde, $lytis) : '';
             $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
             $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
 
@@ -134,8 +148,27 @@ final class CreateFile
             $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnas);
             $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
             $this->setValueCaseInsensitive($processor, 'vadovo', $vadovo);
+            $this->setValueCaseInsensitive($processor, 'vadoves', $vadovo);
+            $this->setValueCaseInsensitive($processor, 'vadovasNom', $td['nominative']);
+            $this->setValueCaseInsensitive($processor, 'vadovui', $td['dative']);
+            $this->setValueCaseInsensitive($processor, 'vadovą', $td['accusative']);
+            $this->setValueCaseInsensitive($processor, 'vadovu', $td['instrumental']);
+            $this->setValueCaseInsensitive($processor, 'vadove', $td['locative']);
+            $this->setValueCaseInsensitive($processor, 'vadovėje', $td['locative']);
+            $this->setValueCaseInsensitive($processor, 'vadovei', $td['dative']);
+            $this->setValueCaseInsensitive($processor, 'vadovę', $td['accusative']);
+            $this->setValueCaseInsensitive($processor, 'vadovasKreip', $td['vocative']);
+            $this->setValueCaseInsensitive($processor, 'vadovai', $td['vocative']);
             $this->setValueCaseInsensitive($processor, 'vardo', $vardo);
+            $this->setValueCaseInsensitive($processor, 'vardui', $vardui);
+            $this->setValueCaseInsensitive($processor, 'vardą', $varda);
+            $this->setValueCaseInsensitive($processor, 'vardu', $varduIns);
+            $this->setValueCaseInsensitive($processor, 'vardviet', $vardviet);
             $this->setValueCaseInsensitive($processor, 'pavardes', $pavardes);
+            $this->setValueCaseInsensitive($processor, 'pavardui', $pavardui);
+            $this->setValueCaseInsensitive($processor, 'pavardą', $pavarda);
+            $this->setValueCaseInsensitive($processor, 'pavardu', $pavardu);
+            $this->setValueCaseInsensitive($processor, 'pavardviet', $pavardviet);
             $this->setValueCaseInsensitive($processor, 'varde', $varde);
             $this->setValueCaseInsensitive($processor, 'pavardeS', $pavardeS);
             $this->setValueCaseInsensitive($processor, 'pavardo', $pavardes);
@@ -151,8 +184,27 @@ final class CreateFile
             $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnasTr);
             $this->setValueCaseInsensitive($processor, 'lytis', $lytisTr);
             $this->setValueCaseInsensitive($processor, 'vadovo', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadoves', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovasNom', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovui', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovą', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovę', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovu', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadove', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovėje', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovei', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovasKreip', $roleTr);
+            $this->setValueCaseInsensitive($processor, 'vadovai', $roleTr);
             $this->setValueCaseInsensitive($processor, 'vardo', $vardas);
+            $this->setValueCaseInsensitive($processor, 'vardui', $vardas);
+            $this->setValueCaseInsensitive($processor, 'vardą', $vardas);
+            $this->setValueCaseInsensitive($processor, 'vardu', $vardas);
+            $this->setValueCaseInsensitive($processor, 'vardviet', $vardas);
             $this->setValueCaseInsensitive($processor, 'pavardes', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'pavardui', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'pavardą', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'pavardu', $pavarde);
+            $this->setValueCaseInsensitive($processor, 'pavardviet', $pavarde);
             $this->setValueCaseInsensitive($processor, 'varde', $vardas);
             $this->setValueCaseInsensitive($processor, 'pavardeS', $pavarde);
             $this->setValueCaseInsensitive($processor, 'pavardo', $pavarde);
@@ -161,14 +213,21 @@ final class CreateFile
 
         $this->setValueCaseInsensitive($processor, 'kompanija', $companyName);
         $this->setValueCaseInsensitive($processor, 'kodas', $code);
-        $this->setValueCaseInsensitive($processor, 'data', $documentDate);
+        $this->setValueCaseInsensitive($processor, 'data', $documentDateDisplay);
         $this->setValueCaseInsensitive($processor, 'vardas', $vardas);
         $this->setValueCaseInsensitive($processor, 'pavarde', $pavarde);
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
-        $this->setValueCaseInsensitive($processor, 'documentDate', $documentDate);
+        $this->setValueCaseInsensitive($processor, 'documentDate', $documentDateDisplay);
+        if (trim($documentDate) !== '') {
+            $this->setValueCaseInsensitive(
+                $processor,
+                'dataSkaitmenimis',
+                $parsedDocumentDate !== null ? $parsedDocumentDate->format('Y-m-d') : $documentDate
+            );
+        }
 
         $this->applyReplacements($processor, $data['replacements'] ?? []);
 
@@ -243,6 +302,8 @@ final class CreateFile
         }
 
         $lang = $this->detectLanguage($template);
+        $parsedDocumentDate  = $this->parseDateTimeFromString(trim($documentDate));
+        $documentDateDisplay = $this->formatLocalizedLongDate($parsedDocumentDate, $documentDate, $lang);
         $managerType = (string) ($data['managerType'] ?? '');
         $lytis       = trim((string) ($data['managerGender'] ?? $data['lytis'] ?? ''));
         if ($lytis === '') {
@@ -259,8 +320,8 @@ final class CreateFile
             'companyName'  => $companyName,
             'kodas'        => $code,
             'code'         => $code,
-            'data'         => $documentDate,
-            'documentDate' => $documentDate,
+            'data'         => $documentDateDisplay,
+            'documentDate' => $documentDateDisplay,
             'role'         => $role,
             'vardas'       => $vardas,
             'pavarde'      => $pavarde,
@@ -272,21 +333,86 @@ final class CreateFile
         ];
 
         if ($lang === 'LT') {
-            $vadovo   = $managerType !== '' ? $this->namer->vadovo($managerType) : '';
+            $td = $this->namer->declineManagerTitle($managerType);
+
+            $vadovo   = $td['genitive'];
             $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $vardui   = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
+            $varda    = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
+            $varduIns = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
+            $vardviet = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
             $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $pavardui = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
+            $pavarda  = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
+            $pavardu  = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
+            $pavardviet = $pavarde !== '' ? $this->namer->locative($pavarde, $lytis) : '';
             $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
             $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
 
             $replacements += [
-                'vadovo'   => $vadovo,
-                'vardo'    => $vardo,
-                'pavardes' => $pavardes,
-                'varde'    => $varde,
-                'pavardeS' => $pavardeS,
-                'pavardo'  => $pavardes,
-                'vardes'   => $vardo,
+                'vadovo'       => $vadovo,
+                'vadoves'      => $vadovo,
+                'vadovasNom'   => $td['nominative'],
+                'vadovui'      => $td['dative'],
+                'vadovą'       => $td['accusative'],
+                'vadovę'       => $td['accusative'],
+                'vadovu'       => $td['instrumental'],
+                'vadove'       => $td['locative'],
+                'vadovėje'     => $td['locative'],
+                'vadovei'      => $td['dative'],
+                'vadovasKreip' => $td['vocative'],
+                'vadovai'      => $td['vocative'],
+                'vardo'        => $vardo,
+                'vardui'       => $vardui,
+                'vardą'        => $varda,
+                'vardu'        => $varduIns,
+                'vardviet'     => $vardviet,
+                'pavardes'     => $pavardes,
+                'pavardui'     => $pavardui,
+                'pavardą'      => $pavarda,
+                'pavardu'      => $pavardu,
+                'pavardviet'   => $pavardviet,
+                'varde'        => $varde,
+                'pavardeS'     => $pavardeS,
+                'pavardo'      => $pavardes,
+                'vardes'       => $vardo,
             ];
+        } else {
+            $roleTr = $this->translateRole($managerType, $lang);
+            $replacements += [
+                'vadovo'       => $roleTr,
+                'vadoves'      => $roleTr,
+                'vadovasNom'   => $roleTr,
+                'vadovui'      => $roleTr,
+                'vadovą'       => $roleTr,
+                'vadovę'       => $roleTr,
+                'vadovu'       => $roleTr,
+                'vadove'       => $roleTr,
+                'vadovėje'     => $roleTr,
+                'vadovei'      => $roleTr,
+                'vadovasKreip' => $roleTr,
+                'vadovai'      => $roleTr,
+                'vardo'        => $vardas,
+                'vardui'       => $vardas,
+                'vardą'        => $vardas,
+                'vardu'        => $vardas,
+                'vardviet'     => $vardas,
+                'pavardes'     => $pavarde,
+                'pavardui'     => $pavarde,
+                'pavardą'      => $pavarde,
+                'pavardu'      => $pavarde,
+                'pavardviet'   => $pavarde,
+                'varde'        => $vardas,
+                'pavardeS'     => $pavarde,
+                'pavardo'      => $pavarde,
+                'vardes'       => $vardas,
+            ];
+        }
+
+        if (trim($documentDate) !== '') {
+            $replacements['dataSkaitmenimis'] = $parsedDocumentDate !== null
+                ? $parsedDocumentDate->format('Y-m-d')
+                : $documentDate;
         }
 
         $customReplacements = $data['replacements'] ?? [];
@@ -621,6 +747,95 @@ final class CreateFile
             'moteris' => 'Female',
             default   => $lytis,
         };
+    }
+
+    /**
+     * ${data} / ${documentDate}: LT „2022 m. gegužės 02 d.“, EN „2 May 2022“, RU „2 мая 2022 г.“
+     */
+    private function formatLocalizedLongDate(?\DateTimeImmutable $parsed, string $documentDate, string $lang): string
+    {
+        if ($parsed === null) {
+            return $documentDate;
+        }
+
+        return match ($lang) {
+            'LT' => $this->formatLithuanianLongDateFromImmutable($parsed),
+            'EN' => $parsed->format('j F Y'),
+            'RU' => $this->formatRussianLongDateFromImmutable($parsed),
+            default => $this->formatLithuanianLongDateFromImmutable($parsed),
+        };
+    }
+
+    /**
+     * Pvz.: 2022-05-02 → „2022 m. gegužės 02 d.“
+     */
+    private function formatLithuanianLongDateFromImmutable(\DateTimeImmutable $dt): string
+    {
+        static $monthsGen = [
+            1  => 'sausio',
+            2  => 'vasario',
+            3  => 'kovo',
+            4  => 'balandžio',
+            5  => 'gegužės',
+            6  => 'birželio',
+            7  => 'liepos',
+            8  => 'rugpjūčio',
+            9  => 'rugsėjo',
+            10 => 'spalio',
+            11 => 'lapkričio',
+            12 => 'gruodžio',
+        ];
+
+        $y = (int) $dt->format('Y');
+        $m = (int) $dt->format('n');
+        $d = (int) $dt->format('j');
+
+        return sprintf('%d m. %s %02d d.', $y, $monthsGen[$m] ?? '', $d);
+    }
+
+    /**
+     * Rusų kalba: mėnuo kilmininku (2 мая 2022 г.)
+     */
+    private function formatRussianLongDateFromImmutable(\DateTimeImmutable $dt): string
+    {
+        static $monthsGen = [
+            1  => 'января',
+            2  => 'февраля',
+            3  => 'марта',
+            4  => 'апреля',
+            5  => 'мая',
+            6  => 'июня',
+            7  => 'июля',
+            8  => 'августа',
+            9  => 'сентября',
+            10 => 'октября',
+            11 => 'ноября',
+            12 => 'декабря',
+        ];
+
+        $m = (int) $dt->format('n');
+        $d = (int) $dt->format('j');
+        $y = (int) $dt->format('Y');
+
+        return sprintf('%d %s %d г.', $d, $monthsGen[$m] ?? '', $y);
+    }
+
+    private function parseDateTimeFromString(string $dateStr): ?\DateTimeImmutable
+    {
+        $dateStr = trim($dateStr);
+        foreach (['Y-m-d H:i:s', 'Y-m-d', 'd.m.Y H:i:s', 'd.m.Y'] as $fmt) {
+            $dt = \DateTimeImmutable::createFromFormat($fmt, $dateStr);
+            if ($dt !== false) {
+                return $dt;
+            }
+        }
+
+        $ts = strtotime($dateStr);
+        if ($ts !== false) {
+            return (new \DateTimeImmutable())->setTimestamp($ts);
+        }
+
+        return null;
     }
 
     private function generateUuidV4(): string
