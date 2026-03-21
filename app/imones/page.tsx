@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, ArrowLeft, Save } from "lucide-react";
+import { Building2, Save } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { COMPANY_TYPES } from "@/lib/types/Company";
-import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
@@ -27,19 +27,27 @@ export default function ImonesPage() {
     }, []);
 
     async function handleSubmit() {
-        const res = await CompanyApi.companyCreate({ companyType, companyName, address, code, managerFirstName, managerLastName, managerGender, role });
-        if (!res.status) {
+        try {
+            await CompanyApi.companyCreate({
+                companyType,
+                companyName,
+                address,
+                code,
+                managerFirstName,
+                managerLastName,
+                managerGender,
+                role,
+            });
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
+        } catch (e) {
+            MessageStore.push({ title: "Klaida", message: (e as Error)?.message ?? "Nepavyko sukurti įmonės", backgroundColor: "#e53e3e" });
         }
     }
 
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>
@@ -57,7 +65,7 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={COMPANY_TYPES} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                        <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
                         <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                     </div>
 

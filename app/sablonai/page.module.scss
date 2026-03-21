@@ -1,3 +1,16 @@
+// Bendras plotis su FileList + Filtrai (fileList.container max-width: 1100px)
+$content-max: 1100px;
+// Kaip fileList .container gap + .filters (margin-left 10px + plotis 320px)
+$header-mid-gap: 18px;
+$filters-track: 330px; // 10 + 320, sutampa su dešiniu flex stulpeliu
+
+.backBar {
+    width: 100%;
+    max-width: $content-max;
+    align-self: center;
+    margin-bottom: 12px;
+}
+
 .templates {
     flex: 1;
     background: #F1F5F9;
@@ -9,14 +22,37 @@
     align-items: center;
 
     .header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
         width: 100%;
-        max-width: 720px;
-        margin-bottom: 32px;
+        max-width: $content-max;
+        margin-bottom: 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) $filters-track;
+        column-gap: $header-mid-gap;
+        align-items: start;
+
+        .headerText {
+            text-align: left;
+            min-width: 0;
+        }
+
+        .headerButtons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 320px;
+            max-width: 100%;
+            margin-left: 10px; // kaip .filters margin-left
+            box-sizing: border-box;
+        }
+
+        > .downloadCatalogButton {
+            grid-column: 2;
+            width: 320px;
+            max-width: 100%;
+            margin-left: 10px;
+            box-sizing: border-box;
+            justify-content: center;
+        }
 
         .headerText {
             text-align: left;
@@ -61,6 +97,24 @@
                 background: #EF2629;
                 color: #fff;
                 box-shadow: 0 4px 14px rgba(239, 38, 41, 0.25);
+            }
+        }
+    }
+
+    @media (max-width: 900px) {
+        .header {
+            grid-template-columns: 1fr;
+            row-gap: 16px;
+
+            .headerButtons {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            > .downloadCatalogButton {
+                grid-column: 1;
+                width: 100%;
+                margin-left: 0;
             }
         }
     }

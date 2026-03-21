@@ -67,7 +67,7 @@ export default function FileList() {
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
-                        {catalogueTree?.length > 0 ? (filteredCatalogueTree.map((node) =>
+                        {catalogueTree && catalogueTree?.length > 0 ? (filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
                                     key={node.path ?? node.name}

@@ -27,13 +27,29 @@ export default function Files({ data, fileType }: List) {
   const router = useRouter();
   const role = localStorage.getItem("role");
 
-  const [rename, setRename] = useState<boolean>(false);
+
   const selected = useDirectoryStore((s) => s.isSelected(data.path));
-  const [newName, setNewName] = useState<string>(data.name);
   const { openMenuFromEvent } = useContextMenu();
   const { setCatalogueTree } = useCatalogueTree();
   const inputRef = useRef<HTMLInputElement>(null);
   const { confirmAction } = useConfirmAction();
+  const [rename, setRename] = useState<boolean>(false);
+
+  function splitFileName(fullName: string) {
+    const lastDot = fullName.lastIndexOf(".");
+    if (lastDot === -1) {
+      return { name: fullName, ext: "" };
+    }
+    return {
+      name: fullName.slice(0, lastDot),
+      ext: fullName.slice(lastDot), // includes dot
+    };
+  }
+
+  const { name, ext } = splitFileName(data.name);
+
+  const [newName, setNewName] = useState(name);
+  const [extension] = useState<string>(ext);
 
   function clicked() {
     if (fileType == "generated") {
@@ -53,16 +69,21 @@ export default function Files({ data, fileType }: List) {
     );
   }
 
+
+
   function renameFile() {
     if (!fileType) return;
-    FilesApi.renameFile(data.path, newName, fileType).then(
-      (res) => {
-        if (res.status === "SUCCESS") {
-          setRename(false);
-          setCatalogueTree((prev) => renameFileInTree(prev, data.path, newName));
-        }
-      },
-    );
+
+    const finalName = newName + extension;
+
+    FilesApi.renameFile(data.path, finalName, fileType).then((res) => {
+      if (res.status === "SUCCESS") {
+        setRename(false);
+        setCatalogueTree((prev) =>
+          renameFileInTree(prev, data.path, finalName)
+        );
+      }
+    });
   }
 
   async function deleteTemplate() {
@@ -93,7 +114,7 @@ export default function Files({ data, fileType }: List) {
   }, [rename]);
 
   return (
-    <div onClick={(e) => console.log(data)}>
+    <div>
       <div
         className={`${styles.files} ${selected ? styles.selected : ""}`}
         onContextMenu={(e) =>
@@ -142,10 +163,10 @@ export default function Files({ data, fileType }: List) {
       >
         <div className={styles.itemContainer}>
           <div className={styles.item} onClick={clicked}>
-            <File className={styles.file} style={{color: FILE_TYPE_COLORS[data.metadata?.custom?.mimeType] }}/>
+            <File className={styles.file} style={{ color: FILE_TYPE_COLORS[(data.metadata?.custom?.mimeType ?? "undefined") as keyof typeof FILE_TYPE_COLORS]  }} />
             {rename ? (
               <div onClick={(e) => e.stopPropagation()}>
-                <InputFieldText ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
+                <InputFieldText regex={/^(?![.\s])[^\\/:*?"<>|\x00-\x1F]+(?<![.\s])$/} ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
               </div>
             ) : (
               <div className={styles.header}>

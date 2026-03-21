@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+// rushed code for features but it works so far
+
+import { use, useEffect, useState } from "react";
 import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
@@ -14,6 +15,8 @@ import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { getCachedWordFile, setCachedWordFile } from "@/lib/cache/wordFileCache";
 import Link from "next/link";
 import styles from "./page.module.scss";
+import { useParams } from "next/navigation";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function TemplatePage() {
     const { template } = useParams();
@@ -56,6 +59,22 @@ export default function TemplatePage() {
         getTemplateWord();
     }, [directory]);
 
+    useEffect(() => {
+        async function getTemplateWord() {
+            // cache the files since the user might go back and forth a lot and keep having to download the .docx file again
+            const cacheKey = `templates/${directory}`;
+            const cachedBlob = getCachedWordFile(cacheKey);
+            if (cachedBlob) {
+                extractUnknownVariablesFromOfficeFile(cachedBlob).then((result) => setCustomFields(result));
+                return;
+            }
+            const { blob } = await FilesApi.downloadFile(cacheKey);
+            setCachedWordFile(cacheKey, blob);
+            extractUnknownVariablesFromOfficeFile(blob).then((result) => console.log(result));
+        }
+        getTemplateWord();
+    })
+
     async function getCompanies() {
         const data = await CompanyApi.getAll();
         setCompanies(data);
@@ -83,10 +102,7 @@ export default function TemplatePage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/sablonai" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į šablonus
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

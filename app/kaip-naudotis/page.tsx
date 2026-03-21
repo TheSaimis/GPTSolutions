@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { HelpCircle, ArrowLeft, Info, Copy, CheckCircle2, X, ZoomIn, Search } from "lucide-react";
-import Link from "next/link";
+import { HelpCircle, Info, Copy, CheckCircle2, X, ZoomIn, Search } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import Image from "next/image";
 import styles from "./page.module.scss";
 
@@ -76,10 +76,7 @@ export default function KaipNaudotiPage() {
             )}
 
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Building2, ArrowLeft, Save } from "lucide-react";
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Building2, Save } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { COMPANY_TYPES } from "@/lib/types/Company";
@@ -12,10 +13,12 @@ import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 
-export default function ImonesRedagavimasPage() {
-    const params = useParams();
+type PageParams = Promise<{ id: string }>;
+
+export default function ImonesRedagavimasPage({ params }: { params: PageParams }) {
+    const { id: idParam } = use(params);
     const router = useRouter();
-    const id = typeof params.id === "string" ? parseInt(params.id, 10) : NaN;
+    const id = typeof idParam === "string" ? parseInt(idParam, 10) : NaN;
 
     const [loading, setLoading] = useState(true);
     const [companyType, setCompanyType] = useState("");
@@ -94,10 +97,7 @@ export default function ImonesRedagavimasPage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/imones/sarasas" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į įmonių sąrašą
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import UserCard from "@/components/userCard/userCard";
 import { UsersApi } from "@/lib/api/users";
 import type { User } from "@/lib/types/User";
@@ -71,10 +70,7 @@ export default function NaudotojuSarasasPage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.content}>

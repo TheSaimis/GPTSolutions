@@ -12,6 +12,10 @@ export function hasCachedWordFile(key: string) {
   return wordFileCache.has(key);
 }
 
-export function clearWordFileCache() {
+export function clearWordFileCache(key?: string) {
+  if (key) {
+    wordFileCache.delete(key);
+    return;
+  }
   wordFileCache.clear();
 }

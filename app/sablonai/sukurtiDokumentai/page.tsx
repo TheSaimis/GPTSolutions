@@ -9,6 +9,7 @@ import styles from "../page.module.scss";
 import { Download } from "lucide-react";
 import { CatalogueTreeProvider } from "../catalogueTreeContext";
 import { getCachedCatalogueTree, setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function GeneratedFilesPage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
@@ -44,6 +45,7 @@ export default function GeneratedFilesPage() {
 
     return (
         <div className={styles.templates}>
+            <PageBackBar className={styles.backBar} />
             <div className={styles.header}>
                 <div className={styles.headerText}>
                     <h1 className={styles.title}>Dokumentai</h1>

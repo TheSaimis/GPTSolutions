@@ -5,8 +5,8 @@ import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldPassword from "@/components/inputFields/inputFieldPassword";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { UsersApi } from "@/lib/api/users";
-import { UserPlus, ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
+import { UserPlus, Save } from "lucide-react";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import styles from "./page.module.scss";
 
 export default function NaudotojaiPage() {
@@ -27,10 +27,7 @@ export default function NaudotojaiPage() {
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
-                <Link href="/" className={styles.backLink}>
-                    <ArrowLeft size={16} />
-                    Grįžti į pradžią
-                </Link>
+                <PageBackBar />
             </div>
 
             <div className={styles.card}>

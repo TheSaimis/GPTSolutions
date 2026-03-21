@@ -1,8 +1,9 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from "react";
 import UserCard from "@/components/userCard/userCard";
 import { logout } from "@/lib/functions/logout";
+import PageBackBar from "@/components/navigation/PageBackBar";
 import styles from "./page.module.scss";
 
 export default function Profilis() {
@@ -23,11 +24,16 @@ export default function Profilis() {
     }, []);
 
     return (
-        <div>
-            { name && lastName && email && role &&
-                <UserCard id={id ?? undefined} email={email} firstName={name} lastName={lastName} role={role} />
-            }
-            <button className="buttons" onClick={logout}>Atsijungti</button>
+        <div className={styles.shell}>
+            <div className={styles.page}>
+                <PageBackBar />
+                {name && lastName && email && role && (
+                    <UserCard id={id ?? undefined} email={email} firstName={name} lastName={lastName} role={role} />
+                )}
+                <button type="button" className={styles.logout} onClick={logout}>
+                    Atsijungti
+                </button>
+            </div>
         </div>
     );
 }

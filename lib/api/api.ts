@@ -93,6 +93,13 @@ async function request<T>({
     headers["Content-Type"] = "application/json";
     finalBody = JSON.stringify(body);
   }
+  const skipAuth = path === "/api/login" && method === "POST";
+  if (!skipAuth && typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token) {
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    }
+  }
 
   useLoadingStore.getState().setLoading(true, loadingMessage ?? "Kraunama...");
 
@@ -119,15 +126,21 @@ async function request<T>({
         details = res.statusText;
       }
 
-      if (res.status === 401 || res.status === 403) {
-        // window.location.href = "/prisijungimas";
-      }
+      const redirectToLogin =
+        (res.status === 401 || res.status === 403) &&
+        typeof window !== "undefined" &&
+        path !== "/api/login";
 
-      MessageStore.push({
-        title: errorTitle || "Klaida",
-        message: errorMessage || details || `HTTP ${res.status} || Įvyko klaida`,
-        backgroundColor: "#e53e3e",
-      });
+      if (redirectToLogin) {
+        localStorage.removeItem("token");
+        window.location.href = "/prisijungimas";
+      } else {
+        MessageStore.push({
+          title: errorTitle || "Klaida",
+          message: errorMessage || details || `HTTP ${res.status} || Įvyko klaida`,
+          backgroundColor: "#e53e3e",
+        });
+      }
 
       throw new Error(details || `HTTP ${res.status}`);
     }

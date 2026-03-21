@@ -9,34 +9,33 @@ import { CompanyApi } from "@/lib/api/companies";
 import { UsersApi } from "@/lib/api/users";
 import type { Company } from "@/lib/types/Company";
 import type { User } from "@/lib/types/User";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import CompanyCard from "@/components/companyCard/companyCard";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { FileText } from "lucide-react";
 import style from "./page.module.scss";
 import Link from "next/link";
+import PageBackBar from "@/components/navigation/PageBackBar";
 
 type RouteParams = {
     templateId: string;
     userId: string;
     companyId: string;
-    directory: string[];
+    directory: string | string[];
     date: string;
 };
 
-export default function Page() {
+type PageProps = { params: Promise<RouteParams> };
+
+export default function Page({ params }: PageProps) {
+    const { templateId, userId, companyId, directory: directorySeg, date: dateSeg } = use(params);
+    const directory = Array.isArray(directorySeg) ? directorySeg : directorySeg != null ? [directorySeg] : [];
 
     const [company, setCompany] = useState<Company | null>(null);
     const [templatePath, setTemplatePath] = useState<string>();
     const [user, setUser] = useState<User | null>(null);
-    const params = useParams<RouteParams>();
-    const templateId = params.templateId;
-    const userId = params.userId;
-    const companyId = params.companyId;
-    const directory = params.directory;
-    const [date, setDate] = useState(decodeURIComponent(params.date));
+    const [date, setDate] = useState(() => decodeURIComponent(dateSeg));
     const fullPath = decodeURIComponent(directory.join("/"));
 
     useEffect(() => {
@@ -61,7 +60,7 @@ export default function Page() {
 
     async function updateDocument() {
         if (!templatePath) return;
-        const res = await TemplateApi.createDocument(Number(companyId), [templatePath], fullPath.split("/").pop());
+        const res = await TemplateApi.createDocument(Number(companyId), [templatePath], {}, fullPath.split("/").pop());
         const today = nowSqlDate();
         if (res) setDate(today);
     }
@@ -76,6 +75,8 @@ export default function Page() {
 
     return (
         <div className={style.page}>
+          <div className={style.pageColumn}>
+            <PageBackBar />
           <div className={style.wrapper}>
             <div className={style.main}>
               <div className={style.header}>
@@ -103,10 +104,19 @@ export default function Page() {
                   </span>
                 </div>
       
-                <Link href={`/users/${user?.id}`} className={style.infoRow}>
-                  <span className={style.label}>Dokumenta redagavo</span>
-                  <span className={style.value}>{user?.firstName} {user?.lastName}</span>
-                </Link>
+                {user?.id != null ? (
+                  <Link href={`/naudotojai/${user.id}`} className={style.infoRow}>
+                    <span className={style.label}>Dokumentą redagavo</span>
+                    <span className={style.value}>
+                      {user.firstName} {user.lastName}
+                    </span>
+                  </Link>
+                ) : (
+                  <div className={style.infoRow}>
+                    <span className={style.label}>Dokumentą redagavo</span>
+                    <span className={style.value}>—</span>
+                  </div>
+                )}
       
                 <div className={style.infoRow}>
                   <span className={style.label}>Įmonė</span>
@@ -157,6 +167,7 @@ export default function Page() {
                 <CompanyCard id={Number(companyId)} />
               </div>
             </div>
+          </div>
           </div>
         </div>
       );
