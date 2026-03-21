@@ -45,7 +45,7 @@ export default function Login() {
           <div className={styles.inputFields}>
             <InputFieldText
               value={email}
-              placeholder="Vartotojo vardas"
+              placeholder="Prisijungimo paštas"
               onChange={setEmail}
               icon={User}
             />

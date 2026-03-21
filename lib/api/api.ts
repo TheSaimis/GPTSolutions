@@ -78,7 +78,7 @@ async function request<T>({
   errorMessage,
   loadingMessage,
   errorTitle,
-  fallbackFilename = "document.docx",
+  fallbackFilename = "download",
 }: RequestConfig): Promise<T | DownloadResult> {
   const headers: HeadersInit = {};
   let finalBody: BodyInit | undefined;

@@ -1,4 +1,6 @@
+import { CustomVariable } from "../types/Company";
 import { TemplateList } from "../types/TemplateList";
+import { clearCachedCatalogueTree } from "../cache/catalogueTreeCache";
 import { api } from "./api";
 
 export const TemplateApi = {
@@ -9,8 +11,6 @@ export const TemplateApi = {
   getById: (id: string) =>
     api.get<string>(`/api/templates/id/${id}`),
 
-  // getTemplatePDF: (path: string) =>
-  //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
   getTemplatesZip: () =>
     api.getBlob("/api/templates/zip"),
@@ -22,16 +22,23 @@ export const TemplateApi = {
     return api.post<{ status: string }>("/api/template/create", form);
   },
 
-  createDocument: (companyId: number, templates: string[], name?: string) =>
-    api.postBlob(
+  createDocument: (companyId: number, templates: string[], custom?: CustomVariable, name?: string) => {
+    const result = api.postBlob(
       "/api/template/fillFileBulk",
       {
         companyId,
         templates,
+        ...(custom ? { custom } : {}),
         ...(name ? { name } : {})
       },
       { loadingMessage: "Kuriami dokumentai..." }
-    ),
+    )
+    // if (!result.ok) return result;
+    clearCachedCatalogueTree("generated");
+    return result;
+}
+  // getTemplatePDF: (path: string) =>
+  //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 
   // renameTemplate: (directory: string, name: string) =>
   //   api.post<{ status: string }>("/api/template/rename", { directory, name }),

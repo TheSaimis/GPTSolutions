@@ -95,7 +95,6 @@ $border: #E2E8F0;
                 .file {
                     width: 16px;
                     height: 16px;
-                    color: $primary;
                     flex-shrink: 0;
                 }
             }
@@ -109,7 +108,7 @@ $border: #E2E8F0;
             .button {
                 font-size: 0.813rem;
                 font-weight: 600;
-                padding: 6px 16px;
+                padding: 6px 6px;
                 border-radius: 8px;
                 border: none;
                 background: $primary;

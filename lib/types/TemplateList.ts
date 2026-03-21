@@ -11,6 +11,7 @@ type CoreMetadata = {
 };
 
 type CustomMetadata = {
+    mimeType?: string;
     created?: string;
     createdBy?: string;
     userId?: string;
@@ -31,7 +32,7 @@ export type CreateFileResponse = {
     status: "SUCCESS" | "FAIL";
     file?: TemplateList;
     error?: string;
-  };
+};
 
 export type TemplateList = {
     name: string;
@@ -52,3 +53,23 @@ export type Document = {
     instructionDate: string;
     directory: string;
 };
+
+export const FILE_TYPES = [
+    ".docx",
+    ".xlsx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+] as const;
+
+export const FILE_TYPE_COLORS = {
+    undefined: "#2563eb",
+    // word
+    ".docx": "#2563eb",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "#2563eb",
+
+    // excel
+    ".xlsx": "#16a34a",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "#16a34a",
+};
+
+export type AcceptedFileType = typeof FILE_TYPES[number];

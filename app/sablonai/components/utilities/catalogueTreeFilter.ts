@@ -15,6 +15,40 @@ function matchesTextFilter(filters: string[], value?: string) {
   );
 }
 
+function detectTemplateLanguage(node: TemplateList): string {
+  const custom: any = node.metadata?.custom ?? {};
+  const raw =
+    custom.language ??
+    custom.lang ??
+    custom.Language ??
+    custom.Lang ??
+    "";
+
+  if (typeof raw === "string") {
+    const v = raw.trim().toUpperCase();
+    if (v === "LT" || v === "RU" || v === "EN") return v;
+  }
+
+  const text = `${node.name ?? ""} ${node.path ?? ""}`.toUpperCase();
+
+  // Fallback: ieskom "LT/RU/EN" pagal zodzius (atskiriant pagal kelio/siuksniu simbolius).
+  // Tai saugiau nei sudetingi regex su charakteriu klases.
+  const normalized = text.replace(/[\\/_\-.\s]+/g, " ").trim();
+  const tokens = normalized.split(" ").filter(Boolean);
+  if (tokens.includes("RU")) return "RU";
+  if (tokens.includes("LT")) return "LT";
+  if (tokens.includes("EN")) return "EN";
+
+  // Tavo taisykle: jei nera nei RU nei EN, laikom lietuviu (LT).
+  return "LT";
+}
+
+function matchesLanguageFilter(filters: string[], node: TemplateList) {
+  if (filters.length === 0) return true;
+  const lang = detectTemplateLanguage(node);
+  return matchesTextFilter(filters, lang);
+}
+
 function isWithinDateRange(dateValue?: string, from?: string, to?: string) {
   if (!dateValue) return true;
 
@@ -67,6 +101,7 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
     matchesSearch(node, filters.search) &&
     matchesTextFilter(filters.types, custom?.type) &&
     matchesTextFilter(filters.companies, custom?.company) &&
+    matchesLanguageFilter(filters.languages, node) &&
     matchesTextFilter(filters.createdBy, custom?.createdBy) &&
     matchesTextFilter(filters.userIds, custom?.userId) &&
     matchesTextFilter(filters.companyIds, custom?.companyId) &&
@@ -81,6 +116,7 @@ function hasActiveFilters(filters: CatalogueFilters) {
     normalize(filters.search) ||
       filters.types.length ||
       filters.companies.length ||
+      filters.languages.length ||
       filters.createdBy.length ||
       filters.userIds.length ||
       filters.companyIds.length ||

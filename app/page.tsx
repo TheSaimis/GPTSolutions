@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-
   const [role, setRole] = useState<string>("");
   useEffect(() => {
     async function getRole() {

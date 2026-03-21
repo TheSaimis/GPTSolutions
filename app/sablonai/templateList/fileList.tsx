@@ -12,8 +12,8 @@ import { Search, FolderPlus } from "lucide-react";
 import { useCatalogueTree } from "../catalogueTreeContext";
 import { useCreateFile } from "./types/directory/functions/createFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
+import { FILE_TYPES } from "@/lib/types/TemplateList";
 import { useEffect, useState, useMemo, useRef } from "react";
-
 
 export default function FileList() {
     const { catalogueTree, filteredCatalogueTree, filters, setFilters, fileType } = useCatalogueTree();
@@ -49,7 +49,7 @@ export default function FileList() {
         ], []);
 
     return (
-        <DropZone accept=".docx" onFile={setFile} className={styles.container}>
+        <DropZone accept={FILE_TYPES} onFile={setFile} className={styles.container}>
             <div style={{ display: "none" }}>
                 <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
             </div>
@@ -67,7 +67,7 @@ export default function FileList() {
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
-                        {catalogueTree ? (filteredCatalogueTree.map((node) =>
+                        {catalogueTree?.length > 0 ? (filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
                                     key={node.path ?? node.name}

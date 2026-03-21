@@ -57,3 +57,6 @@ export const wordVariables = [
     "${pavardo}",
     "${role}",
 ] as const;
+
+// this is not exactly related to companies but its used everywhere where companies are involved
+export type CustomVariable = Record<string, string>;

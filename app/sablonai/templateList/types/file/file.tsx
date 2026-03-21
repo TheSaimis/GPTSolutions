@@ -7,17 +7,16 @@ import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { renameFileInTree } from "@/app/sablonai/components/utilities/renameFile";
 import { removeFileFromTree } from "@/app/sablonai/components/utilities/deleteFile";
 import CheckBox from "@/components/inputFields/checkBox";
-import { File } from "lucide-react";
+import { File, Eye } from "lucide-react";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
 import { DirectoryStore, useDirectoryStore, } from "@/lib/globalVariables/directoriesToSend";
 import { formatFileSize } from "@/lib/functions/formatFileSize";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useConfirmAction } from "@/components/confirmationPanel/confirmationPanel";
-import type { TemplateList } from "@/lib/types/TemplateList";
+import { FILE_TYPE_COLORS, type TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
-
 type List = {
   data: TemplateList;
   fileType: string;
@@ -93,12 +92,8 @@ export default function Files({ data, fileType }: List) {
     inputRef.current?.focus();
   }, [rename]);
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
-
   return (
-    <div>
+    <div onClick={(e) => console.log(data)}>
       <div
         className={`${styles.files} ${selected ? styles.selected : ""}`}
         onContextMenu={(e) =>
@@ -147,7 +142,7 @@ export default function Files({ data, fileType }: List) {
       >
         <div className={styles.itemContainer}>
           <div className={styles.item} onClick={clicked}>
-            <File className={styles.file} />
+            <File className={styles.file} style={{color: FILE_TYPE_COLORS[data.metadata?.custom?.mimeType] }}/>
             {rename ? (
               <div onClick={(e) => e.stopPropagation()}>
                 <InputFieldText ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
@@ -163,8 +158,8 @@ export default function Files({ data, fileType }: List) {
           </div>
 
           <div className={styles.inputContainer}>
-            <button onClick={previewPDF} className={`${styles.button} buttons`}>
-              Peržiūrėti failą
+            <button onClick={previewPDF} className={`${styles.button}`}>
+              <Eye size={16} className={styles.icon} />
             </button>
 
             {fileType === "templates" &&

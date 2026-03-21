@@ -42,10 +42,6 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
         }
     }, [file, fileType, path, createFile]);
 
-    function deleteCatalogue() {
-        deleteFolder(fileType, path ?? "");
-    }
-
     const menuItems = useMemo(
         () => [
             {
@@ -81,7 +77,7 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
     );
 
     return (
-        <DropZone onFile={setFile} accept=".docx" className={styles.directory} >
+        <DropZone onFile={setFile} accept={[".docx", ".xlsx"]} className={styles.directory} >
             <div className={styles.itemContainer}
                 onContextMenu={(e) => openMenuFromEvent(e, menuItems)}
             >
