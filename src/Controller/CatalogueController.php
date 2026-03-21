@@ -1,11 +1,14 @@
 <?php
-
 namespace App\Controller;
 
 use App\Services\AuditLogger;
 use App\Services\CreateCatalogue;
 use App\Services\DeleteCatalogue;
+use App\Services\FileService;
 use App\Services\UpdateCatalogue;
+use App\Services\ZipFiles;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,6 +30,8 @@ final class CatalogueController extends AbstractController
         private CreateCatalogue $createCatalogue,
         private UpdateCatalogue $updateCatalogue,
         private DeleteCatalogue $deleteCatalogue,
+        private FileService $fileService,
+        private ZipFiles $zipFiles,
         private AuditLogger $auditLogger,
     ) {}
 
@@ -102,8 +107,8 @@ final class CatalogueController extends AbstractController
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $baseDir    = trim((string) ($data['root'] ?? 'you need to specify the root folder'));
-        $directory  = trim((string) ($data['directory'] ?? ''));
+        $baseDir   = trim((string) ($data['root'] ?? 'you need to specify the root folder'));
+        $directory = trim((string) ($data['directory'] ?? ''));
 
         if ($baseDir === null || $directory === '') {
             return new JsonResponse(['status' => 'FAIL'], 400);
@@ -115,6 +120,36 @@ final class CatalogueController extends AbstractController
             $this->auditLogger->log("Katalogas ištrintas (perkeltas į /deleted): {$baseDir}/{$target}");
         }
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
+    }
+
+    #[Route('/api/catalogue/zip/{root}/{directory}', name: 'api_catalogue_zip', methods: ['GET'], requirements: ['directory' => '.+'])]
+    public function filterFilesByApp(string $root, string $directory): JsonResponse | BinaryFileResponse
+    {
+        if (! in_array($root, self::BASE_DIR_MAP, true)) {
+            return new JsonResponse(['error' => 'Katalogas nerastas: ' . $root], 404);
+        }
+
+        $resolved = $this->fileService->resolvePath($root, $directory);
+        if ($resolved === null || ! is_dir($resolved)) {
+            return new JsonResponse(['error' => 'Katalogas nerastas: ' . $directory], 404);
+        }
+
+        try {
+            $zipPath = $this->zipFiles->zipDirectory($root, $directory);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'Nepavyko sukurti ZIP: ' . $e->getMessage()], 500);
+        }
+
+        $response = new BinaryFileResponse($zipPath);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($directory) . '.zip'
+        );
+
+        return $response;
     }
 
     // --- Legacy routes (backward compatible) ---

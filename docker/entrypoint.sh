@@ -1,17 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 set -e
-cd /var/www
 
-# Jei nėra vendor/ – paleisti composer install (gyvam mount reikia)
-if [ ! -d vendor ] || [ ! -f vendor/autoload.php ]; then
-  echo "Running composer install..."
-  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction
+mkdir -p config/jwt
+
+if [ ! -f config/jwt/private.pem ] || [ ! -f config/jwt/public.pem ]; then
+  echo "Generating JWT keys..."
+  php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
 fi
 
-# Symfony var/ katalogas turi būti rašomas
-if [ -d var ]; then
-  chown -R www-data:www-data var
-  chmod -R 775 var
-fi
+echo "Waiting for database..."
+until php bin/console doctrine:query:sql "SELECT 1" >/dev/null 2>&1; do
+  sleep 2
+done
+
+php bin/console doctrine:migrations:migrate --no-interaction || true
 
 exec apache2-foreground

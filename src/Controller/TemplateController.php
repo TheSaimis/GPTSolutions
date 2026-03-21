@@ -31,6 +31,11 @@ final class TemplateController extends AbstractController
         private AuditLogger $auditLogger,
     ) {}
 
+    #[Route('/api/ping', name: 'api_ping', methods: ['GET'])]
+    public function ping(): JsonResponse
+    {
+        return $this->json(['ok' => true]);
+    }
     // ───── GET  /api/templates/all ─────
     #[Route('/api/templates/all', name: 'api_templates_all', methods: ['GET'])]
     public function all(): JsonResponse
@@ -153,7 +158,7 @@ final class TemplateController extends AbstractController
 
         $companyId = $data['companyId'] ?? null;
         $templates = $data['templates'] ?? null;
-        $name = isset($data['name']) ? trim((string) $data['name']) : null;
+        $name      = isset($data['name']) ? trim((string) $data['name']) : null;
 
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
             return new JsonResponse(['error' => 'companyId is required'], 400);
@@ -382,10 +387,10 @@ final class TemplateController extends AbstractController
 
         $response = new BinaryFileResponse($resolved);
         $response->headers->set('Content-Type', match ($ext) {
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'doc'  => 'application/msword',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'xls'  => 'application/vnd.ms-excel',
+            'docx'  => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc'   => 'application/msword',
+            'xlsx'  => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls'   => 'application/vnd.ms-excel',
             default => 'application/octet-stream',
         });
         $response->setContentDisposition(

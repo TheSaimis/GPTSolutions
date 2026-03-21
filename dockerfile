@@ -1,34 +1,58 @@
-# Use official PHP image with required extensions
-FROM php:8.2-apache
+FROM php:8.4-apache
 
-# Install system dependencies (MySQL + PostgreSQL for DB options)
+WORKDIR /var/www/html
+
 RUN apt-get update && apt-get install -y \
-    git zip unzip libpng-dev libzip-dev \
-    default-mysql-client libpq-dev \
-    libreoffice-writer-nogui
+    git \
+    unzip \
+    zip \
+    curl \
+    libzip-dev \
+    libicu-dev \
+    libonig-dev \
+    libxml2-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libxslt1-dev \
+    default-mysql-client \
+    libreoffice \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql zip gd
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+    pdo pdo_mysql mysqli zip intl mbstring xml xsl gd opcache
 
-RUN a2enmod rewrite
+RUN a2enmod rewrite headers
 
-# Composer (reikalingas entrypoint gyvam mount)
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-RUN sed -i 's!/var/www/html!/var/www/public!g' \
-    /etc/apache2/sites-available/000-default.conf
-RUN echo 'SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1' >> /etc/apache2/apache2.conf
+COPY . .
 
-WORKDIR /var/www
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
-# Production: COPY ir composer install; dev: volume mount perrides, entrypoint runs composer
-COPY . /var/www
-RUN chown -R www-data:www-data /var/www/var 2>/dev/null || true
-RUN chmod -R 775 /var/www/var 2>/dev/null || true
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-scripts --no-autoloader 2>/dev/null || true
+# Symfony / Apache
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+ENV HOME=/tmp
 
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-EXPOSE 80
+RUN printf '<Directory /var/www/html/public>\n\
+    AllowOverride All\n\
+    Require all granted\n\
+</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+    && a2enconf symfony
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Writable dirs for Symfony + LibreOffice
+RUN mkdir -p /tmp/libreoffice-profile \
+    /tmp/.cache \
+    /var/www/html/var \
+    /var/www/html/var/cache \
+    /var/www/html/var/log \
+    /var/www/html/var/pdf \
+    && chmod -R 777 /tmp /var/www/html/var
+
+RUN php bin/console cache:clear || true
+
+CMD ["apache2-foreground"]
