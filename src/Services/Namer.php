@@ -60,12 +60,35 @@ final class Namer
     }
 
     /**
+     * Sulygina dažnas ASCII / klaidingas pareigų formas su lietuviškomis (linksniavimui).
+     */
+    public function normalizeManagerTitleType(string $managerType): string
+    {
+        $trimmed = trim($managerType);
+        if ($trimmed === '') {
+            return '';
+        }
+        $t = mb_strtolower($trimmed);
+        $map = [
+            'direktore'              => 'direktorė',
+            'vadove'                 => 'vadovė',
+            'generaline direktore'   => 'generalinė direktorė',
+            'pirmininke'             => 'pirmininkė',
+            'administratore'         => 'administratorė',
+            'prezidente'             => 'prezidentė',
+        ];
+
+        return $map[$t] ?? $trimmed;
+    }
+
+    /**
      * Pareigų žodžio visos formos (vardininkas … šauksmininkas).
      *
      * @return array{nominative: string, genitive: string, dative: string, accusative: string, instrumental: string, locative: string, vocative: string}
      */
     public function declineManagerTitle(string $managerType): array
     {
+        $managerType = $this->normalizeManagerTitleType($managerType);
         $type = mb_strtolower(trim($managerType));
         if ($type === '') {
             return $this->emptyTitleDeclension();
@@ -194,6 +217,9 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
 
         return $isFemale ? $this->dativeFemale($name) : $this->dativeMale($name);
     }
@@ -208,6 +234,9 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
 
         return $isFemale ? $this->accusativeFemale($name) : $this->accusativeMale($name);
     }
@@ -222,6 +251,9 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
 
         return $isFemale ? $this->instrumentalFemale($name) : $this->instrumentalMale($name);
     }
@@ -236,6 +268,9 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
 
         return $isFemale ? $this->locativeFemale($name) : $this->locativeMale($name);
     }
@@ -250,6 +285,10 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
+
         return $isFemale ? $this->genitiveFemale($name) : $this->genitiveMale($name);
     }
 
@@ -263,7 +302,41 @@ final class Namer
             return '';
         }
         $isFemale = mb_strtolower($lytis) === 'moteris';
+        if ($isFemale) {
+            $name = $this->normalizeAsciiFeminineSurnameEnding($name);
+        }
+
         return $isFemale ? $this->vocativeFemale($name) : $this->vocativeMale($name);
+    }
+
+    /**
+     * Moteriškos pavardės dažnai įvedamos be lietuviškų diakritikų: -iene, -aite, -yte, -iute, -ute.
+     * Sulygina į -ienė, -aitė, -ytė, -iūtė, -ūtė, kad veiktų bendros -tė / -ienė taisyklės.
+     */
+    private function normalizeAsciiFeminineSurnameEnding(string $name): string
+    {
+        $n = trim($name);
+        if ($n === '') {
+            return $name;
+        }
+        if (preg_match('/ė$/u', $n) === 1) {
+            return $n;
+        }
+        // Ilgesnės galūnės pirmiau (kad „kazlausk**iute**“ sugautų prieš bendrą „ute“).
+        $rules = [
+            '/iene$/iu' => 'ienė',
+            '/aite$/iu' => 'aitė',
+            '/iute$/iu' => 'iūtė',
+            '/yte$/iu'  => 'ytė',
+        ];
+        foreach ($rules as $pattern => $replacement) {
+            if (preg_match($pattern, $n) === 1) {
+                return (string) preg_replace($pattern, $replacement, $n);
+            }
+        }
+        // -utė / -ūtė abu ASCII dažnai „...ute“ — be žodyno neatskiriama; įveskite Unicode arba naudokite -iūtė per „iute“.
+
+        return $n;
     }
 
     private function genitiveMale(string $name): string
@@ -292,17 +365,28 @@ final class Namer
             return $name;
         }
         $last = mb_substr($name, -1);
-        $last2 = mb_substr($name, -2);
         $last3 = mb_substr($name, -3);
 
-        return match (true) {
-            $last3 === 'ienė' => mb_substr($name, 0, -1) . 'ės',
-            $last2 === 'tė' => mb_substr($name, 0, -1) . 'ės',
-            $last2 === 'ė' => mb_substr($name, 0, -1) . 'ės',
-            $last === 'a' => mb_substr($name, 0, -1) . 'os',
-            $last === 'ė' => mb_substr($name, 0, -1) . 'ės',
-            default => $name,
-        };
+        if ($last3 === 'ienė') {
+            return mb_substr($name, 0, -1) . 'ės';
+        }
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učės', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčės', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'ės';
+        }
+        if (str_ends_with($name, 'ė')) {
+            return mb_substr($name, 0, -1) . 'ės';
+        }
+        if ($last === 'a') {
+            return mb_substr($name, 0, -1) . 'os';
+        }
+
+        return $name;
     }
 
     private function vocativeMale(string $name): string
@@ -332,11 +416,23 @@ final class Namer
         }
         $last = mb_substr($name, -1);
 
-        return match (true) {
-            $last === 'ė' => mb_substr($name, 0, -1) . 'e',
-            $last === 'a' => $name,
-            default => $name,
-        };
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učiai', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčiai', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'e';
+        }
+        if ($last === 'ė') {
+            return mb_substr($name, 0, -1) . 'e';
+        }
+        if ($last === 'a') {
+            return $name;
+        }
+
+        return $name;
     }
 
     private function dativeMale(string $name): string
@@ -365,16 +461,28 @@ final class Namer
             return $name;
         }
         $last = mb_substr($name, -1);
-        $last2 = mb_substr($name, -2);
         $last3 = mb_substr($name, -3);
 
-        return match (true) {
-            $last3 === 'ienė' => mb_substr($name, 0, -1) . 'ei',
-            $last2 === 'tė' => mb_substr($name, 0, -1) . 'ei',
-            $last2 === 'ė' => mb_substr($name, 0, -1) . 'ei',
-            $last === 'a' => mb_substr($name, 0, -1) . 'ai',
-            default => $name,
-        };
+        if ($last3 === 'ienė') {
+            return mb_substr($name, 0, -1) . 'ei';
+        }
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učiai', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčiai', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'ei';
+        }
+        if (str_ends_with($name, 'ė')) {
+            return mb_substr($name, 0, -1) . 'ei';
+        }
+        if ($last === 'a') {
+            return mb_substr($name, 0, -1) . 'ai';
+        }
+
+        return $name;
     }
 
     private function accusativeMale(string $name): string
@@ -403,16 +511,28 @@ final class Namer
             return $name;
         }
         $last = mb_substr($name, -1);
-        $last2 = mb_substr($name, -2);
         $last3 = mb_substr($name, -3);
 
-        return match (true) {
-            $last3 === 'ienė' => mb_substr($name, 0, -1) . 'ę',
-            $last2 === 'tė' => mb_substr($name, 0, -1) . 'ę',
-            $last2 === 'ė' => mb_substr($name, 0, -1) . 'ę',
-            $last === 'a' => mb_substr($name, 0, -1) . 'ą',
-            default => $name,
-        };
+        if ($last3 === 'ienė') {
+            return mb_substr($name, 0, -1) . 'ę';
+        }
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učią', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčią', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'ę';
+        }
+        if (str_ends_with($name, 'ė')) {
+            return mb_substr($name, 0, -1) . 'ę';
+        }
+        if ($last === 'a') {
+            return mb_substr($name, 0, -1) . 'ą';
+        }
+
+        return $name;
     }
 
     private function instrumentalMale(string $name): string
@@ -441,16 +561,28 @@ final class Namer
             return $name;
         }
         $last = mb_substr($name, -1);
-        $last2 = mb_substr($name, -2);
         $last3 = mb_substr($name, -3);
 
-        return match (true) {
-            $last3 === 'ienė' => mb_substr($name, 0, -1) . 'e',
-            $last2 === 'tė' => mb_substr($name, 0, -1) . 'e',
-            $last2 === 'ė' => mb_substr($name, 0, -1) . 'e',
-            $last === 'a' => $name,
-            default => $name,
-        };
+        if ($last3 === 'ienė') {
+            return mb_substr($name, 0, -1) . 'e';
+        }
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učia', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčia', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'e';
+        }
+        if (str_ends_with($name, 'ė')) {
+            return mb_substr($name, 0, -1) . 'e';
+        }
+        if ($last === 'a') {
+            return $name;
+        }
+
+        return $name;
     }
 
     private function locativeMale(string $name): string
@@ -479,15 +611,27 @@ final class Namer
             return $name;
         }
         $last = mb_substr($name, -1);
-        $last2 = mb_substr($name, -2);
         $last3 = mb_substr($name, -3);
 
-        return match (true) {
-            $last3 === 'ienė' => mb_substr($name, 0, -1) . 'ėje',
-            $last2 === 'tė' => mb_substr($name, 0, -1) . 'ėje',
-            $last2 === 'ė' => mb_substr($name, 0, -1) . 'ėje',
-            $last === 'a' => mb_substr($name, 0, -1) . 'oje',
-            default => $name,
-        };
+        if ($last3 === 'ienė') {
+            return mb_substr($name, 0, -1) . 'ėje';
+        }
+        if (preg_match('/utė$/u', $name) === 1) {
+            return (string) preg_replace('/utė$/u', 'učioje', $name);
+        }
+        if (preg_match('/ytė$/u', $name) === 1) {
+            return (string) preg_replace('/ytė$/u', 'yčioje', $name);
+        }
+        if (str_ends_with($name, 'tė')) {
+            return mb_substr($name, 0, -1) . 'ėje';
+        }
+        if (str_ends_with($name, 'ė')) {
+            return mb_substr($name, 0, -1) . 'ėje';
+        }
+        if ($last === 'a') {
+            return mb_substr($name, 0, -1) . 'oje';
+        }
+
+        return $name;
     }
 }

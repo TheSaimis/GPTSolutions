@@ -41,9 +41,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
     
-    App\Services\GetPDF:
+    App\Services\LibreOfficeBinResolver:
         arguments:
-            $libreOfficeBin: '%env(LIBREOFFICE_BIN)%'
+            $configuredPath: '%env(LIBREOFFICE_BIN)%'
+            $kernelEnv: '%kernel.environment%'
 
     App\Services\FileService:
         arguments:

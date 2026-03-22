@@ -23,7 +23,7 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - tipas / companyType – įmonės tipas (UAB, AB, MB, ĮI, IND V, VŠĮ)
  *   - tipasPilnas / category – pilna kategorija
  *   - adresas / address – adresas
- *   - managerType – vadovo tipas (lyčiai: vadovas/vadovė, direktorius/direktorė)
+ *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *
  * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
  * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
@@ -36,6 +36,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
  * Randa šablone ${placeholder} ir pakeičia į nurodytą vertę.
  *
  * Kintamųjų raidžių dydis nesvarbus: ${vadovas}, ${VADOVAS}, ${Vadovas} – visi sutampa.
+ *
+ * .doc šablonai prieš apdorojimą konvertuojami į .docx per LibreOffice (žr. ConvertDocToDocx, LIBREOFFICE_BIN).
  */
 final class CreateFile
 {
@@ -43,6 +45,8 @@ final class CreateFile
         private readonly string $projectDir,
         private readonly Namer $namer,
         private readonly DocxMetadataService $docxMetadataService,
+        private readonly ConvertDocToDocx $convertDocToDocx,
+        private readonly DocxSplitMacroReplacer $docxSplitMacroReplacer,
     ) {}
 
     /**
@@ -56,7 +60,7 @@ final class CreateFile
         $this->validateData($data);
 
         $template = (string) ($data['template'] ?? '');
-        $ext = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        $ext      = strtolower(pathinfo($template, PATHINFO_EXTENSION));
 
         if (in_array($ext, ['xls', 'xlsx'], true)) {
             return $this->createSpreadsheetDocument($data, $name);
@@ -94,6 +98,13 @@ final class CreateFile
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
 
+        $ext                 = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        $workingTemplatePath = $ext === 'doc'
+            ? $this->convertDocToDocx->ensureDocxForTemplate($templatePath)
+            : $templatePath;
+
+        $this->assertWordTemplateSupported($workingTemplatePath, $template);
+
         $companySlug = $this->sanitizeForFilename($companyName) ?: ($code !== '' ? $code : 'be_kodo');
         $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
         $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
@@ -110,38 +121,50 @@ final class CreateFile
             $existingOutputMeta = $this->docxMetadataService->readDocxCustomProperties($outputPath);
         }
 
-        $lang = $this->detectLanguage($template);
+        $lang                = $this->resolveDocumentLanguage($data, $directory, $template);
         $parsedDocumentDate  = $this->parseDateTimeFromString(trim($documentDate));
         $documentDateDisplay = $this->formatLocalizedLongDate($parsedDocumentDate, $documentDate, $lang);
 
-        $processor = new TemplateProcessor($templatePath);
+        if ($lang !== 'LT') {
+            $vardas  = $this->formatTitleCaseName($vardas);
+            $pavarde = $this->formatTitleCaseName($pavarde);
+        }
+
+        try {
+            $processor = new TemplateProcessor($workingTemplatePath);
+        } catch (\Throwable $e) {
+            throw new \InvalidArgumentException(
+                'Nepavyko nuskaityti šablono (failas netinkamas arba sugadintas): ' . $template . ' — ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+
+        $managerType   = $this->effectiveManagerType($data);
+        $lytis         = $this->resolveLytisForPersonDeclension($data);
+        $tipasPilnasTr = $tipasPilnas;
 
         $vadovas = $this->formatManagerFullName(
-            $data['managerFirstName'] ?? $data['vardas'] ?? null,
-            $data['managerLastName'] ?? $data['pavarde'] ?? null
+            $vardas !== '' ? $vardas : null,
+            $pavarde !== '' ? $pavarde : null
         );
-        $managerType = (string) ($data['managerType'] ?? '');
-        $lytis       = trim((string) ($data['managerGender'] ?? $data['lytis'] ?? ''));
-        if ($lytis === '') {
-            $lytis = $this->resolveGender($managerType);
-        }
 
         if ($lang === 'LT') {
             $td = $this->namer->declineManagerTitle($managerType);
 
-            $vadovo   = $td['genitive'];
-            $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
-            $vardui   = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
-            $varda    = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
-            $varduIns = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
-            $vardviet = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
-            $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
-            $pavardui = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
-            $pavarda  = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
-            $pavardu  = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
+            $vadovo     = $td['genitive'];
+            $vardo      = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $vardui     = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
+            $varda      = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
+            $varduIns   = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
+            $vardviet   = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
+            $pavardes   = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $pavardui   = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
+            $pavarda    = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
+            $pavardu    = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
             $pavardviet = $pavarde !== '' ? $this->namer->locative($pavarde, $lytis) : '';
-            $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
-            $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
+            $varde      = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
+            $pavardeS   = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
 
             $this->setValueCaseInsensitive($processor, 'role', $role);
             $this->setValueCaseInsensitive($processor, 'tipas', $tipas);
@@ -175,7 +198,7 @@ final class CreateFile
             $this->setValueCaseInsensitive($processor, 'vardes', $vardo);
         } else {
             $roleTr        = $this->translateRole($managerType, $lang);
-            $tipasTr       = $this->translateTipas($tipas, $lang);
+            $tipasTr       = $this->translateTipas($tipas, $lang, $tipasPilnas);
             $tipasPilnasTr = $this->translateTipasPilnas($tipas, $tipasPilnas, $lang);
             $lytisTr       = $this->translateGender($lytis, $lang);
 
@@ -233,16 +256,30 @@ final class CreateFile
 
         $processor->saveAs($outputPath);
 
-        $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
+        $tipasPilnasOut = $tipasPilnasTr;
+        $splitMacros    = [];
+        foreach (
+            [
+                'tipasPilnas'  => $tipasPilnasOut,
+                'companyName'  => $companyName,
+                'documentDate' => $documentDateDisplay,
+            ] as $ph => $val
+        ) {
+            foreach ($this->placeholderVariants($ph, $val) as $k => $v) {
+                $splitMacros[$k] = $v;
+            }
+        }
+        $this->docxSplitMacroReplacer->apply($outputPath, $splitMacros);
+
+        $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($workingTemplatePath);
         $templateId       = (string) ($templateMetadata['templateId'] ?? '');
 
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $timezone   = new \DateTimeZone('Europe/Vilnius');
+        $now        = (new \DateTimeImmutable('now', $timezone))->format(DATE_ATOM);
         $created    = $existingOutputMeta['created'] ?? $now;
         $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
 
-        $customVars = $this->normalizeCustomReplacements($data['replacements'] ?? $data['custom'] ?? []);
-
-        $this->docxMetadataService->setDocxCustomProperties($outputPath, array_merge([
+        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
             'templateId' => $templateId,
             'documentId' => $documentId,
             'created'    => $created,
@@ -253,9 +290,7 @@ final class CreateFile
             'company'    => $companyName,
             'companyId'  => $companyId,
             'language'   => $lang,
-        ], array_filter([
-            'customVariables' => $customVars !== [] ? json_encode($customVars, JSON_UNESCAPED_UNICODE) : null,
-        ])));
+        ]);
         return $outputPath;
     }
 
@@ -295,7 +330,7 @@ final class CreateFile
             mkdir($outputDir, 0775, true);
         }
 
-        $ext = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        $ext        = strtolower(pathinfo($template, PATHINFO_EXTENSION));
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
         $outputPath = $outputDir . '/' . $outputName;
@@ -305,18 +340,20 @@ final class CreateFile
             $existingOutputMeta = $this->docxMetadataService->readDocxCustomProperties($outputPath);
         }
 
-        $lang = $this->detectLanguage($template);
+        $lang                = $this->resolveDocumentLanguage($data, $directory, $template);
         $parsedDocumentDate  = $this->parseDateTimeFromString(trim($documentDate));
         $documentDateDisplay = $this->formatLocalizedLongDate($parsedDocumentDate, $documentDate, $lang);
-        $managerType = (string) ($data['managerType'] ?? '');
-        $lytis       = trim((string) ($data['managerGender'] ?? $data['lytis'] ?? ''));
-        if ($lytis === '') {
-            $lytis = $this->resolveGender($managerType);
+        $managerType         = $this->effectiveManagerType($data);
+        $lytis               = $this->resolveLytisForPersonDeclension($data);
+
+        if ($lang !== 'LT') {
+            $vardas  = $this->formatTitleCaseName($vardas);
+            $pavarde = $this->formatTitleCaseName($pavarde);
         }
 
         $vadovas = $this->formatManagerFullName(
-            $data['managerFirstName'] ?? $data['vardas'] ?? null,
-            $data['managerLastName'] ?? $data['pavarde'] ?? null
+            $vardas !== '' ? $vardas : null,
+            $pavarde !== '' ? $pavarde : null
         );
 
         $replacements = [
@@ -339,19 +376,19 @@ final class CreateFile
         if ($lang === 'LT') {
             $td = $this->namer->declineManagerTitle($managerType);
 
-            $vadovo   = $td['genitive'];
-            $vardo    = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
-            $vardui   = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
-            $varda    = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
-            $varduIns = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
-            $vardviet = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
-            $pavardes = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
-            $pavardui = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
-            $pavarda  = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
-            $pavardu  = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
+            $vadovo     = $td['genitive'];
+            $vardo      = $vardas !== '' ? $this->namer->vardo($vardas, $lytis) : '';
+            $vardui     = $vardas !== '' ? $this->namer->dative($vardas, $lytis) : '';
+            $varda      = $vardas !== '' ? $this->namer->accusative($vardas, $lytis) : '';
+            $varduIns   = $vardas !== '' ? $this->namer->instrumental($vardas, $lytis) : '';
+            $vardviet   = $vardas !== '' ? $this->namer->locative($vardas, $lytis) : '';
+            $pavardes   = $pavarde !== '' ? $this->namer->pavardes($pavarde, $lytis) : '';
+            $pavardui   = $pavarde !== '' ? $this->namer->dative($pavarde, $lytis) : '';
+            $pavarda    = $pavarde !== '' ? $this->namer->accusative($pavarde, $lytis) : '';
+            $pavardu    = $pavarde !== '' ? $this->namer->instrumental($pavarde, $lytis) : '';
             $pavardviet = $pavarde !== '' ? $this->namer->locative($pavarde, $lytis) : '';
-            $varde    = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
-            $pavardeS = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
+            $varde      = $vardas !== '' ? $this->namer->vardoSauksmininkas($vardas, $lytis) : '';
+            $pavardeS   = $pavarde !== '' ? $this->namer->pavardesSauksmininkas($pavarde, $lytis) : '';
 
             $replacements += [
                 'vadovo'       => $vadovo,
@@ -382,8 +419,15 @@ final class CreateFile
                 'vardes'       => $vardo,
             ];
         } else {
-            $roleTr = $this->translateRole($managerType, $lang);
-            $replacements += [
+            $roleTr                       = $this->translateRole($managerType, $lang);
+            $tipasTr                      = $this->translateTipas($tipas, $lang, $tipasPilnas);
+            $tipasPilnasTr                = $this->translateTipasPilnas($tipas, $tipasPilnas, $lang);
+            $lytisTr                      = $this->translateGender($lytis, $lang);
+            $replacements['role']         = $roleTr;
+            $replacements['tipas']        = $tipasTr;
+            $replacements['tipasPilnas']  = $tipasPilnasTr;
+            $replacements['lytis']        = $lytisTr;
+            $replacements                += [
                 'vadovo'       => $roleTr,
                 'vadoves'      => $roleTr,
                 'vadovasNom'   => $roleTr,
@@ -468,13 +512,12 @@ final class CreateFile
             $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
             $templateId       = (string) ($templateMetadata['templateId'] ?? '');
 
-            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+            $timezone   = new \DateTimeZone('Europe/Vilnius');
+            $now        = (new \DateTimeImmutable('now', $timezone))->format(DATE_ATOM);
             $created    = $existingOutputMeta['created'] ?? $now;
             $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
 
-            $customVars = $this->normalizeCustomReplacements($data['replacements'] ?? $data['custom'] ?? []);
-
-            $this->docxMetadataService->setDocxCustomProperties($outputPath, array_merge([
+            $this->docxMetadataService->setDocxCustomProperties($outputPath, [
                 'templateId' => $templateId,
                 'documentId' => $documentId,
                 'created'    => $created,
@@ -485,34 +528,10 @@ final class CreateFile
                 'company'    => $companyName,
                 'companyId'  => $companyId,
                 'language'   => $lang,
-            ], array_filter([
-                'customVariables' => $customVars !== [] ? json_encode($customVars, JSON_UNESCAPED_UNICODE) : null,
-            ])));
+            ]);
         }
 
         return $outputPath;
-    }
-
-    /**
-     * Normalizuoja custom replacements į paprastą key => value masyvą.
-     *
-     * @param mixed $replacements
-     * @return array<string, string>
-     */
-    private function normalizeCustomReplacements(mixed $replacements): array
-    {
-        if (! is_array($replacements)) {
-            return [];
-        }
-        $pairs = [];
-        foreach ($replacements as $key => $value) {
-            if (is_int($key) && is_array($value) && count($value) >= 2) {
-                $pairs[(string) $value[0]] = (string) $value[1];
-            } elseif (is_string($key) && trim($key) !== '') {
-                $pairs[$key] = (string) $value;
-            }
-        }
-        return $pairs;
     }
 
     /**
@@ -537,6 +556,42 @@ final class CreateFile
     private function getGeneratedDir(): string
     {
         return $this->projectDir . '/generated';
+    }
+
+    /**
+     * PhpWord veikia su OOXML .docx (ZIP). .doc konvertuojamas prieš tai; čia tikrinamas galutinis failas.
+     */
+    private function assertWordTemplateSupported(string $pathToValidate, string $displayName): void
+    {
+        $ext = strtolower(pathinfo($pathToValidate, PATHINFO_EXTENSION));
+        if ($ext !== 'docx') {
+            return;
+        }
+        $handle = @fopen($pathToValidate, 'rb');
+        if ($handle === false) {
+            throw new \InvalidArgumentException('Nepavyko atidaryti šablono: ' . $displayName);
+        }
+        $header = fread($handle, 4);
+        fclose($handle);
+        if ($header === false || $header === '' || ! str_starts_with($header, 'PK')) {
+            throw new \InvalidArgumentException(
+                'Šablonas nėra galiojantis .docx (ZIP) failas (gali būti testinis arba sugadintas failas): ' . $displayName
+            );
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($pathToValidate) !== true) {
+            throw new \InvalidArgumentException(
+                'Šablonas nėra galiojantis .docx failas (gali būti sugadintas arba tai ne Word dokumentas): ' . $displayName
+            );
+        }
+        $hasOoxml = $zip->locateName('[Content_Types].xml') !== false
+        || $zip->locateName('word/document.xml') !== false;
+        $zip->close();
+        if (! $hasOoxml) {
+            throw new \InvalidArgumentException(
+                'Šablonas neatitinka Word .docx (OOXML) struktūros: ' . $displayName
+            );
+        }
     }
 
     private function resolveTemplatePath(string $directory, string $templateFile): ?string
@@ -591,9 +646,22 @@ final class CreateFile
         return implode(' ', $parts);
     }
 
+    /**
+     * Jei managerType tuščias, imama role (laisvas pareigų tekstas, pvz. „direktore“).
+     */
+    private function effectiveManagerType(array $data): string
+    {
+        $mt = trim((string) ($data['managerType'] ?? ''));
+        if ($mt === '') {
+            $mt = trim((string) ($data['role'] ?? ''));
+        }
+
+        return $this->namer->normalizeManagerTitleType($mt);
+    }
+
     private function resolveGender(string $managerType): string
     {
-        $type   = mb_strtolower(trim($managerType));
+        $type   = mb_strtolower(trim($this->namer->normalizeManagerTitleType($managerType)));
         $female = ['vadovė', 'direktorė'];
         $male   = ['vadovas', 'direktorius'];
         if (in_array($type, $female, true)) {
@@ -609,6 +677,23 @@ final class CreateFile
         }
 
         return 'Vyras';
+    }
+
+    /**
+     * Vardo ir pavardės linksniams: jei DB nurodyta Moteris/Vyras – visada taikoma (neperrašoma pagal pareigų žodį).
+     * Kitu atveju lytis spėjama iš pareigų (pvz. direktorė → Moteris). Pareigų (${vadovo}, …) forma vis tiek iš managerType/role.
+     */
+    private function resolveLytisForPersonDeclension(array $data): string
+    {
+        $e = mb_strtolower(trim((string) ($data['managerGender'] ?? $data['lytis'] ?? '')));
+        if ($e === 'moteris') {
+            return 'Moteris';
+        }
+        if ($e === 'vyras') {
+            return 'Vyras';
+        }
+
+        return $this->resolveGender($this->effectiveManagerType($data));
     }
 
     /**
@@ -645,6 +730,18 @@ final class CreateFile
      */
     private function setValueCaseInsensitive(TemplateProcessor $processor, string $placeholder, string $value): void
     {
+        foreach ($this->placeholderVariants($placeholder, $value) as $v => $val) {
+            $processor->setValue($v, $val);
+        }
+    }
+
+    /**
+     * Tas pats kaip setValueCaseInsensitive, bet be TemplateProcessor – naudojama DocxSplitMacroReplacer.
+     *
+     * @return array<string, string>
+     */
+    private function placeholderVariants(string $placeholder, string $value): array
+    {
         $lower = mb_strtolower($placeholder, 'UTF-8');
         $upper = mb_strtoupper($placeholder, 'UTF-8');
         $title = mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8');
@@ -657,19 +754,59 @@ final class CreateFile
         if ($placeholder !== $upper && $placeholder !== $lower && $placeholder !== $title) {
             $variants[$placeholder] = $value;
         }
-
-        foreach ($variants as $v => $val) {
-            if ($v !== '') {
-                $processor->setValue($v, $val);
-            }
+        // Word šablonai dažnai naudoja ${TipasPilnas} – mb_convert_case('tipasPilnas') duoda „Tipaspilnas“, ne „TipasPilnas“.
+        if ($lower === 'tipaspilnas') {
+            $variants['TipasPilnas'] = $value;
         }
-    }
-    private function detectLanguage(string $templateFilename): string
-    {
-        $baseName = pathinfo($templateFilename, PATHINFO_FILENAME);
+        if ($lower === 'companyname') {
+            $variants['CompanyName'] = $value;
+        }
+        if ($lower === 'documentdate') {
+            $variants['DocumentDate'] = $value;
+        }
 
-        if (preg_match('/\s(RU|EN)$/i', $baseName, $matches)) {
+        return array_filter(
+            $variants,
+            static fn(string $k): bool => $k !== '',
+            ARRAY_FILTER_USE_KEY
+        );
+    }
+    /**
+     * Kalba: iš užklausos (language/lang), kitaip pagal šablono kelią / pavadinimą
+     * (kaip frontend catalogueTreeFilter: segmentai EN/RU/LT, _EN, metadata.custom.language).
+     */
+    private function resolveDocumentLanguage(array $data, string $directory, string $templateBasename): string
+    {
+        $fromData = mb_strtoupper(trim((string) ($data['language'] ?? $data['lang'] ?? '')));
+        if (in_array($fromData, ['EN', 'RU', 'LT'], true)) {
+            return $fromData;
+        }
+
+        $dir      = trim(str_replace('\\', '/', $directory), '/');
+        $file     = trim(str_replace('\\', '/', $templateBasename), '/');
+        $relative = ($dir !== '' ? $dir . '/' : '') . $file;
+
+        return $this->detectLanguageFromPath($relative);
+    }
+
+    private function detectLanguageFromPath(string $relativePath): string
+    {
+        $norm     = str_replace('\\', '/', trim($relativePath));
+        $baseName = pathinfo($norm, PATHINFO_FILENAME);
+
+        if (preg_match('/\s(RU|EN)$/i', (string) $baseName, $matches)) {
             return mb_strtoupper($matches[1]);
+        }
+        if (preg_match('/(?:^|[\s_-])(RU|EN)$/i', (string) $baseName, $matches)) {
+            return mb_strtoupper($matches[1]);
+        }
+
+        $segments = preg_split('#/#', $norm, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        foreach ($segments as $seg) {
+            $t = trim($seg);
+            if (preg_match('/^(RU|EN|LT)$/i', $t)) {
+                return mb_strtoupper($t);
+            }
         }
 
         return 'LT';
@@ -677,121 +814,220 @@ final class CreateFile
 
     private function translateRole(string $managerType, string $lang): string
     {
-        $type = mb_strtolower(trim($managerType));
+        $normalized = $this->namer->normalizeManagerTitleType(trim($managerType));
+        $type       = mb_strtolower($normalized);
 
         if ($lang === 'RU') {
-            return match ($type) {
-                'direktorius', 'direktorė'                          => 'Директор',
-                'vadovas', 'vadovė'                                 => 'Руководитель',
-                'generalinis direktorius', 'generalinė direktorė'   => 'Генеральный директор',
-                'pirmininkas', 'pirmininkė'                         => 'Председатель',
-                'prezidentas', 'prezidentė'                         => 'Президент',
-                'administratorius', 'administratorė'                => 'Администратор',
-                'savininkas', 'savininkė'                           => 'Владелец',
-                default                                             => $managerType,
+            return match (true) {
+                str_contains($type, 'generalin') && str_contains($type, 'direktor')             => 'Генеральный директор',
+                in_array($type, ['direktorius', 'direktorė', 'direktore'], true)                => 'Директор',
+                in_array($type, ['vadovas', 'vadovė', 'vadove'], true)                          => 'Руководитель',
+                str_contains($type, 'direktor')                                                 => 'Директор',
+                str_contains($type, 'vadov')                                                    => 'Руководитель',
+                in_array($type, ['pirmininkas', 'pirmininkė', 'pirmininke'], true)              => 'Председатель',
+                in_array($type, ['prezidentas', 'prezidentė', 'prezidente'], true)              => 'Президент',
+                in_array($type, ['administratorius', 'administratorė', 'administratore'], true) => 'Администратор',
+                in_array($type, ['savininkas', 'savininkė', 'savininke'], true)                 => 'Владелец',
+                $type === 'director'                                                            => 'Директор',
+                $type === 'manager'                                                             => 'Руководитель',
+                default                                                                         => $normalized !== '' ? $normalized : $managerType,
             };
         }
 
-        return match ($type) {
-            'direktorius', 'direktorė'                          => 'Director',
-            'vadovas', 'vadovė'                                 => 'Manager',
-            'generalinis direktorius', 'generalinė direktorė'   => 'General Director',
-            'pirmininkas', 'pirmininkė'                         => 'Chairman',
-            'prezidentas', 'prezidentė'                         => 'President',
-            'administratorius', 'administratorė'                => 'Administrator',
-            'savininkas', 'savininkė'                           => 'Owner',
-            default                                             => $managerType,
+        return match (true) {
+            str_contains($type, 'generalin') && str_contains($type, 'direktor')             => 'General Director',
+            in_array($type, ['direktorius', 'direktorė', 'direktore'], true)                => 'Director',
+            in_array($type, ['vadovas', 'vadovė', 'vadove'], true)                          => 'Manager',
+            str_contains($type, 'direktor')                                                 => 'Director',
+            str_contains($type, 'vadov')                                                    => 'Manager',
+            in_array($type, ['pirmininkas', 'pirmininkė', 'pirmininke'], true)              => 'Chairman',
+            in_array($type, ['prezidentas', 'prezidentė', 'prezidente'], true)              => 'President',
+            in_array($type, ['administratorius', 'administratorė', 'administratore'], true) => 'Administrator',
+            in_array($type, ['savininkas', 'savininkė', 'savininke'], true)                 => 'Owner',
+            $type === 'director'                                                            => 'Director',
+            $type === 'manager'                                                             => 'Manager',
+            default                                                                         => $normalized !== '' ? $this->formatTitleCaseName($normalized) : $this->formatTitleCaseName($managerType),
         };
     }
 
-    private function translateTipas(string $tipas, string $lang): string
+    private function normalizeCompanyTypeToken(string $tipas): string
     {
-        $t = mb_strtoupper(trim($tipas));
-        $t = str_replace('.', '', $t);
-        $t = preg_replace('/\s+/', ' ', $t) ?? $t;
-
-        if ($lang === 'RU') {
-            return match ($t) {
-                'UAB'                              => 'ЗАО',
-                'AB'                               => 'АО',
-                'MB'                               => 'МТ',
-                'IĮ', 'II'                        => 'ИП',
-                'IND V', 'INDV', 'IV', 'IND. V.' => 'ИД',
-                'VŠĮ', 'VSĮ', 'VSI'              => 'ГУ',
-                default                            => $tipas,
-            };
+        $t = mb_strtoupper(trim($tipas), 'UTF-8');
+        $t = str_replace(['.', ','], '', $t);
+        $t = preg_replace('/\s+/u', '', $t) ?? $t;
+        // VŠĮ / VSĮ / VSI – vieningas atpažinimas (įskaitant klaidingą „S“ vietoje „Š“).
+        if (preg_match('/^V[ŠS][IĮ1]$/u', $t)) {
+            return 'VŠĮ';
         }
 
-        return match ($t) {
-            'UAB'                              => 'LLC',
-            'AB'                               => 'JSC',
-            'MB'                               => 'SP',
-            'IĮ', 'II'                        => 'IE',
-            'IND V', 'INDV', 'IV', 'IND. V.' => 'IA',
-            'VŠĮ', 'VSĮ', 'VSI'              => 'PI',
-            default                            => $tipas,
-        };
+        return $t;
+    }
+
+    private function translateTipas(string $tipas, string $lang, ?string $tipasPilnas = null): string
+    {
+        $t = $this->normalizeCompanyTypeToken($tipas);
+
+        if ($lang === 'RU') {
+            $mapped = match ($t) {
+                'UAB'   => 'ЗАО',
+                'AB'    => 'АО',
+                'MB'    => 'МТ',
+                'IĮ', 'II'   => 'ИП',
+                'INDV', 'IV' => 'ИД',
+                'VŠĮ', 'VSĮ', 'VSI' => 'ГУ',
+                default => null,
+            };
+            if ($mapped !== null) {
+                return $mapped;
+            }
+        } else {
+            $mapped = match ($t) {
+                'UAB'   => 'LLC',
+                'AB'    => 'JSC',
+                'MB'    => 'SP',
+                'IĮ', 'II'   => 'IE',
+                'INDV', 'IV' => 'IA',
+                'VŠĮ', 'VSĮ', 'VSI' => 'PI',
+                default => null,
+            };
+            if ($mapped !== null) {
+                return $mapped;
+            }
+        }
+
+        $combined = trim($tipas . ' ' . ($tipasPilnas ?? ''));
+
+        return $this->translateTipasFromFullPhrase($combined, $lang) ?? $tipas;
+    }
+
+    /**
+     * Kai trumpas kodas (tipas) neteisingas ar tuščias, bando atpažinti iš pilno pavadinimo.
+     */
+    private function translateTipasFromFullPhrase(string $tipas, string $lang): ?string
+    {
+        $hay = mb_strtolower($tipas);
+
+        if (str_contains($hay, 'viešoji') && str_contains($hay, 'įstaig')) {
+            return $lang === 'RU' ? 'ГУ' : 'PI';
+        }
+        if (str_contains($hay, 'uždaroji') && str_contains($hay, 'akcin')) {
+            return $lang === 'RU' ? 'ЗАО' : 'LLC';
+        }
+        if (str_contains($hay, 'akcinė bendrov') || ($hay === 'ab' || preg_match('/\bab\b/u', $hay) === 1)) {
+            return $lang === 'RU' ? 'АО' : 'JSC';
+        }
+        if (str_contains($hay, 'mažoji bendrija') || str_contains($hay, 'mb')) {
+            return $lang === 'RU' ? 'МТ' : 'SP';
+        }
+
+        return null;
     }
 
     private function translateTipasPilnas(string $tipas, string $tipasPilnas, string $lang): string
     {
-        $t = mb_strtoupper(trim($tipas));
-        $t = str_replace('.', '', $t);
-        $t = preg_replace('/\s+/', ' ', $t) ?? $t;
+        $t = $this->normalizeCompanyTypeToken($tipas);
 
         if ($lang === 'RU') {
-            return match ($t) {
-                'UAB'                              => 'Закрытое акционерное общество',
-                'AB'                               => 'Акционерное общество',
-                'MB'                               => 'Малое товарищество',
-                'IĮ', 'II'                        => 'Индивидуальное предприятие',
-                'IND V', 'INDV', 'IV', 'IND. V.' => 'Индивидуальная деятельность',
-                'VŠĮ', 'VSĮ', 'VSI'              => 'Государственное учреждение',
-                default                            => $tipasPilnas,
+            $short = match ($t) {
+                'UAB'   => 'Закрытое акционерное общество',
+                'AB'    => 'Акционерное общество',
+                'MB'    => 'Малое товарищество',
+                'IĮ', 'II'   => 'Индивидуальное предприятие',
+                'INDV', 'IV' => 'Индивидуальная деятельность',
+                'VŠĮ', 'VSĮ', 'VSI' => 'Государственное учреждение',
+                default => null,
             };
+            if ($short !== null) {
+                return $short;
+            }
+
+            return $this->translateTipasPilnasFromLongText($tipasPilnas, 'RU') ?? $tipasPilnas;
         }
 
-        return match ($t) {
-            'UAB'                              => 'Private Limited Liability Company',
-            'AB'                               => 'Joint Stock Company',
-            'MB'                               => 'Small Partnership',
-            'IĮ', 'II'                        => 'Individual Enterprise',
-            'IND V', 'INDV', 'IV', 'IND. V.' => 'Individual Activity',
-            'VŠĮ', 'VSĮ', 'VSI'              => 'Public Institution',
-            default                            => $tipasPilnas,
+        $short = match ($t) {
+            'UAB'   => 'Private Limited Liability Company',
+            'AB'    => 'Joint Stock Company',
+            'MB'    => 'Small Partnership',
+            'IĮ', 'II'   => 'Individual Enterprise',
+            'INDV', 'IV' => 'Individual Activity',
+            'VŠĮ', 'VSĮ', 'VSI' => 'Public Institution',
+            default => null,
         };
+        if ($short !== null) {
+            return $short;
+        }
+
+        return $this->translateTipasPilnasFromLongText($tipasPilnas, 'EN') ?? $tipasPilnas;
+    }
+
+    private function translateTipasPilnasFromLongText(string $tipasPilnas, string $lang): ?string
+    {
+        $h = mb_strtolower(preg_replace('/\s+/u', ' ', trim($tipasPilnas)) ?? '');
+
+        if (str_contains($h, 'viešoji') && str_contains($h, 'įstaig')) {
+            return $lang === 'RU' ? 'Государственное учреждение' : 'Public Institution';
+        }
+        if (str_contains($h, 'uždaroji') && str_contains($h, 'akcin')) {
+            return $lang === 'RU' ? 'Закрытое акционерное общество' : 'Private Limited Liability Company';
+        }
+        if (str_contains($h, 'akcinė bendrov') && ! str_contains($h, 'uždaroji')) {
+            return $lang === 'RU' ? 'Акционерное общество' : 'Joint Stock Company';
+        }
+        if (str_contains($h, 'mažoji bendrija')) {
+            return $lang === 'RU' ? 'Малое товарищество' : 'Small Partnership';
+        }
+        if (str_contains($h, 'individuali įmon') || str_contains($h, 'individuali veikla')) {
+            return $lang === 'RU'
+                ? (str_contains($h, 'veikla') ? 'Индивидуальная деятельность' : 'Индивидуальное предприятие')
+                : (str_contains($h, 'veikla') ? 'Individual Activity' : 'Individual Enterprise');
+        }
+
+        return null;
     }
 
     private function translateGender(string $lytis, string $lang): string
     {
+        $g = mb_strtolower(trim($lytis), 'UTF-8');
+
         if ($lang === 'RU') {
-            return match (mb_strtolower(trim($lytis))) {
-                'vyras'   => 'Мужской',
-                'moteris' => 'Женский',
-                default   => $lytis,
+            return match (true) {
+                in_array($g, ['vyras', 'male', 'мужской'], true)     => 'Мужской',
+                in_array($g, ['moteris', 'female', 'женский'], true) => 'Женский',
+                default                                              => $lytis,
             };
         }
 
-        return match (mb_strtolower(trim($lytis))) {
-            'vyras'   => 'Male',
-            'moteris' => 'Female',
-            default   => $lytis,
+        return match (true) {
+            in_array($g, ['vyras', 'male', 'мужской'], true)     => 'Male',
+            in_array($g, ['moteris', 'female', 'женский'], true) => 'Female',
+            default                                              => $lytis,
         };
+    }
+
+    /** EN/RU šablonams: vardas / pavardė su didžiąja raide. */
+    private function formatTitleCaseName(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '';
+        }
+
+        return mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
     }
 
     /**
      * ${data} / ${documentDate}: LT „2022 m. gegužės 02 d.“, EN „2 May 2022“, RU „2 мая 2022 г.“
      */
-    private function formatLocalizedLongDate(?\DateTimeImmutable $parsed, string $documentDate, string $lang): string
+    private function formatLocalizedLongDate( ? \DateTimeImmutable $parsed, string $documentDate, string $lang) : string
     {
         if ($parsed === null) {
             return $documentDate;
         }
 
         return match ($lang) {
-            'LT' => $this->formatLithuanianLongDateFromImmutable($parsed),
-            'EN' => $parsed->format('j F Y'),
-            'RU' => $this->formatRussianLongDateFromImmutable($parsed),
+            'LT'    => $this->formatLithuanianLongDateFromImmutable($parsed),
+            'EN'    => $parsed->format('j F Y'),
+            'RU'    => $this->formatRussianLongDateFromImmutable($parsed),
             default => $this->formatLithuanianLongDateFromImmutable($parsed),
         };
     }
@@ -868,7 +1104,7 @@ final class CreateFile
         return null;
     }
 
-    private function generateUuidV4(): string
+    private function generateUuidV4() : string
     {
         $data = random_bytes(16);
 

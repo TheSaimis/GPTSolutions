@@ -78,7 +78,7 @@ class CompanyRequisite
     #[ORM\PreUpdate]
     public function onUpdate(): void
     {
-        $this->modifiedAt = new \DateTimeImmutable();
+        $this->modifiedAt = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Vilnius'));
     }
 
     public function getId(): ?int

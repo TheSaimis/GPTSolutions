@@ -8,7 +8,7 @@ final class GetPDF
 {
     public function __construct(
         private readonly string $projectDir,
-        private readonly string $libreOfficeBin,
+        private readonly LibreOfficeBinResolver $libreOfficeBinResolver,
     ) {}
 
     /**
@@ -71,14 +71,7 @@ final class GetPDF
             return $pdfPath;
         }
     
-        $bin = trim($this->libreOfficeBin, "\"'");
-    
-        if (!file_exists($bin)) {
-            throw new \RuntimeException(
-                "LibreOffice nerastas.\n" .
-                "Ieškota: " . $bin
-            );
-        }
+        $bin = $this->libreOfficeBinResolver->resolve();
     
         $command = sprintf(
             '%s --headless --convert-to pdf --outdir %s %s 2>&1',

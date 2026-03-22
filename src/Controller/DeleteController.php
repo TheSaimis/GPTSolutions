@@ -67,7 +67,7 @@ final class DeleteController extends AbstractController
                 $entity->setDeleted(false);
                 $entity->setDeletedDate(null);
                 $this->em->flush();
-                $this->auditLogger->log("Naudotojas (ID: {$id}) pažymėtas atstatymui");
+                $this->auditLogger->log("Naudotojas (ID: {$id}) pažymėta atstatymui");
                 break;
             case 'company':
                 $entity = $this->em->getRepository(\App\Entity\CompanyRequisite::class)->find($id);
