@@ -92,7 +92,6 @@ final class CompanyController extends AbstractController
         foreach ($companies as $company) {
             $result[] = $this->toArray($company);
         }
-
         return new JsonResponse($result);
     }
 
@@ -111,8 +110,6 @@ final class CompanyController extends AbstractController
     #[Route('/{id}', name: 'api_company_get', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getOne(int $id, CompanyRequisiteRepository $repo): JsonResponse
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
         $company = $repo->find($id);
         if (! $company) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);

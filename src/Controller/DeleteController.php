@@ -1,11 +1,9 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Controller;
 
-use App\Repository\CompanyRequisiteRepository;
-use App\Repository\UserRepository;
 use App\Services\AuditLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,7 +27,7 @@ final class DeleteController extends AbstractController
         switch ($item) {
             case 'user':
                 $entity = $this->em->getRepository(\App\Entity\User::class)->find($id);
-                if (!$entity) {
+                if (! $entity) {
                     return new JsonResponse(['status' => 'FAIL', 'error' => 'Naudotojas nerastas'], 404);
                 }
                 $entity->setDeleted(true);
@@ -40,7 +38,7 @@ final class DeleteController extends AbstractController
 
             case 'company':
                 $entity = $this->em->getRepository(\App\Entity\CompanyRequisite::class)->find($id);
-                if (!$entity) {
+                if (! $entity) {
                     return new JsonResponse(['status' => 'FAIL', 'error' => 'Įmonė nerasta'], 404);
                 }
                 $entity->setDeleted(true);
@@ -53,6 +51,37 @@ final class DeleteController extends AbstractController
                 return new JsonResponse(['status' => 'FAIL', 'error' => 'Neleistinas tipas. Galimi: user, company'], 400);
         }
 
+        return new JsonResponse(['status' => 'SUCCESS']);
+    }
+
+    #[Route('/api/restore/{id}/{item}', name: 'api_restore', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function restore(int $id, string $item): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        switch ($item) {
+            case 'user':
+                $entity = $this->em->getRepository(\App\Entity\User::class)->find($id);
+                if (! $entity) {
+                    return new JsonResponse(['status' => 'FAIL', 'error' => 'Naudotojas nerastas'], 404);
+                }
+                $entity->setDeleted(false);
+                $entity->setDeletedDate(null);
+                $this->em->flush();
+                $this->auditLogger->log("Naudotojas (ID: {$id}) pažymėtas atstatymui");
+                break;
+            case 'company':
+                $entity = $this->em->getRepository(\App\Entity\CompanyRequisite::class)->find($id);
+                if (! $entity) {
+                    return new JsonResponse(['status' => 'FAIL', 'error' => 'Įmonė nerasta'], 404);
+                }
+                $entity->setDeleted(false);
+                $entity->setDeletedDate(null);
+                $this->em->flush();
+                $this->auditLogger->log("Įmonė \"{$entity->getCompanyName()}\" (ID: {$id}) pažymėta atstatymui");
+                break;
+            default:
+                return new JsonResponse(['status' => 'FAIL', 'error' => 'Neleistinas tipas. Galimi: user, company'], 400);
+        }
         return new JsonResponse(['status' => 'SUCCESS']);
     }
 }

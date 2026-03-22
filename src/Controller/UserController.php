@@ -83,7 +83,7 @@ final class UserController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
-        $users = $repo->findBy(['deleted' => false]);
+        $users = $repo->findAll();
         $data = [];
         foreach ($users as $user) {
             $data[] = [
@@ -92,6 +92,8 @@ final class UserController extends AbstractController
                 'firstName' => $user->getFirstName(),
                 'lastName' => $user->getLastName(),
                 'role' => $user->getRoles(),
+                'deleted' => $user->isDeleted(),
+                'deletedDate' => $user->getDeletedDate(),
             ];
         }
         return new JsonResponse($data);
@@ -100,8 +102,6 @@ final class UserController extends AbstractController
     #[Route('/users/{id}', name: 'app_user_get', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getOne(int $id, UserRepository $repo): JsonResponse
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
         $user = $repo->find($id);
         if (!$user) {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'User not found'], 404);
@@ -113,6 +113,8 @@ final class UserController extends AbstractController
             'firstName' => $user->getFirstName(),
             'lastName' => $user->getLastName(),
             'role' => $user->getRoles(),
+            'deleted' => $user->isDeleted(),
+            'deletedDate' => $user->getDeletedDate()?->format('Y-m-d H:i:s'),
         ]);
     }
 
@@ -146,7 +148,7 @@ final class UserController extends AbstractController
             $user->setPassword($this->passwordHasher->hashPassword($user, $data['password']));
         }
 
-        $allowedRoles = ['ROLE_USER', 'ROLE_ADMIN', 'ROLE_VIEWER', 'ROLE_MANAGER'];
+        $allowedRoles = ['ROLE_USER', 'ROLE_ADMIN'];
         if (isset($data['role']) && in_array($data['role'], $allowedRoles, true)) {
             $user->setRoles([$data['role']]);
         }
