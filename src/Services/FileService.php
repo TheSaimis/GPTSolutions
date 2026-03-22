@@ -209,6 +209,32 @@ final class FileService
     }
 
     /**
+     * Grąžina dokumento metaduomenis (core + custom). Tik .docx ir .xlsx failams.
+     *
+     * @return array{path: string, filename: string, metadata: array{core: array, custom: array}}|null
+     */
+    public function getFileMetadata(string $baseDir, string $path): ?array
+    {
+        $resolved = $this->resolvePath($baseDir, $path);
+        if ($resolved === null || ! is_file($resolved)) {
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['docx', 'xlsx'], true)) {
+            return null;
+        }
+
+        $metadata = $this->readDocxMetadata($resolved);
+
+        return [
+            'path'     => $path,
+            'filename' => basename($path),
+            'metadata' => $metadata,
+        ];
+    }
+
+    /**
      * @return string|null Pilnas kelias į baseDir arba null jei neegzistuoja
      */
     public function getBaseFullPath(string $baseDir): ?string

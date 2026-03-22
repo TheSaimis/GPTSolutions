@@ -155,6 +155,39 @@ final class FileController extends AbstractController
         );
     }
 
+    /**
+     * GET /api/files/document-data/{root}/{path}
+     * Grąžina dokumento duomenis ir metaduomenis. Nurodai root (templates|generated) ir path – gauni viską.
+     * Pvz.: GET /api/files/document-data/generated/UAB/CompanyName/doc.docx
+     */
+    #[Route('/document-data/{root}/{path}', name: 'api_files_document_data', methods: ['GET'], requirements: ['path' => '.+'], utf8: true)]
+    public function getDocumentData(string $root, string $path): JsonResponse
+    {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas. Leidžiami: templates, generated'], 403);
+        }
+
+        $result = $this->fileService->getFileMetadata($root, $path);
+        if ($result === null) {
+            return new JsonResponse(['error' => 'Failas nerastas arba nepalaikomas formatas: ' . $path], 404);
+        }
+
+        $custom = $result['metadata']['custom'] ?? [];
+        if (isset($custom['customVariables']) && is_string($custom['customVariables'])) {
+            $decoded = json_decode($custom['customVariables'], true);
+            $custom['customVariables'] = is_array($decoded) ? $decoded : [];
+        }
+
+        return new JsonResponse([
+            'path'     => $result['path'],
+            'filename' => $result['filename'],
+            'metadata' => [
+                'core'   => $result['metadata']['core'] ?? [],
+                'custom' => $custom,
+            ],
+        ]);
+    }
+
     #[Route('/download/{root}/{path}', name: 'api_downlaod_file', methods: ['GET'], requirements: ['path' => '.+'], utf8: true)]
     public function getGeneratedFile(string $path, string $root): JsonResponse | BinaryFileResponse
     {
