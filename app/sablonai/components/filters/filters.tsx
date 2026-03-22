@@ -62,6 +62,35 @@ export default function Filters() {
           />
         </div>
 
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Failo formatas</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              {
+                value: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                label: "Word",
+              },
+              {
+                value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                label: "Excel",
+              },
+            ].map((mime) => (
+              <div key={mime.value} className={styles.types}>
+                <CheckBox
+                  value={filters.mimeTypes.includes(mime.value)}
+                  onChange={(checked) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      mimeTypes: toggleArrayValue(prev.mimeTypes, mime.value, checked),
+                    }))
+                  }
+                />
+                <span>{mime.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* LANGUAGE FILTER */}
         <div className={`${styles.filter} ${styles.sectionCard}`}>
           <h2>Kalba</h2>

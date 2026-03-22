@@ -65,16 +65,15 @@ export default function Files({ data, fileType }: List) {
     );
   }
 
-
-
   function renameFile() {
     if (!fileType) return;
-
-    const finalName = newName + extension;
-
+    const cleanedName = newName.trimStart();
+    if (!cleanedName) return;
+    const finalName = cleanedName + extension;
     FilesApi.renameFile(data.path, finalName, fileType).then((res) => {
       if (res.status === "SUCCESS") {
         setRename(false);
+        setNewName(cleanedName);
         setCatalogueTree((prev) =>
           renameFileInTree(prev, data.path, finalName)
         );
@@ -168,7 +167,7 @@ export default function Files({ data, fileType }: List) {
             <File className={styles.file} style={{ color: FILE_TYPE_COLORS[(data.metadata?.custom?.mimeType ?? "undefined") as keyof typeof FILE_TYPE_COLORS] }} />
             {rename ? (
               <div onClick={(e) => e.stopPropagation()}>
-                <InputFieldText regex={/^(?![.\s])[^\\/:*?"<>|\x00-\x1F]+(?<![.\s])$/} ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
+                <InputFieldText regex={/^[^\\/:*?"<>|\x00-\x1F]+$/} ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
               </div>
             ) : (
               <div className={styles.header}>

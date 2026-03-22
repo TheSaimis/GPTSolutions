@@ -115,6 +115,7 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
     matchesTextFilter(filters.companyIds, custom?.companyId) &&
     matchesTextFilter(filters.templateIds, custom?.templateId) &&
     matchesTextFilter(filters.documentIds, custom?.documentId) &&
+    matchesTextFilter(filters.mimeTypes, custom?.mimeType) &&
     isWithinDateRange(custom?.created, filters.createdFrom, filters.createdTo)
   );
 }
@@ -130,6 +131,7 @@ function hasActiveFilters(filters: CatalogueFilters) {
     filters.companyIds.length ||
     filters.templateIds.length ||
     filters.documentIds.length ||
+    filters.mimeTypes.length ||
     filters.createdFrom ||
     filters.createdTo
   );

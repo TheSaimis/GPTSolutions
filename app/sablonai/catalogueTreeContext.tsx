@@ -15,6 +15,7 @@ export type CatalogueFilters = {
   companyIds: string[];
   templateIds: string[];
   documentIds: string[];
+  mimeTypes: string[];
   createdFrom: string;
   createdTo: string;
   showEmptyDirectories: boolean;
@@ -42,6 +43,7 @@ const defaultFilters: CatalogueFilters = {
   companyIds: [],
   templateIds: [],
   documentIds: [],
+  mimeTypes: [],
   createdFrom: "",
   createdTo: "",
   showEmptyDirectories: true,
