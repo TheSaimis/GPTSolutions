@@ -1,0 +1,253 @@
+$primary: #EF2629;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+$border-focus: #EF2629;
+$bg-input: #F8FAFC;
+
+.inputField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    h2 {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: $text-dark;
+        margin: 0;
+
+        .icon {
+            color: $text-muted;
+        }
+    }
+
+    .input {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        color: $text-dark;
+        background: $bg-input;
+        border: 1.5px solid $border;
+        border-radius: 10px;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+        &::placeholder {
+            color: #94A3B8;
+        }
+
+        &:focus {
+            border-color: $border-focus;
+            box-shadow: 0 0 0 3px rgba(239, 38, 41, 0.1);
+            background: #fff;
+        }
+    }
+
+    .select {
+        position: relative;
+        width: 100%;
+        cursor: pointer;
+
+        .selected {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.875rem;
+            color: $text-dark;
+            background: $bg-input;
+            border-radius: 10px;
+            cursor: pointer;
+
+            transition:
+                border-color 0.2s ease,
+                box-shadow 0.2s ease,
+                background 0.2s ease;
+        }
+
+        .selected:focus,
+        .selected.open {
+            border-color: $border-focus;
+            box-shadow: 0 0 0 3px rgba(239, 38, 41, 0.1);
+            background: white;
+        }
+
+        .options {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            width: 100%;
+            background: white;
+            border: 1.5px solid $border;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            z-index: 100;
+            opacity: 0;
+            transform: translateY(-5px);
+            pointer-events: none;
+            transition:
+                opacity 0.15s ease,
+                transform 0.15s ease;
+            overflow: hidden;
+        }
+
+        .options.visible {
+
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+
+        }
+
+        .options p {
+            margin: 0;
+            padding: 10px 14px;
+            font-size: 0.875rem;
+            transition: background 0.15s ease;
+        }
+
+        .options p:hover {
+            background: #d6d6d6;
+        }
+
+    }
+}
+
+.checkBox {
+    cursor: pointer;
+    border-radius: 6px;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    border: 2px solid #94A3B8;
+    background: #fff;
+    flex-shrink: 0;
+
+    .icon {
+        color: white;
+        opacity: 0;
+        width: 14px;
+        height: 14px;
+        transition: opacity 0.15s ease;
+    }
+
+    &:hover {
+        border-color: #EF2629;
+        box-shadow: 0 0 0 2px rgba(239, 38, 41, 0.15);
+    }
+}
+
+.checkBox.checked {
+    background-color: #EF2629;
+    border-color: #EF2629;
+
+    .icon {
+        opacity: 1;
+    }
+
+    &:hover {
+        box-shadow: 0 0 0 2px rgba(239, 38, 41, 0.25);
+    }
+}
+
+.inputFieldDate {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.label {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f274d;
+}
+
+.dateShell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 64px;
+    width: 100%;
+    padding: 0 20px;
+    border: 2px solid #d8e0ea;
+    border-radius: 28px;
+    background: #fff;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.15s ease;
+
+    &:hover {
+        border-color: #c8d2de;
+    }
+
+    &:focus-within {
+        border-color: #ff3b30;
+        box-shadow: 0 0 0 10px rgba(255, 59, 48, 0.1);
+    }
+}
+
+.displayValue {
+    font-size: 18px;
+    font-weight: 600;
+    color: #0f274d;
+    pointer-events: none;
+}
+
+.placeholder {
+    color: #0f274d;
+}
+
+.calendarIcon {
+    flex-shrink: 0;
+    color: #6b7280;
+    pointer-events: none;
+}
+
+.nativeDateInput {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+}
+
+.nativeDateInput::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.password {
+    position: relative;
+
+    button {
+        cursor: pointer;
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
+    }
+}

@@ -1,0 +1,3 @@
+# config/routes/api_login.yaml
+api_login_check:
+    path: /api/login

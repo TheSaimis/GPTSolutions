@@ -1,0 +1,16 @@
+# config/packages/lexik_jwt_authentication.yaml
+lexik_jwt_authentication:
+  secret_key: '%env(resolve:JWT_SECRET_KEY)%'
+  public_key: '%env(resolve:JWT_PUBLIC_KEY)%'
+  pass_phrase: '%env(JWT_PASSPHRASE)%'
+  token_ttl: 2592000
+  
+  token_extractors:
+    # SPA siunčia Authorization: Bearer (localStorage); slapukas auth lieka kaip papildoma galimybė
+    authorization_header:
+      enabled: true
+      prefix: Bearer
+      name: Authorization
+    cookie:
+      enabled: true
+      name: auth

@@ -1,0 +1,26 @@
+.footer {
+    background-color: #0F172A;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 18px 32px;
+    flex-shrink: 0;
+
+    .footerContent {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .footerLogo {
+        height: 22px;
+        width: auto;
+        object-fit: contain;
+        opacity: 0.8;
+    }
+
+    .text {
+        margin: 0;
+        font-size: 0.8rem;
+        font-weight: 400;
+    }
+}

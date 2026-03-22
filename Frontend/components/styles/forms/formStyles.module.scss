@@ -1,0 +1,65 @@
+.form {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    z-index: 100;
+    transition: 0.3s;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.196);
+
+    .container {
+        background-color: white;
+        position: absolute;
+        overflow: hidden;
+        width: 80%;
+        border-radius: 4px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+
+        h1 {
+            padding: 15px;
+            padding-inline: 25px;
+            text-align: center;
+            background-color: #3b83ff;
+            font-weight: bold;
+            color: white;
+        }
+
+        .inputFields {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+
+            .buttons {
+                display: flex;
+                button {
+                    position: relative;
+                    display: flex;
+                    justify-content: center;
+                    width: 100%;
+                    font-weight: bold;
+                    background-color: rgb(45, 115, 255);
+                    margin: 7px;
+                    padding: 3px;
+                    border-radius: 4px;
+                    color: white;
+                    cursor: pointer;
+                }
+                .icon {
+                    left: 5px;
+                    position: absolute;
+                }
+                .delete {
+                    background-color: rgb(255, 0, 0);
+                }
+            }
+        }
+    }
+}
+
+.invisible {
+    opacity: 0;
+    pointer-events: none;
+}

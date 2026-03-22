@@ -1,0 +1,23 @@
+.pdfViewer {
+    opacity: 0;
+    transition: 0.3s;
+    width: 100%;
+    z-index: 1000000;
+    background-color: #00000062;
+
+    button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: white;
+        cursor: pointer;
+    }
+    
+    position: fixed;
+    iframe {
+        scale: 90%;
+    }
+}
+.pdfViewer.open {
+    opacity: 1;
+}

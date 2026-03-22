@@ -1,0 +1,137 @@
+$primary: #EF2629;
+$primary-light: rgba(239, 38, 41, 0.06);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+.page {
+    flex: 1;
+    background: $bg;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 220px;
+        background: $primary;
+    }
+}
+
+.hero {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 48px 24px 40px;
+
+    .heroTitle {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin: 0 0 10px;
+        letter-spacing: -0.02em;
+    }
+
+    .heroSubtitle {
+        font-size: 1.05rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0;
+    }
+}
+
+.grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    width: 100%;
+    max-width: 900px;
+    padding: 0 24px 40px;
+}
+
+.card {
+    background: #ffffff;
+    border: 1.5px solid $border;
+    border-radius: 18px;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+
+    &:hover {
+        border-color: $primary;
+        box-shadow: 0 4px 20px rgba(239, 38, 41, 0.10), 0 8px 32px rgba(0, 0, 0, 0.06);
+        transform: translateY(-2px);
+
+        .cardIcon {
+            background: $primary;
+            color: #fff;
+        }
+
+        .cardButton {
+            background: $primary;
+            color: #fff;
+            border-color: $primary;
+        }
+    }
+}
+
+.cardIcon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: $primary-light;
+    color: $primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.cardTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $text-dark;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.cardDescription {
+    font-size: 0.875rem;
+    color: $text-muted;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.cardButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding: 10px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $primary;
+    background: transparent;
+    border: 1.5px solid $primary;
+    border-radius: 10px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-width: 160px;
+    justify-content: center;
+}

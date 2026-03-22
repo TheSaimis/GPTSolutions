@@ -1,0 +1,134 @@
+$primary: #EF2629;
+$primary-hover: #d91f22;
+$primary-light: rgba(239, 38, 41, 0.06);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+.loginInner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.loginBack {
+  margin-bottom: 12px;
+}
+
+.login {
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 280px;
+    background: $primary;
+    z-index: 0;
+  }
+}
+
+.loginCard {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 44px 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid $border;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+// ~10% tamsesnis už $primary-light (tamsesnis raudonos tonas + šiek tiek didesnis alfa)
+$logo-wrap-bg: rgba(215, 34, 37, 0.066);
+
+.logoWrap {
+  margin-bottom: 24px;
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
+  background: $logo-wrap-bg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.logo {
+  object-fit: contain;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: $text-dark;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  color: $text-muted;
+  margin: 0 0 32px;
+  line-height: 1.4;
+}
+
+.form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.inputFields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.submitButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: $primary;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  margin-top: 8px;
+
+  &:hover {
+    background: $primary-hover;
+    box-shadow: 0 4px 16px rgba(239, 38, 41, 0.35);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+}

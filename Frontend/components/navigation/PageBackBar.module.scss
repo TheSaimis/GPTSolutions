@@ -1,0 +1,25 @@
+$text-dark: #0f172a;
+$text-muted: #64748b;
+
+.bar {
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $text-muted;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.link:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: $text-dark;
+}

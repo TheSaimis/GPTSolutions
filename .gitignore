@@ -1,0 +1,11 @@
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Optional local overrides
+.env
+.env.local
+Backend/.env.dev
+Frontend/.env*.local

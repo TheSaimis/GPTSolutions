@@ -1,0 +1,30 @@
+# origin_regex: bet koks prievadas (pvz. 3001) ir LAN IP – kitaip fetch() meta „Failed to fetch“ be CORS antraščių.
+nelmio_cors:
+  defaults:
+    origin_regex: true
+    allow_origin:
+      - '^https?://localhost(:[0-9]+)?$'
+      - '^https?://127\.0\.0\.1(:[0-9]+)?$'
+      - '^https?://\[::1\](:[0-9]+)?$'
+      - '^https?://192\.168\.\d{1,3}\.\d{1,3}(:[0-9]+)?$'
+      - '^https?://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:[0-9]+)?$'
+    allow_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+    allow_headers: ['Content-Type', 'Authorization']
+    expose_headers: ['Content-Disposition', 'Content-Type']
+    allow_credentials: true
+    max_age: 3600
+
+  paths:
+    '^/api/':
+      origin_regex: true
+      allow_origin:
+        - '^https?://localhost(:[0-9]+)?$'
+        - '^https?://127\.0\.0\.1(:[0-9]+)?$'
+        - '^https?://\[::1\](:[0-9]+)?$'
+        - '^https?://192\.168\.\d{1,3}\.\d{1,3}(:[0-9]+)?$'
+        - '^https?://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:[0-9]+)?$'
+      allow_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+      allow_headers: ['Content-Type', 'Authorization']
+      expose_headers: ['Content-Disposition', 'Content-Type']
+      allow_credentials: true
+      max_age: 3600
