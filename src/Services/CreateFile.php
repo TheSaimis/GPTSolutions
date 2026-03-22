@@ -240,7 +240,9 @@ final class CreateFile
         $created    = $existingOutputMeta['created'] ?? $now;
         $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
 
-        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+        $customVars = $this->normalizeCustomReplacements($data['replacements'] ?? $data['custom'] ?? []);
+
+        $this->docxMetadataService->setDocxCustomProperties($outputPath, array_merge([
             'templateId' => $templateId,
             'documentId' => $documentId,
             'created'    => $created,
@@ -251,7 +253,9 @@ final class CreateFile
             'company'    => $companyName,
             'companyId'  => $companyId,
             'language'   => $lang,
-        ]);
+        ], array_filter([
+            'customVariables' => $customVars !== [] ? json_encode($customVars, JSON_UNESCAPED_UNICODE) : null,
+        ])));
         return $outputPath;
     }
 
@@ -468,7 +472,9 @@ final class CreateFile
             $created    = $existingOutputMeta['created'] ?? $now;
             $documentId = $existingOutputMeta['documentId'] ?? $this->generateUuidV4();
 
-            $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+            $customVars = $this->normalizeCustomReplacements($data['replacements'] ?? $data['custom'] ?? []);
+
+            $this->docxMetadataService->setDocxCustomProperties($outputPath, array_merge([
                 'templateId' => $templateId,
                 'documentId' => $documentId,
                 'created'    => $created,
@@ -479,10 +485,34 @@ final class CreateFile
                 'company'    => $companyName,
                 'companyId'  => $companyId,
                 'language'   => $lang,
-            ]);
+            ], array_filter([
+                'customVariables' => $customVars !== [] ? json_encode($customVars, JSON_UNESCAPED_UNICODE) : null,
+            ])));
         }
 
         return $outputPath;
+    }
+
+    /**
+     * Normalizuoja custom replacements į paprastą key => value masyvą.
+     *
+     * @param mixed $replacements
+     * @return array<string, string>
+     */
+    private function normalizeCustomReplacements(mixed $replacements): array
+    {
+        if (! is_array($replacements)) {
+            return [];
+        }
+        $pairs = [];
+        foreach ($replacements as $key => $value) {
+            if (is_int($key) && is_array($value) && count($value) >= 2) {
+                $pairs[(string) $value[0]] = (string) $value[1];
+            } elseif (is_string($key) && trim($key) !== '') {
+                $pairs[$key] = (string) $value;
+            }
+        }
+        return $pairs;
     }
 
     /**
