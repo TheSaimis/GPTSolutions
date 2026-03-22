@@ -14,7 +14,7 @@ export default function Home() {
     }
     getRole();
     document.title = "Pagrindinis";
-  },[]);
+  }, []);
 
   async function getGeneratedFiles() {
     const { blob, filename } = await GeneratedFilesApi.getAllZip();
@@ -63,33 +63,33 @@ export default function Home() {
         </Link>
 
         {role == "ROLE_ADMIN" &&
-          <Link href="/imones" className={styles.card}>
-            <div className={styles.cardIcon}>
-              <Building2 size={28} />
-            </div>
-            <h2 className={styles.cardTitle}>Pridėti įmonę</h2>
-            <p className={styles.cardDescription}>
-              Registruokite naują įmonę sistemoje ir pradėkite naudotis paslaugomis.
-            </p>
-            <span className={styles.cardButton}>
-              Registruoti įmonę <ArrowRight size={16} />
-            </span>
-          </Link>
-        }
-        <Link href="/imones/sarasas" className={styles.card}>
-          <div className={styles.cardIcon}>
-            <ScrollText size={28} />
-          </div>
-          <h2 className={styles.cardTitle}>Įmonių sarašas</h2>
-          <p className={styles.cardDescription}>
-            Visų egzisutojančių įmonių sarašas, informacijos laukai, bei ju redagavimas.
-          </p>
-          <span className={styles.cardButton}>
-            Įmonių sarašas <ArrowRight size={16} />
-          </span>
-        </Link>
-        {role == "ROLE_ADMIN" && (
           <>
+            <Link href="/imones" className={styles.card}>
+              <div className={styles.cardIcon}>
+                <Building2 size={28} />
+              </div>
+              <h2 className={styles.cardTitle}>Pridėti įmonę</h2>
+              <p className={styles.cardDescription}>
+                Registruokite naują įmonę sistemoje ir pradėkite naudotis paslaugomis.
+              </p>
+              <span className={styles.cardButton}>
+                Registruoti įmonę <ArrowRight size={16} />
+              </span>
+            </Link>
+
+            <Link href="/imones/sarasas" className={styles.card}>
+              <div className={styles.cardIcon}>
+                <ScrollText size={28} />
+              </div>
+              <h2 className={styles.cardTitle}>Įmonių sarašas</h2>
+              <p className={styles.cardDescription}>
+                Visų egzisutojančių įmonių sarašas, informacijos laukai, bei ju redagavimas.
+              </p>
+              <span className={styles.cardButton}>
+                Įmonių sarašas <ArrowRight size={16} />
+              </span>
+            </Link>
+
             <Link href={"/naudotojai"} className={styles.card}>
               <div className={styles.cardIcon}>
                 <User size={28} />
@@ -115,9 +115,9 @@ export default function Home() {
                 Naudotojų sarašas <ArrowRight size={16} />
               </span>
             </Link>
-          </>
-        )}
 
+          </>
+        }
 
         <button className={styles.card} onClick={getGeneratedFiles}>
           <div className={styles.cardIcon}>

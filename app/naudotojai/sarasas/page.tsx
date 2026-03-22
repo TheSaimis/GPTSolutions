@@ -144,6 +144,7 @@ export default function NaudotojuSarasasPage() {
                                     lastName={user.lastName}
                                     role={user.role}
                                     variant={viewMode}
+                                    deleted={user.deleted}
                                 />
                             ) : null
                         )}

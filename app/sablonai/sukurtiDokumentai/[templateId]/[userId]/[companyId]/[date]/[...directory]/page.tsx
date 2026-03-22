@@ -35,6 +35,7 @@ export default function Page({ params }: PageProps) {
     const [company, setCompany] = useState<Company | null>(null);
     const [templatePath, setTemplatePath] = useState<string>();
     const [user, setUser] = useState<User | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [date, setDate] = useState(() => decodeURIComponent(dateSeg));
     const fullPath = decodeURIComponent(directory.join("/"));
 
@@ -52,6 +53,19 @@ export default function Page({ params }: PageProps) {
         getItems();
     }, [templateId, companyId]);
 
+    useEffect(() => {
+      async function loadCurrentUser() {
+        const first = localStorage.getItem("name");
+        const last = localStorage.getItem("lastName");
+        const id = localStorage.getItem("id");
+        console.log(first, last, id);
+        if (first && last) {
+          setCurrentUser({ firstName: first, lastName: last, id: Number(id) });
+        }
+      }
+      loadCurrentUser();
+    } , []);
+
     function nowSqlDate() {
         const d = new Date();
         const pad = (n: number) => String(n).padStart(2, "0");
@@ -62,6 +76,9 @@ export default function Page({ params }: PageProps) {
         if (!templatePath) return;
         const res = await TemplateApi.createDocument(Number(companyId), [templatePath], {}, fullPath.split("/").pop());
         const today = nowSqlDate();
+        console.log(user);
+        console.log(currentUser);
+        setUser(currentUser);
         if (res) setDate(today);
     }
 

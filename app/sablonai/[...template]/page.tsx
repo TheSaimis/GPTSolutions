@@ -78,54 +78,55 @@ export default function TemplatePage() {
             <div className={styles.topBar}>
                 <PageBackBar />
             </div>
+            <div className={styles.content}>
+                <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                        <div className={styles.fileIcon}>
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <h1 className={styles.title}>{documentName}</h1>
+                            <p className={styles.subtitle}>Pasirinkite Įmonę ir sugeneruokite dokumentą</p>
+                        </div>
+                    </div>
 
-            <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                    <div className={styles.fileIcon}>
-                        <FileText size={24} />
+                    <div className={styles.divider} />
+
+                    <div className={styles.form}>
+                        <InputFieldSelect
+                            placeholder="Įmonė"
+                            onChange={setCompany}
+                            options={companies.map((c) => ({
+                                value: String(c.id),
+                                label: `${c.companyType} ${c.companyName}`,
+                            }))}
+                        />
                     </div>
-                    <div>
-                        <h1 className={styles.title}>{documentName}</h1>
-                        <p className={styles.subtitle}>Pasirinkite Įmonę ir sugeneruokite dokumentą</p>
-                    </div>
+
+                    {customFields.length > 0 &&
+                        <div>
+                            <p>Papildomi laukai</p>
+                            {customFields.map((field, index) => (
+                                <div key={index}>
+                                    <InputFieldText
+                                        placeholder={field}
+                                        value={customVariables[field] ?? ""}
+                                        onChange={(value) => updateCustomField(field, value)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    }
+                    <button className={styles.submitButton} onClick={createDocument}>
+                        <Download size={18} />
+                        Sukurti dokumentą
+                    </button>
                 </div>
-
-                <div className={styles.divider} />
-
-                <div className={styles.form}>
-                    <InputFieldSelect
-                        placeholder="Įmonė"
-                        onChange={setCompany}
-                        options={companies.map((c) => ({
-                            value: String(c.id),
-                            label: `${c.companyType} ${c.companyName}`,
-                        }))}
-                    />
-                </div>
-
-                {customFields.length > 0 &&
-                    <div>
-                        <p>Papildomi laukai</p>
-                        {customFields.map((field, index) => (
-                            <div key={index}>
-                                <InputFieldText
-                                    placeholder={field}
-                                    value={customVariables[field] ?? ""}
-                                    onChange={(value) => updateCustomField(field, value)}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                {company &&
+                    <CompanyCard id={Number(company)} />
                 }
-                <button className={styles.submitButton} onClick={createDocument}>
-                    <Download size={18} />
-                    Sukurti dokumentą
-                </button>
             </div>
 
-            { company &&
-                <CompanyCard id={Number(company)} />
-            }
 
         </div>
     );

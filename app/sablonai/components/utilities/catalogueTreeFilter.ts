@@ -15,6 +15,14 @@ function matchesTextFilter(filters: string[], value?: string) {
   );
 }
 
+function matchesExactFilter(filters: string[], value?: string) {
+  if (filters.length === 0) return true;
+
+  const normalizedValue = normalize(value);
+
+  return filters.some((filterValue) => normalizedValue === normalize(filterValue));
+}
+
 function detectTemplateLanguage(node: TemplateList): string {
   const custom: any = node.metadata?.custom ?? {};
   const raw =
@@ -99,7 +107,7 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
 
   return (
     matchesSearch(node, filters.search) &&
-    matchesTextFilter(filters.types, custom?.type) &&
+    matchesExactFilter(filters.types, custom?.type) &&
     matchesTextFilter(filters.companies, custom?.company) &&
     matchesLanguageFilter(filters.languages, node) &&
     matchesTextFilter(filters.createdBy, custom?.createdBy) &&
@@ -114,16 +122,16 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
 function hasActiveFilters(filters: CatalogueFilters) {
   return Boolean(
     normalize(filters.search) ||
-      filters.types.length ||
-      filters.companies.length ||
-      filters.languages.length ||
-      filters.createdBy.length ||
-      filters.userIds.length ||
-      filters.companyIds.length ||
-      filters.templateIds.length ||
-      filters.documentIds.length ||
-      filters.createdFrom ||
-      filters.createdTo
+    filters.types.length ||
+    filters.companies.length ||
+    filters.languages.length ||
+    filters.createdBy.length ||
+    filters.userIds.length ||
+    filters.companyIds.length ||
+    filters.templateIds.length ||
+    filters.documentIds.length ||
+    filters.createdFrom ||
+    filters.createdTo
   );
 }
 

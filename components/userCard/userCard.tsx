@@ -10,6 +10,7 @@ export type UserCardData = {
     firstName?: string;
     lastName?: string;
     role?: string | string[];
+    deleted?: boolean;
     variant?: "large" | "compact" | "mini";
 };
 
@@ -29,7 +30,7 @@ function roleLabel(role?: string | string[]): string {
 }
 
 export default function UserCard(props: UserCardData) {
-    const { id, email, firstName, lastName, role, variant = "large" } = props;
+    const { id, email, firstName, lastName, role, deleted, variant = "large" } = props;
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || "—";
     const allFields = [
         { key: "email", value: email },
@@ -46,7 +47,7 @@ export default function UserCard(props: UserCardData) {
 
     return (
         <article
-            className={`${styles.userCard} ${variant === "compact" ? styles.compact : ""} ${variant === "mini" ? styles.mini : ""}`}
+            className={`${styles.userCard} ${deleted ? styles.deleted : ""} ${variant === "compact" ? styles.compact : ""} ${variant === "mini" ? styles.mini : ""}`}
         >
             <div className={styles.cardHeader}>
                 <div className={styles.cardIcon}>

@@ -132,8 +132,7 @@ async function request<T>({
         path !== "/api/login";
 
       if (redirectToLogin) {
-        localStorage.removeItem("token");
-        window.location.href = "/prisijungimas";
+        // window.location.href = "/prisijungimas";
       } else {
         MessageStore.push({
           title: errorTitle || "Klaida",
@@ -201,6 +200,14 @@ export const api = {
       path,
       body,
       responseType: "blob",
+      ...options,
+    }),
+
+  delete: <T>(path: string, options?: RequestOptions) =>
+    request<T>({
+      method: "DELETE",
+      path,
+      responseType: "json",
       ...options,
     }),
 

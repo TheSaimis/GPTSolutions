@@ -5,14 +5,13 @@ import { useState } from "react";
 type Props = {
     value: any;
     placeholder?: string;
+    autocomplete?: string;
     onChange: (v: string) => void;
     icon?: LucideIcon;
     onKeyDown?: Record<string, () => void>;
 }
 
-
-
-export default function InputFieldPassword({ value, placeholder, onChange, icon: Icon, onKeyDown }: Props) {
+export default function InputFieldPassword({ value, placeholder, onChange, icon: Icon, onKeyDown, autocomplete }: Props) {
 
     const [visible, setVisible] = useState(false);
 
@@ -24,6 +23,7 @@ export default function InputFieldPassword({ value, placeholder, onChange, icon:
                     type={visible ? "text" : "password"}
                     value={value}
                     placeholder={placeholder}
+                    autoComplete={autocomplete}
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={(e) => {
                         const fn = onKeyDown?.[e.key];

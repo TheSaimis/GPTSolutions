@@ -19,6 +19,7 @@ export const AuthApi = {
 
         localStorage.setItem("name", decoded.firstName);
         localStorage.setItem("lastName", decoded.lastName);
+        localStorage.setItem("id", decoded.id.toString());
         localStorage.setItem("email", decoded.email);
         localStorage.setItem("role", decoded.roles[0]);
 

@@ -5,6 +5,8 @@ export type User = {
     lastName?: string;
     password?: string;
     role?: string;
+    deleted?: boolean;
+    deletedDate?: string;
     createdAt?: string;
     modifiedAt?: string;
 };

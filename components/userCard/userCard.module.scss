@@ -13,6 +13,10 @@ $border: #E2E8F0;
     border: 1px solid $border;
 }
 
+.deleted {
+    background-color: rgb(255, 161, 161);
+}
+
 .cardHeader {
     display: flex;
     align-items: center;

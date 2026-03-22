@@ -2,14 +2,16 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Save } from "lucide-react";
+import { User, Save, Trash } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import { UsersApi } from "@/lib/api/users";
 import { MessageStore } from "@/lib/globalVariables/messages";
+import { useConfirmAction } from "@/components/confirmationPanel/confirmationPanel";
 import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import InputFieldPassword from "@/components/inputFields/inputFieldPassword";
 
 const ROLE_OPTIONS = [
     { value: "ROLE_ADMIN", label: "Administratorius" },
@@ -27,8 +29,12 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
     const [email, setEmail] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [deleted, setDeleted] = useState(false);
+    const [password, setPassword] = useState<string>("");
+    const [deletedDate, setDeletedDate] = useState("");
     const [role, setRole] = useState("");
     const [readOnly, setReadOnly] = useState<{ createdAt?: string; modifiedAt?: string }>({});
+    const { confirmAction } = useConfirmAction();
 
     useEffect(() => {
         if (Number.isNaN(id)) {
@@ -47,18 +53,53 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
                         createdAt: u.createdAt,
                         modifiedAt: u.modifiedAt,
                     });
+                    setDeleted(u.deleted ?? false);
+                    setDeletedDate(u.deletedDate ?? "");
                 }
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoading(false));
     }, [id]);
 
     async function handleSubmit() {
         if (Number.isNaN(id)) return;
         try {
-            await UsersApi.userUpdate(id, { email, firstName, lastName, role });
+            await UsersApi.userUpdate(id, { email, firstName, lastName, role, ...(password && { password }) });
             MessageStore.push({ title: "Sėkmingai", message: "Naudotojas atnaujintas", backgroundColor: "#22C55E" });
             router.push("/naudotojai/sarasas");
+        } catch {
+            // error handled by api
+        }
+    }
+
+    async function deleteUser() {
+        if (Number.isNaN(id)) return;
+        try {
+            const confirmed = await confirmAction({
+                title: "Ištrinti naudotoją?",
+                message: "Atliekus ši veiksmą vartotojas išliks duomenų bazėje 7 dienas.\n Praėjus šiam laikotarpiui vartotojas bus ištrintas visam laikui",
+                type: "delete",
+                confirmText: "Ištrinti",
+                cancelText: "Atšaukti",
+                icon: Trash,
+            });
+            if (!confirmed) return;
+
+            await UsersApi.userDelete(id);
+            MessageStore.push({ title: "Sėkmingai", message: "Naudotojas ištrintas", backgroundColor: "#22C55E" });
+            setDeleted(true);
+            setDeletedDate(new Date().toISOString());
+        } catch {
+            // error handled by api
+        }
+    }
+    async function restoreUser() {
+        if (Number.isNaN(id)) return;
+        try {
+            await UsersApi.userRestore(id);
+            MessageStore.push({ title: "Sėkmingai", message: "Naudotojas atkurtas", backgroundColor: "#22C55E" });
+            setDeleted(false);
+            setDeletedDate("");
         } catch {
             // error handled by api
         }
@@ -81,7 +122,7 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
             <div className={styles.topBar}>
                 <PageBackBar />
             </div>
-
+            <p>{deleted ? "Naudotojas ištrintas" : ""} abcd</p>
             <div className={styles.card}>
                 <div className={styles.cardHeader}>
                     <div className={styles.fileIcon}>
@@ -91,9 +132,29 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
                         <h1 className={styles.title}>Redaguoti naudotoją</h1>
                         <p className={styles.subtitle}>Keiskite naudotojo duomenis (ID, sukūrimo ir redagavimo datos nekeičiamos)</p>
                     </div>
+                    { !deleted &&
+                        <div className={styles.trashIcon} onClick={deleteUser}>
+                            <Trash size={24} />
+                        </div>
+                    }
                 </div>
 
                 <div className={styles.divider} />
+
+                {deleted && (
+                    <>
+                        <div className={styles.deletedSection}>
+                            <div className={styles.deletedRow}>
+                                <p className={styles.deletedLabel}>Šis vartotojas yra ištrintas</p>
+                                <p className={styles.deletedValue}>Ištrinimo data: {deletedDate}</p>
+                                <p>Praėjus 7 dienom nuo ištrinimo datos vartotojas bus pašalintas iš duomenų bazės visam laikui</p>
+                            </div>
+                            <button onClick={restoreUser} className="buttons">Atstatyti vartotoją</button>
+                        </div>
+                        <div className={styles.divider} />
+                    </>
+                )
+                }
 
                 <div className={styles.readOnlySection}>
                     <div className={styles.readOnlyRow}>
@@ -123,6 +184,7 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
                     </div>
                     <InputFieldText value={email} onChange={setEmail} type="email" placeholder="El. paštas" />
                     <InputFieldSelect options={ROLE_OPTIONS} selected={role} onChange={setRole} placeholder="Teisės" />
+                    <InputFieldPassword autocomplete="new-password" value={password} onChange={setPassword} placeholder="Slaptažodis" />
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>

@@ -113,6 +113,12 @@ export default function Files({ data, fileType }: List) {
     inputRef.current?.focus();
   }, [rename]);
 
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr.replace(" ", "T")); // important fix
+    return date.toLocaleDateString("lt-LT"); // Lithuanian format
+  };
+
   return (
     <div>
       <div
@@ -163,7 +169,7 @@ export default function Files({ data, fileType }: List) {
       >
         <div className={styles.itemContainer}>
           <div className={styles.item} onClick={clicked}>
-            <File className={styles.file} style={{ color: FILE_TYPE_COLORS[(data.metadata?.custom?.mimeType ?? "undefined") as keyof typeof FILE_TYPE_COLORS]  }} />
+            <File className={styles.file} style={{ color: FILE_TYPE_COLORS[(data.metadata?.custom?.mimeType ?? "undefined") as keyof typeof FILE_TYPE_COLORS] }} />
             {rename ? (
               <div onClick={(e) => e.stopPropagation()}>
                 <InputFieldText regex={/^(?![.\s])[^\\/:*?"<>|\x00-\x1F]+(?<![.\s])$/} ref={inputRef} value={newName} onFocus={setRename} onChange={setNewName} onKeyDown={{ Enter: renameFile, Escape: () => setRename(false), }} />
@@ -172,7 +178,7 @@ export default function Files({ data, fileType }: List) {
               <div className={styles.header}>
                 <p className={styles.name}>{data.name}</p>
                 {data.metadata?.custom?.created &&
-                  <p className={styles.date}>Sukurta {data.metadata?.custom?.created} {formatFileSize(data.size || 0)}</p>
+                  <p className={styles.date}>{formatDate(data.metadata?.custom?.created)} | {formatFileSize(data.size || 0)}</p>
                 }
               </div>
             )}

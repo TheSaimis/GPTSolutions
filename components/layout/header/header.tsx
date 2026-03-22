@@ -30,10 +30,14 @@ export default function Header() {
             </Link>
             <nav className={styles.nav}>
                 <Link href="/sablonai" className={styles.navLink}>Šablonai</Link>
-                <Link href="/imones" className={styles.navLink}>Įmonės</Link>
-                <Link href="/atsisiusti" className={styles.navLink}>Atsisiųsti</Link>
+                <Link href="/sablonai/sukurtiDokumentai" className={styles.navLink}>Dokumentai</Link>
+
                 {role === "ROLE_ADMIN" && (
-                    <Link href="/admin" className={styles.navLink}>Administravimas</Link>
+                    <>
+                        <Link href="/admin" className={styles.navLink}>Administravimas</Link>
+                        <Link href="/imones/sarasas" className={styles.navLink}>Įmonės</Link>
+                        <Link href="/naudotojai/sarasas" className={styles.navLink}>Vartotojai</Link>
+                    </>
                 )}
                 {name &&
                     <Link href="/profilis" className={styles.navLink}><User size={16} /> {name}</Link>

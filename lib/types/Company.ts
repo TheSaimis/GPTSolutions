@@ -12,6 +12,8 @@ export type Company = {
     documentDate?: string;
     modifiedAt?: string;
     createdAt?: string;
+    deleted?: boolean;
+    deletedDate?: string;
     role?: string;
 };
 
