@@ -132,3 +132,39 @@ $logo-wrap-bg: rgba(215, 34, 37, 0.066);
     transform: scale(0.99);
   }
 }
+
+@media (max-width: 480px) {
+  .login {
+    padding: 24px 12px;
+
+    &::before {
+      height: 220px;
+    }
+  }
+
+  .loginCard {
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+
+  .logoWrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    margin-bottom: 18px;
+  }
+
+  .title {
+    font-size: 1.4rem;
+  }
+
+  .subtitle {
+    font-size: 0.875rem;
+    margin-bottom: 24px;
+  }
+
+  .submitButton {
+    padding: 12px 20px;
+    font-size: 0.938rem;
+  }
+}

@@ -4,17 +4,24 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "./header.module.scss";
 import { useEffect, useState } from "react";
-import { User } from "lucide-react";
+import { User, Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
 
     const [name, setName] = useState<string | null>(null);
     const [role, setRole] = useState<string>("");
+    const [menuOpen, setMenuOpen] = useState(false);
+    const pathname = usePathname();
 
     useEffect(() => {
         setName(localStorage.getItem("name"));
         setRole(localStorage.getItem("role") || "");
     }, []);
+
+    useEffect(() => {
+        setMenuOpen(false);
+    }, [pathname]);
 
     return (
         <header className={styles.header}>
@@ -28,7 +35,12 @@ export default function Header() {
                     priority
                 />
             </Link>
-            <nav className={styles.nav}>
+
+            <button className={styles.burger} onClick={() => setMenuOpen(!menuOpen)} aria-label="Meniu">
+                {menuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+
+            <nav className={`${styles.nav} ${menuOpen ? styles.navOpen : ""}`}>
                 <Link href="/sablonai" className={styles.navLink}>Šablonai</Link>
                 <Link href="/sablonai/sukurtiDokumentai" className={styles.navLink}>Dokumentai</Link>
 

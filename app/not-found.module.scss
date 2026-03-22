@@ -77,3 +77,26 @@ $text-muted: #64748B;
         transform: scale(0.98);
     }
 }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 24px 16px;
+    }
+
+    .iconWrap {
+        width: 64px;
+        height: 64px;
+    }
+
+    .title {
+        font-size: 2.25rem;
+    }
+
+    .subtitle {
+        font-size: 1.1rem;
+    }
+
+    .description {
+        font-size: 0.875rem;
+    }
+}

@@ -140,20 +140,83 @@ $border: #E2E8F0;
 
 // MODALAS
 .modalOverlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    position: fixed; inset: 0; background: rgba(0,0,0,0.92);
     z-index: 2000; display: flex; align-items: center; justify-content: center;
-    padding: 40px; cursor: zoom-out;
+    padding: 32px; cursor: zoom-out;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modalContent {
-    position: relative; max-width: 90vw; max-height: 90vh;
-    img { width: auto; height: auto; max-width: 100%; max-height: 90vh; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+    position: relative;
+    width: 90vw;
+    height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+        filter: drop-shadow(0 0 40px rgba(0,0,0,0.5));
+    }
 }
 
 .closeButton {
-    position: fixed; top: 20px; right: 20px;
-    background: none; border: none; color: white; cursor: pointer;
-    &:hover { transform: scale(1.1); }
+    position: fixed; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.1); border: none; color: white; cursor: pointer;
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+    transition: background 0.2s, transform 0.2s;
+    z-index: 2001;
+    &:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
 }
 
 .footer { margin-top: auto; padding: 40px 0; text-align: center; color: $text-muted; font-size: 0.85rem; }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 20px 10px 32px;
+    }
+
+    .card, .exampleCard {
+        padding: 20px 14px;
+        border-radius: 12px;
+    }
+
+    .cardHeader {
+        gap: 10px;
+
+        .fileIcon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .title {
+            font-size: 1.05rem;
+        }
+    }
+
+    .varTable {
+        font-size: 0.82rem;
+
+        th, td {
+            padding: 8px 6px;
+        }
+    }
+
+    .modalOverlay {
+        padding: 12px;
+    }
+
+    .imageWrapper:hover {
+        transform: none;
+    }
+}

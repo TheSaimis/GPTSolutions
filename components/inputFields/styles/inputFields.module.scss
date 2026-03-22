@@ -251,3 +251,21 @@ $bg-input: #F8FAFC;
         transform: translateY(-50%);
     }
 }
+
+@media (max-width: 480px) {
+    .dateShell {
+        min-height: 52px;
+        padding: 0 14px;
+        border-radius: 16px;
+        border-width: 1.5px;
+    }
+
+    .displayValue {
+        font-size: 15px;
+    }
+
+    .inputField .select .options {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+}

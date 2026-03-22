@@ -127,3 +127,30 @@ $border: #E2E8F0;
         transform: scale(0.98);
     }
 }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 20px 10px 32px;
+
+        .content {
+            flex-direction: column;
+        }
+    }
+
+    .card {
+        padding: 20px 16px;
+    }
+
+    .cardHeader {
+        gap: 12px;
+
+        .fileIcon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .title {
+            font-size: 1.1rem;
+        }
+    }
+}

@@ -24,3 +24,19 @@
         font-weight: 400;
     }
 }
+
+@media (max-width: 480px) {
+    .footer {
+        padding: 14px 16px;
+
+        .footerContent {
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .text {
+            font-size: 0.75rem;
+            text-align: center;
+        }
+    }
+}

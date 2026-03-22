@@ -164,3 +164,40 @@ $border: #E2E8F0;
     margin: 0;
     padding: 24px;
 }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 20px 12px 32px;
+    }
+
+    .card {
+        padding: 20px 16px;
+    }
+
+    .row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .readOnlySection {
+        padding: 12px;
+
+        .readOnlyRow {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+    }
+
+    .cardHeader {
+        gap: 12px;
+
+        .fileIcon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .title {
+            font-size: 1.1rem;
+        }
+    }
+}

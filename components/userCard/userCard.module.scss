@@ -166,3 +166,30 @@ $border: #E2E8F0;
         }
     }
 }
+
+@media (max-width: 480px) {
+    .userCard {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .cardHeader {
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+
+        .cardIcon {
+            width: 38px;
+            height: 38px;
+        }
+
+        .userName {
+            font-size: 1rem;
+        }
+    }
+
+    .fields .row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}

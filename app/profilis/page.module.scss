@@ -39,3 +39,9 @@ $bg: #f1f5f9;
         color: #ef2629;
     }
 }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 20px 12px 32px;
+    }
+}

@@ -63,3 +63,25 @@
     opacity: 0;
     pointer-events: none;
 }
+
+@media (max-width: 480px) {
+    .form .container {
+        width: 95%;
+        border-radius: 8px;
+
+        h1 {
+            padding: 12px;
+            font-size: 1rem;
+        }
+
+        .inputFields {
+            gap: 14px;
+
+            .buttons button {
+                margin: 4px;
+                padding: 6px;
+                font-size: 0.85rem;
+            }
+        }
+    }
+}

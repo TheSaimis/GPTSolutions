@@ -142,3 +142,17 @@ $text-muted: #64748B;
         grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 480px) {
+    .page {
+        padding: 16px 10px 32px;
+    }
+
+    .pageTitle {
+        font-size: 1.15rem;
+    }
+
+    .listHeader {
+        display: none;
+    }
+}
