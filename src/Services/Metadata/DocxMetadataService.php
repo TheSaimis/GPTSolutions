@@ -6,12 +6,12 @@ namespace App\Services\Metadata;
 
 final class DocxMetadataService
 {
-    private const ALWAYS_OVERWRITE = ['modifiedat'];
+    private const ALWAYS_OVERWRITE = ['modifiedat', 'createdby', 'lastmodifiedby'];
 
     /**
      * Prideda custom metaduomenis į OOXML (DOCX / XLSX) failą.
      * Jei savybė jau egzistuoja – neperrašo.
-     * Išimtis: modifiedAt visada perrašomas (nepriklausomai ar jau yra, ar ne).
+     * Išimtis: modifiedAt, createdBy, lastModifiedBy visada perrašomi (kas redagavo dokumentą).
      */
     public function setDocxCustomProperties(string $docxPath, array $properties): void
     {
