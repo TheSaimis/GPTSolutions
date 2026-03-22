@@ -64,7 +64,7 @@ export default function Page({ params }: PageProps) {
         }
       }
       loadCurrentUser();
-    } , []);
+    }, []);
 
     function nowSqlDate() {
         const d = new Date();

@@ -67,6 +67,46 @@ function filenameFromDisposition(
   return fallback;
 }
 
+function getErrorMessage(data: unknown): string {
+  if (typeof data === "string") return data;
+
+  if (!data || typeof data !== "object") {
+    return "Įvyko klaida";
+  }
+
+  if ("error" in data && typeof data.error === "string") {
+    return data.error;
+  }
+
+  if ("message" in data && typeof data.message === "string") {
+    return data.message;
+  }
+
+  if ("errors" in data && data.errors && typeof data.errors === "object") {
+    const entries = Object.entries(data.errors as Record<string, unknown>);
+
+    const messages = entries.flatMap(([field, value]) => {
+      if (Array.isArray(value)) {
+        return value
+          .filter((item): item is string => typeof item === "string")
+          .map((msg) => msg);
+      }
+
+      if (typeof value === "string") {
+        return [value];
+      }
+
+      return [];
+    });
+
+    if (messages.length > 0) {
+      return messages.join("\n");
+    }
+  }
+
+  return JSON.stringify(data);
+}
+
 async function request<T>(config: JsonRequestConfig): Promise<T>;
 async function request(config: BlobRequestConfig): Promise<DownloadResult>;
 
@@ -114,33 +154,31 @@ async function request<T>({
     if (!res.ok) {
       const contentType = res.headers.get("content-type") ?? "";
       let details = "";
-
+    
       try {
         if (contentType.includes("application/json")) {
           const j = await res.json();
-          details = typeof j === "string" ? j : JSON.stringify(j);
+          details = getErrorMessage(j);
         } else {
           details = await res.text();
         }
       } catch {
         details = res.statusText;
       }
-
+    
       const redirectToLogin =
         (res.status === 401 || res.status === 403) &&
         typeof window !== "undefined" &&
         path !== "/api/login";
-
-      if (redirectToLogin) {
-        // window.location.href = "/prisijungimas";
-      } else {
+    
+      if (!redirectToLogin) {
         MessageStore.push({
           title: errorTitle || "Klaida",
           message: errorMessage || details || `HTTP ${res.status} || Įvyko klaida`,
           backgroundColor: "#e53e3e",
         });
       }
-
+    
       throw new Error(details || `HTTP ${res.status}`);
     }
 

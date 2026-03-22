@@ -1,3 +1,5 @@
+import { CustomVariable } from "./Company";
+
 type CoreMetadata = {
     title?: string | null;
     subject?: string | null;
@@ -20,7 +22,9 @@ type CustomMetadata = {
     companyId?: string;
     templateId?: string;
     documentId?: string;
-    [key: string]: string | number | boolean | null | undefined;
+    modifiedAt?: string;
+    customVariables?: CustomVariable | undefined;
+    [key: string]: string | number | boolean | null | undefined | CustomVariable;
 };
 
 export type Metadata = {

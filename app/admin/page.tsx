@@ -118,9 +118,9 @@ export default function AdminPage() {
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
-                                                <th>User ID</th>
-                                                <th>Action</th>
-                                                <th>Created At</th>
+                                                <th>Naudotojas</th>
+                                                <th>Veiksmas</th>
+                                                <th>Data</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -129,7 +129,11 @@ export default function AdminPage() {
                                                 .map((log) => (
                                                     <tr key={log.id}>
                                                         <td>{log.id}</td>
-                                                        <td>{log.userId ?? "—"}</td>
+                                                        <td>
+                                                            <Link href={`/naudotojai/${log.userId}`}>
+                                                                {log.userId ?? "—"}
+                                                            </Link>
+                                                        </td>
                                                         <td className={styles.actionCell}>
                                                             {log.action}
                                                         </td>

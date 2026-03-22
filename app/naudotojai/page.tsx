@@ -50,7 +50,7 @@ export default function NaudotojaiPage() {
                     </div>
                     <InputFieldText value={email} onChange={setEmail} type="email" placeholder="Prisijungimo paštas" />
                     <InputFieldSelect options={[{ value: "ROLE_ADMIN", label: "Administratorius" },{ value: "ROLE_USER", label: "Naudotojas" },]} onChange={setRole} placeholder="Teisės"/>
-                    <InputFieldPassword autocomplete={false} value={password} onChange={setPassword} placeholder="Slaptažodis" />
+                    <InputFieldPassword autocomplete={"new-password"} value={password} onChange={setPassword} placeholder="Slaptažodis" />
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>

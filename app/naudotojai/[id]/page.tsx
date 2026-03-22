@@ -122,7 +122,6 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
             <div className={styles.topBar}>
                 <PageBackBar />
             </div>
-            <p>{deleted ? "Naudotojas ištrintas" : ""} abcd</p>
             <div className={styles.card}>
                 <div className={styles.cardHeader}>
                     <div className={styles.fileIcon}>

@@ -6,14 +6,16 @@ import { useEffect, useState } from "react";
 import FileList from "../templateList/fileList";
 import DirectoryMenu from "../components/directoryMenu/directoryMenu";
 import styles from "../page.module.scss";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { CatalogueTreeProvider } from "../catalogueTreeContext";
 import { getCachedCatalogueTree, setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
+import { useRouter } from "next/navigation";
 import PageBackBar from "@/components/navigation/PageBackBar";
 
 export default function GeneratedFilesPage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
     const fileType = "generated";
+    const router = useRouter();
 
     useEffect(() => {
         document.title = "Sukurti failai";
@@ -53,17 +55,27 @@ export default function GeneratedFilesPage() {
                         Pasirinkite veiksmą, kurį norite atlikti
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={downloadCatalogue}
-                    className={styles.downloadCatalogButton}
-                >
-                    <Download size={18} />
-                    Atsisiųsti katalogą
-                </button>
+                <div className={styles.headerButtons}>
+                    <button
+                        type="button"
+                        onClick={downloadCatalogue}
+                        className={styles.downloadCatalogButton}
+                    >
+                        <Download size={18} />
+                        Atsisiųsti katalogą
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/sablonai")}
+                        className={styles.downloadCatalogButton}
+                    >
+                        <ExternalLink size={18} />
+                        Šablonų katalogas
+                    </button>
+                </div>
             </div>
             <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
-                <FileList/>
+                <FileList />
                 <DirectoryMenu />
             </CatalogueTreeProvider>
         </div>

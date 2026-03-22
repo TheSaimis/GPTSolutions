@@ -26,8 +26,6 @@ export default function Files({ data, fileType }: List) {
 
   const router = useRouter();
   const role = localStorage.getItem("role");
-
-
   const selected = useDirectoryStore((s) => s.isSelected(data.path));
   const { openMenuFromEvent } = useContextMenu();
   const { setCatalogueTree } = useCatalogueTree();
@@ -42,19 +40,17 @@ export default function Files({ data, fileType }: List) {
     }
     return {
       name: fullName.slice(0, lastDot),
-      ext: fullName.slice(lastDot), // includes dot
+      ext: fullName.slice(lastDot),
     };
   }
-
   const { name, ext } = splitFileName(data.name);
-
   const [newName, setNewName] = useState(name);
   const [extension] = useState<string>(ext);
 
   function clicked() {
     if (fileType == "generated") {
       if (data.metadata?.custom?.templateId === undefined || data.metadata?.custom?.userId === undefined || data.metadata?.custom?.companyId === undefined) return
-      router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${data.metadata.custom.userId}/${data.metadata.custom.companyId}/${data.metadata.custom.created}/${data.path}`);
+      router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${fileType}/${data.path}`);
     } else if (fileType == "templates") {
       router.push(`/sablonai/${data.path}`);
     }
@@ -178,7 +174,7 @@ export default function Files({ data, fileType }: List) {
               <div className={styles.header}>
                 <p className={styles.name}>{data.name}</p>
                 {data.metadata?.custom?.created &&
-                  <p className={styles.date}>{formatDate(data.metadata?.custom?.created)} | {formatFileSize(data.size || 0)}</p>
+                  <p className={styles.date}>Sukurta {formatDate(data.metadata?.custom?.created)} | Redaguota {formatDate(data.metadata?.custom?.modifiedAt)}  | {formatFileSize(data.size || 0)}</p>
                 }
               </div>
             )}

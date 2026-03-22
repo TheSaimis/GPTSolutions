@@ -32,6 +32,8 @@ export const companyLabels: Record<keyof Company, string> = {
     modifiedAt: "Redaguota",
     createdAt: "Sukurta",
     role: "Pareigos",
+    deleted: "Ištrinta",
+    deletedDate: "Ištrinimo data",
 };
 export const COMPANY_TYPES = [
     "UAB",

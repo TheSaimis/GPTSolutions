@@ -61,7 +61,14 @@ $border: #E2E8F0;
 .cardHeader {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
+
+    .fileIconWrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
 
     .fileIcon {
         width: 48px;
@@ -152,5 +159,20 @@ $border: #E2E8F0;
         .title {
             font-size: 1.1rem;
         }
+    }
+}
+
+.customFields {
+    padding-block: 16px;
+    h1 {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 2px;
+        letter-spacing: -0.01em;
+    }
+    .field {
+        padding-block: 4px;
     }
 }

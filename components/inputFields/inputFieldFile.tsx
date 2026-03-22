@@ -3,20 +3,33 @@
 import styles from "./styles/inputFields.module.scss";
 import { forwardRef } from "react";
 
-type Props = {
-  value: File | File[] | null;
+type SingleProps = {
+  value: File | null;
   placeholder?: string;
   accept?: readonly string[] | string;
-  onChange: (files: File | File[]) => void;
-}
+  multiple?: false;
+  onChange: (file: File | null) => void;
+};
+
+type MultiProps = {
+  value: File[];
+  placeholder?: string;
+  accept?: readonly string[] | string;
+  multiple: true;
+  onChange: (files: File[]) => void;
+};
+
+type Props = SingleProps | MultiProps;
 
 const normalizeAccept = (accept?: readonly string[] | string) => {
   const arr = Array.isArray(accept) ? accept : accept ? [accept] : [];
-  return arr.map(ext => ext.startsWith(".") ? ext : `.${ext}`).join(", ");
+  return arr.map((ext) => (ext.startsWith(".") ? ext : `.${ext}`)).join(", ");
 };
 
 const InputFieldFile = forwardRef<HTMLInputElement, Props>(
-  ({ value, placeholder, accept, onChange }, ref) => {
+  (props, ref) => {
+    const { value, placeholder, accept } = props;
+
     return (
       <div className={styles.inputField}>
         <h2>{placeholder}</h2>
@@ -24,17 +37,24 @@ const InputFieldFile = forwardRef<HTMLInputElement, Props>(
           className={styles.input}
           ref={ref}
           type="file"
-          multiple
+          multiple={props.multiple}
           accept={normalizeAccept(accept)}
           onChange={(e) => {
             const files = Array.from(e.target.files ?? []);
-            onChange(files.length === 1 ? files[0] : files);
+
+            if (props.multiple) {
+              props.onChange(files);
+            } else {
+              props.onChange(files[0] ?? null);
+            }
           }}
         />
-        {value && (Array.isArray(value)
-          ? value.map((f) => <p key={f.name}>{f.name}</p>)
-          : <p>{value.name}</p>
-        )}
+        {value &&
+          (Array.isArray(value) ? (
+            value.map((f) => <p key={f.name}>{f.name}</p>)
+          ) : (
+            <p>{value.name}</p>
+          ))}
       </div>
     );
   }

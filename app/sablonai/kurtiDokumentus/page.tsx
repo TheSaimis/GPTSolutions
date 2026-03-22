@@ -84,7 +84,7 @@ export default function TemplatePage() {
         <div className={styles.page}>
             <div className={styles.topBar}>
                 <PageBackBar />
-            </div>
+            </div>*
             <div className={styles.content}>
                 <div className={styles.card}>
 

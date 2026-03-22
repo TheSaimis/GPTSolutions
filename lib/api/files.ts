@@ -1,5 +1,5 @@
 import { api, DownloadResult } from "./api";
-import { CreateFileResponse } from "../types/TemplateList";
+import { CreateFileResponse, TemplateList } from "../types/TemplateList";
 import { setCachedWordFile, getCachedWordFile } from "../cache/wordFileCache";
 
 export const FilesApi = {
@@ -8,14 +8,12 @@ export const FilesApi = {
 
   downloadFile: async (path: string): Promise<DownloadResult> => {
     const cachedBlob = getCachedWordFile(path);
-
     if (cachedBlob) {
       return {
         blob: cachedBlob,
         filename: path.split("/").pop() ?? "download",
       };
     }
-
     const res = await api.getBlob(`/api/files/download/${path}`);
     setCachedWordFile(path, res.blob);
     return res;
@@ -29,9 +27,11 @@ export const FilesApi = {
     form.append("template", file);
     form.append("directory", directory);
     form.append("root", root);
-    setCachedWordFile( root + "/" + directory, file);
+    setCachedWordFile(root + "/" + directory, file);
     return api.post<CreateFileResponse>("/api/files/create", form);
   },
+
+  getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),
 
   renameFile: (directory: string, name: string, root: string) => api.post<{ status: string }>("/api/files/rename", { directory, name, root }),
   deleteFile: (directory: string, root: string) => api.post<{ status: string }>("/api/files/delete", { directory, root }),
