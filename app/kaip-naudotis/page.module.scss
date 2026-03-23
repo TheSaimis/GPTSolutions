@@ -17,7 +17,7 @@ $border: #E2E8F0;
 
 .topBar {
     width: 100%;
-    max-width: 600px;
+    max-width: 900px;
     margin-bottom: 20px;
     .backLink {
         display: inline-flex;
@@ -39,7 +39,8 @@ $border: #E2E8F0;
     margin-bottom: 24px;
 }
 
-.card { max-width: 600px; }
+.card { max-width: 900px; }
+.wideCard { max-width: 900px; }
 .exampleCard { max-width: 1100px; }
 
 .cardHeader {
@@ -52,6 +53,7 @@ $border: #E2E8F0;
         background: $primary-light;
         color: $primary;
         display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
     }
     .title { font-size: 1.25rem; font-weight: 700; color: $text-dark; margin: 0; }
     .subtitle { font-size: 0.875rem; color: $text-muted; margin: 0; }
@@ -59,17 +61,92 @@ $border: #E2E8F0;
 
 .divider { height: 1px; background: $border; margin: 24px 0; }
 
+// Steps
+.steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+
+    h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 4px;
+    }
+
+    p {
+        font-size: 0.875rem;
+        color: $text-muted;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    code {
+        background: $primary-light;
+        color: $primary;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-family: monospace;
+        font-size: 0.85em;
+    }
+}
+
+.stepNumber {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    background: $primary;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+// Language info
 .infoBox {
     display: flex; gap: 12px;
     background: #f8fafc;
     border-left: 4px solid $primary;
     padding: 16px;
     border-radius: 8px;
-    margin-bottom: 24px;
     font-size: 0.9rem;
-    svg { color: $primary; flex-shrink: 0; }
+    line-height: 1.6;
+    svg { color: $primary; flex-shrink: 0; margin-top: 2px; }
+
+    p { margin: 0 0 8px; }
+    p:last-child { margin-bottom: 0; }
 }
 
+.langList {
+    margin: 8px 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+
+    code {
+        background: $primary-light;
+        color: $primary;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-family: monospace;
+        font-size: 0.9em;
+    }
+}
+
+// Search
 .searchWrapper {
     position: relative;
     margin-bottom: 20px;
@@ -81,17 +158,119 @@ $border: #E2E8F0;
     .searchInput {
         width: 100%; padding: 10px 12px 10px 40px;
         border: 1px solid $border; border-radius: 8px;
+        font-size: 0.9rem;
         &:focus { outline: none; border-color: $primary; box-shadow: 0 0 0 2px rgba($primary, 0.1); }
     }
 }
 
-.varTable {
-    width: 100%; border-collapse: collapse; font-size: 0.9rem;
-    th { text-align: left; padding: 12px; border-bottom: 2px solid $border; color: $text-muted; }
-    td { 
-        padding: 12px; border-bottom: 1px solid $border; 
-        code { background: $primary-light; color: $primary; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: monospace; }
+// Categories
+.categoriesList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.category {
+    border: 1px solid $border;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+
+    &:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
+}
+
+.categoryHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background 0.15s;
+
+    &:hover {
+        background: #fafbfc;
+    }
+
+    > div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+}
+
+.categoryOpen {
+    background: #fafbfc;
+    border-bottom: 1px solid $border;
+}
+
+.categoryTitle {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $text-dark;
+}
+
+.categoryCount {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $text-muted;
+    background: $bg;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.chevron {
+    color: $text-muted;
+    transition: transform 0.2s;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+.categoryBody {
+    padding: 4px 18px 18px;
+    background: #fafbfc;
+}
+
+.categoryDesc {
+    font-size: 0.8rem;
+    color: $text-muted;
+    margin: 8px 0 12px;
+}
+
+// Table
+.varTable {
+    width: 100%; border-collapse: collapse; font-size: 0.875rem;
+    th {
+        text-align: left; padding: 10px 12px; border-bottom: 2px solid $border;
+        color: $text-muted; font-size: 0.78rem; text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    td {
+        padding: 10px 12px; border-bottom: 1px solid rgba($border, 0.7);
+        vertical-align: top;
+        code {
+            background: $primary-light; color: $primary;
+            padding: 2px 6px; border-radius: 4px;
+            font-weight: 600; font-family: monospace;
+            white-space: nowrap;
+        }
+    }
+}
+
+.pastaba {
+    display: block;
+    font-size: 0.78rem;
+    color: $text-muted;
+    margin-top: 2px;
+    line-height: 1.4;
 }
 
 .copyButton {
@@ -101,6 +280,7 @@ $border: #E2E8F0;
     .successIcon { color: #22c55e; }
 }
 
+// Example section
 .exampleGrid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
     @media (max-width: 850px) { grid-template-columns: 1fr; }
@@ -125,20 +305,19 @@ $border: #E2E8F0;
     }
 }
 
-// Čia nustatomas fiksuotas aukštis abiems nuotraukoms
 .imageHeightFix {
     position: relative;
     width: 100%;
-    height: 400px; // Abi nuotraukos bus būtent tokio aukščio
+    height: 400px;
     @media (max-width: 480px) { height: 280px; }
 }
 
 .imgContain {
-    object-fit: contain; // Neapkerpa nuotraukos, rodo visą turinį
+    object-fit: contain;
     padding: 12px;
 }
 
-// MODALAS
+// Modal
 .modalOverlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.92);
     z-index: 2000; display: flex; align-items: center; justify-content: center;
@@ -181,6 +360,7 @@ $border: #E2E8F0;
 
 .footer { margin-top: auto; padding: 40px 0; text-align: center; color: $text-muted; font-size: 0.85rem; }
 
+// Responsive
 @media (max-width: 480px) {
     .page {
         padding: 20px 10px 32px;
@@ -204,8 +384,30 @@ $border: #E2E8F0;
         }
     }
 
+    .step {
+        gap: 12px;
+
+        h3 { font-size: 0.88rem; }
+        p { font-size: 0.82rem; }
+    }
+
+    .stepNumber {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        font-size: 0.8rem;
+    }
+
+    .categoryHeader {
+        padding: 12px 14px;
+    }
+
+    .categoryBody {
+        padding: 4px 12px 14px;
+    }
+
     .varTable {
-        font-size: 0.82rem;
+        font-size: 0.8rem;
 
         th, td {
             padding: 8px 6px;
@@ -218,5 +420,14 @@ $border: #E2E8F0;
 
     .imageWrapper:hover {
         transform: none;
+    }
+
+    .langList {
+        font-size: 0.78rem;
+    }
+
+    .infoBox {
+        flex-direction: column;
+        font-size: 0.82rem;
     }
 }
