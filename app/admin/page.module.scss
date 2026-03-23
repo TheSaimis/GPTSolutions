@@ -16,10 +16,13 @@ $border: #E2E8F0;
 .content {
     width: 100%;
     max-width: 1040px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .topBar {
-    margin-bottom: 18px;
+    margin-bottom: 2px;
 }
 
 .pageTitle {
@@ -34,15 +37,12 @@ $border: #E2E8F0;
     font-size: 0.95rem;
 }
 
+/* ── Quick-action grid ── */
+
 .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
-    margin-bottom: 16px;
-}
-
-.deletedFiles {
-    margin-bottom: 16px;
 }
 
 .card {
@@ -50,28 +50,47 @@ $border: #E2E8F0;
     border: 1px solid $border;
     border-radius: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
-    padding: 18px;
+    padding: 20px;
+    transition: box-shadow 0.2s;
 }
 
-.cardUsers {
-    background: #ffffff;
-    border-color: $border;
-}
-
-.cardAudit {
-    background: #ffffff;
-    border-color: $border;
-}
-
+.cardUsers,
+.cardAudit,
 .cardGenerated {
     background: #ffffff;
     border-color: $border;
 }
 
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.cardIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cardIconBlue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.cardIconRed {
+    background: $primary-light;
+    color: $primary;
+}
+
 .cardTitle {
     font-weight: 700;
     color: $text-dark;
-    margin-bottom: 12px;
     font-size: 1.05rem;
 }
 
@@ -81,17 +100,22 @@ $border: #E2E8F0;
     gap: 10px;
 }
 
+/* ── Buttons ── */
+
 .linkButton {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     padding: 10px 14px;
     border-radius: 12px;
     border: 1px solid $border;
     color: $text-dark;
     text-decoration: none;
     font-weight: 600;
+    font-size: 0.9rem;
     background: #fff;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
 
     &:hover {
         background: #f8fafc;
@@ -104,37 +128,213 @@ $border: #E2E8F0;
 
     &:hover {
         background: #ffffff;
-        border-color: $primary-light;
-        color: $primary;
+        border-color: rgba(59, 130, 246, 0.3);
+        color: #3b82f6;
     }
 }
 
 .secondaryLinkButton {
     @extend .linkButton;
     background: #fff;
-    border-color: rgba(239, 38, 41, 0.45);
+    border-color: rgba(239, 38, 41, 0.35);
     color: $primary;
 
     &:hover {
         background: $primary-light;
-        border-color: rgba(239, 38, 41, 0.7);
-        color: $primary;
+        border-color: rgba(239, 38, 41, 0.6);
     }
 }
 
-.message {
-    font-size: 0.95rem;
-    color: $text-muted;
-    padding: 16px;
-    background: #fff;
+.primaryButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
     border-radius: 12px;
-    border: 1px solid $border;
+    border: 1.5px solid $primary;
+    background: $primary;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: opacity 0.15s, transform 0.1s;
+
+    &:hover {
+        opacity: 0.9;
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 }
 
-.messageError {
-    @extend .message;
+.secondaryButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1.5px solid $border;
+    background: #fff;
+    color: $text-dark;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+        background: #f8fafc;
+        border-color: darken($border, 8%);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+/* ── Section cards (collapsible) ── */
+
+.sectionCard {
+    padding: 0;
+    overflow: hidden;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 18px 20px;
+    color: $text-dark;
+    transition: background 0.12s;
+
+    &:hover {
+        background: rgba(0, 0, 0, 0.015);
+    }
+}
+
+.sectionHeaderStatic {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 0;
+}
+
+.sectionHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sectionIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sectionIconRed {
+    background: rgba(185, 28, 28, 0.08);
     color: #b91c1c;
 }
+
+.sectionIconOrange {
+    background: rgba(234, 88, 12, 0.08);
+    color: #ea580c;
+}
+
+.sectionIconGray {
+    background: rgba(100, 116, 139, 0.1);
+    color: $text-muted;
+}
+
+.sectionTitle {
+    font-weight: 700;
+    color: $text-dark;
+    font-size: 1.05rem;
+}
+
+.sectionBody {
+    padding: 0 20px 20px;
+}
+
+.chevron {
+    transition: transform 0.25s ease;
+    color: $text-muted;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+/* ── Warning banner ── */
+
+.warningBanner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(234, 88, 12, 0.06);
+    border: 1px solid rgba(234, 88, 12, 0.2);
+    color: #c2410c;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+/* ── Tabs ── */
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid $border;
+}
+
+.tab {
+    padding: 9px 18px;
+    border: none;
+    background: none;
+    color: $text-muted;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+
+    &:hover {
+        color: $text-dark;
+    }
+}
+
+.tabActive {
+    color: $primary;
+    border-bottom-color: $primary;
+}
+
+/* ── Deleted files content ── */
+
+.deletedFilesContent {
+    min-height: 60px;
+}
+
+/* ── Tables ── */
 
 .tableWrap {
     overflow: auto;
@@ -152,135 +352,77 @@ $border: #E2E8F0;
 .table th {
     text-align: left;
     padding: 12px 14px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: $text-muted;
     border-bottom: 1px solid $border;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #fafbfc;
 }
 
 .table td {
     padding: 12px 14px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-    vertical-align: top;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    vertical-align: middle;
     color: $text-dark;
-    font-size: 0.92rem;
-}
-
-.actionCell {
-    max-width: 420px;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.actionsRow {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    margin-top: 14px;
-}
-
-.primaryButton {
-    padding: 10px 16px;
-    border-radius: 12px;
-    border: 1.5px solid #EF2629;
-    background: #EF2629;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 700;
-
-    &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-}
-
-.secondaryButton {
-    padding: 10px 16px;
-    border-radius: 12px;
-    border: 1.5px solid $border;
-    background: #fff;
-    color: $text-dark;
-    cursor: pointer;
-    font-weight: 700;
-
-    &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-}
-
-/* ── Deleted section ── */
-
-.deletedSection {
-    margin-bottom: 16px;
-}
-
-.deletedHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    color: $text-dark;
-}
-
-.deletedHeaderLeft {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #b91c1c;
-}
-
-.chevron {
-    transition: transform 0.2s ease;
-    color: $text-muted;
-}
-
-.chevronOpen {
-    transform: rotate(180deg);
-}
-
-.deletedBody {
-    margin-top: 16px;
-}
-
-.tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 14px;
-    border-bottom: 1px solid $border;
-    padding-bottom: 0;
-}
-
-.tab {
-    padding: 8px 16px;
-    border: none;
-    background: none;
-    color: $text-muted;
-    font-weight: 600;
     font-size: 0.9rem;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
+}
+
+.table tbody tr {
+    transition: background 0.1s;
 
     &:hover {
-        color: $text-dark;
+        background: rgba(241, 245, 249, 0.5);
     }
-}
 
-.tabActive {
-    color: $primary;
-    border-bottom-color: $primary;
+    &:last-child td {
+        border-bottom: none;
+    }
 }
 
 .deletedTable {
     @extend .table;
     min-width: 640px;
 }
+
+.idCell {
+    color: $text-muted;
+    font-size: 0.82rem;
+    font-weight: 600;
+    width: 50px;
+}
+
+.emailCell {
+    color: $text-muted;
+    font-size: 0.85rem;
+}
+
+.dateCell {
+    color: $text-muted;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.actionCell {
+    max-width: 420px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.userLink {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+/* ── Restore button ── */
 
 .restoreButton {
     display: inline-flex;
@@ -295,17 +437,57 @@ $border: #E2E8F0;
     font-size: 0.82rem;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, transform 0.1s;
 
     &:hover {
         background: rgba(22, 163, 74, 0.12);
     }
 
+    &:active {
+        transform: scale(0.97);
+    }
+
     &:disabled {
-        opacity: 0.5;
+        opacity: 0.45;
         cursor: not-allowed;
     }
 }
+
+/* ── Messages ── */
+
+.message {
+    font-size: 0.92rem;
+    color: $text-muted;
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid $border;
+}
+
+.messageError {
+    @extend .message;
+    color: #b91c1c;
+    background: rgba(185, 28, 28, 0.04);
+    border-color: rgba(185, 28, 28, 0.15);
+}
+
+.emptyState {
+    text-align: center;
+    color: $text-muted;
+    padding: 32px 16px;
+    font-size: 0.92rem;
+}
+
+/* ── Actions row ── */
+
+.actionsRow {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+/* ── Responsive ── */
 
 @media (max-width: 900px) {
     .grid {
@@ -327,8 +509,27 @@ $border: #E2E8F0;
     }
 
     .card {
-        padding: 14px;
         border-radius: 12px;
+    }
+
+    .sectionHeader,
+    .sectionHeaderStatic {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .sectionBody {
+        padding: 0 14px 14px;
+    }
+
+    .cardHeader {
+        gap: 10px;
+    }
+
+    .cardIcon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
     }
 
     .actionsRow {
@@ -336,16 +537,18 @@ $border: #E2E8F0;
         gap: 8px;
     }
 
-    .primaryButton, .secondaryButton {
+    .primaryButton,
+    .secondaryButton {
         width: 100%;
-        text-align: center;
+        justify-content: center;
     }
 
     .table {
         min-width: 580px;
     }
 
-    .table th, .table td {
+    .table th,
+    .table td {
         padding: 10px 8px;
         font-size: 0.82rem;
     }
@@ -359,12 +562,17 @@ $border: #E2E8F0;
     }
 
     .tab {
-        padding: 6px 10px;
+        padding: 7px 12px;
         font-size: 0.82rem;
     }
 
     .restoreButton {
         padding: 5px 10px;
         font-size: 0.78rem;
+    }
+
+    .warningBanner {
+        font-size: 0.78rem;
+        padding: 8px 10px;
     }
 }

@@ -12,10 +12,22 @@ import { CompanyApi } from "@/lib/api/companies";
 import type { User } from "@/lib/types/User";
 import type { Company } from "@/lib/types/Company";
 import DeletedFiles from "./deletedFiles/deletedFiles";
-import { Download, RotateCcw, Trash2, ChevronDown } from "lucide-react";
+import {
+    Download,
+    RotateCcw,
+    Trash2,
+    ChevronDown,
+    Users,
+    FileText,
+    FolderArchive,
+    ScrollText,
+    RefreshCw,
+    AlertTriangle,
+} from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 
 type DeletedTab = "users" | "companies";
+type DeletedFilesRoot = "templates" | "generated";
 
 type SymfonyDateLike = {
     date?: string;
@@ -88,7 +100,7 @@ export default function AdminPage() {
     const [error, setError] = useState<string | null>(null);
     const [limit] = useState(20);
     const [offset, setOffset] = useState(0);
-    const [deletedRoot, setDeletedRoot] = useState<string>("templates");
+    const [deletedRoot, setDeletedRoot] = useState<DeletedFilesRoot>("templates");
 
     const [deletedTab, setDeletedTab] = useState<DeletedTab>("users");
     const [deletedUsers, setDeletedUsers] = useState<User[]>([]);
@@ -96,6 +108,7 @@ export default function AdminPage() {
     const [loadingDeleted, setLoadingDeleted] = useState(false);
     const [restoringId, setRestoringId] = useState<number | null>(null);
     const [deletedOpen, setDeletedOpen] = useState(true);
+    const [deletedFilesOpen, setDeletedFilesOpen] = useState(false);
 
     useEffect(() => {
         document.title = "Administravimas";
@@ -196,9 +209,15 @@ export default function AdminPage() {
                     <div className={styles.message}>Kraunama...</div>
                 ) : (
                     <>
+                        {/* Quick actions grid */}
                         <div className={styles.grid}>
                             <div className={`${styles.card} ${styles.cardUsers}`}>
-                                <div className={styles.cardTitle}>Naudotojai</div>
+                                <div className={styles.cardHeader}>
+                                    <div className={`${styles.cardIcon} ${styles.cardIconBlue}`}>
+                                        <Users size={20} />
+                                    </div>
+                                    <div className={styles.cardTitle}>Naudotojai</div>
+                                </div>
                                 <div className={styles.cardActions}>
                                     <Link className={styles.linkButtonNeutral} href="/naudotojai">
                                         Pridėti naudotoją
@@ -210,7 +229,12 @@ export default function AdminPage() {
                             </div>
 
                             <div className={`${styles.card} ${styles.cardGenerated}`}>
-                                <div className={styles.cardTitle}>Sukurti dokumentai</div>
+                                <div className={styles.cardHeader}>
+                                    <div className={`${styles.cardIcon} ${styles.cardIconRed}`}>
+                                        <FileText size={20} />
+                                    </div>
+                                    <div className={styles.cardTitle}>Sukurti dokumentai</div>
+                                </div>
                                 <div className={styles.cardActions}>
                                     <button
                                         type="button"
@@ -218,7 +242,7 @@ export default function AdminPage() {
                                         onClick={downloadGeneratedZip}
                                     >
                                         <Download size={16} />
-                                        Atsisiųsti sukurtų dokumentų archyvą (.ZIP)
+                                        Atsisiųsti archyvą (.ZIP)
                                     </button>
                                     <Link className={styles.secondaryLinkButton} href="/sablonai">
                                         Atidaryti šablonus
@@ -227,42 +251,73 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        <div className={styles.deletedFiles}>
-                            <button
-                                className="buttons"
-                                onClick={() => setDeletedRoot("templates")}
-                            >
-                                Ištrinti šablonai
-                            </button>
-                            <button
-                                className="buttons"
-                                onClick={() => setDeletedRoot("generated")}
-                            >
-                                Ištrinti dokumentai
-                            </button>
-
-                            <div>
-                                <p>IŠTRINUS DOKUMENTUS IŠ ŠIO KATALOGO, JIE BUS IŠTRINTI VISAM LAIKUI</p>
-                            </div>
-
-                            {/* ik it looks stupid but it doesnt refresh otherwise and this segment of code is hopeless anyways */}
-                            {deletedRoot === "templates" &&
-                                <DeletedFiles deletedRoot={deletedRoot} />
-                            }
-                            {deletedRoot === "generated" &&
-                                <DeletedFiles deletedRoot={deletedRoot} />
-                            }
-                        </div>
-
-                        <div className={`${styles.card} ${styles.deletedSection}`}>
+                        {/* Deleted files section */}
+                        <div className={`${styles.card} ${styles.sectionCard}`}>
                             <button
                                 type="button"
-                                className={styles.deletedHeader}
+                                className={styles.sectionHeader}
+                                onClick={() => setDeletedFilesOpen(!deletedFilesOpen)}
+                            >
+                                <div className={styles.sectionHeaderLeft}>
+                                    <div className={`${styles.sectionIcon} ${styles.sectionIconOrange}`}>
+                                        <FolderArchive size={18} />
+                                    </div>
+                                    <span className={styles.sectionTitle}>Ištrintų failų katalogas</span>
+                                </div>
+                                <ChevronDown
+                                    size={20}
+                                    className={`${styles.chevron} ${deletedFilesOpen ? styles.chevronOpen : ""}`}
+                                />
+                            </button>
+
+                            {deletedFilesOpen && (
+                                <div className={styles.sectionBody}>
+                                    <div className={styles.warningBanner}>
+                                        <AlertTriangle size={16} />
+                                        <span>Ištrinus dokumentus iš šio katalogo, jie bus pašalinti visam laikui.</span>
+                                    </div>
+
+                                    <div className={styles.tabs}>
+                                        <button
+                                            type="button"
+                                            className={`${styles.tab} ${deletedRoot === "templates" ? styles.tabActive : ""}`}
+                                            onClick={() => setDeletedRoot("templates")}
+                                        >
+                                            Šablonai
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`${styles.tab} ${deletedRoot === "generated" ? styles.tabActive : ""}`}
+                                            onClick={() => setDeletedRoot("generated")}
+                                        >
+                                            Sugeneruoti dokumentai
+                                        </button>
+                                    </div>
+
+                                    <div className={styles.deletedFilesContent}>
+                                        {deletedRoot === "templates" && (
+                                            <DeletedFiles deletedRoot={deletedRoot} />
+                                        )}
+                                        {deletedRoot === "generated" && (
+                                            <DeletedFiles deletedRoot={deletedRoot} />
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Deleted users & companies section */}
+                        <div className={`${styles.card} ${styles.sectionCard}`}>
+                            <button
+                                type="button"
+                                className={styles.sectionHeader}
                                 onClick={() => setDeletedOpen(!deletedOpen)}
                             >
-                                <div className={styles.deletedHeaderLeft}>
-                                    <Trash2 size={18} />
-                                    <span className={styles.cardTitle} style={{ marginBottom: 0 }}>
+                                <div className={styles.sectionHeaderLeft}>
+                                    <div className={`${styles.sectionIcon} ${styles.sectionIconRed}`}>
+                                        <Trash2 size={18} />
+                                    </div>
+                                    <span className={styles.sectionTitle}>
                                         Ištrintos ({deletedCount})
                                     </span>
                                 </div>
@@ -273,7 +328,7 @@ export default function AdminPage() {
                             </button>
 
                             {deletedOpen && (
-                                <div className={styles.deletedBody}>
+                                <div className={styles.sectionBody}>
                                     <div className={styles.tabs}>
                                         <button
                                             type="button"
@@ -295,7 +350,7 @@ export default function AdminPage() {
                                         <div className={styles.message}>Kraunama...</div>
                                     ) : deletedTab === "users" ? (
                                         deletedUsers.length === 0 ? (
-                                            <div className={styles.message}>Nėra ištrintų naudotojų.</div>
+                                            <div className={styles.emptyState}>Nėra ištrintų naudotojų.</div>
                                         ) : (
                                             <div className={styles.tableWrap}>
                                                 <table className={styles.deletedTable}>
@@ -312,11 +367,11 @@ export default function AdminPage() {
                                                     <tbody>
                                                         {deletedUsers.map((user) => (
                                                             <tr key={user.id}>
-                                                                <td>{user.id}</td>
+                                                                <td className={styles.idCell}>{user.id}</td>
                                                                 <td>{user.firstName || "—"}</td>
                                                                 <td>{user.lastName || "—"}</td>
-                                                                <td>{user.email || "—"}</td>
-                                                                <td>{formatAnyDate(user.deletedDate)}</td>
+                                                                <td className={styles.emailCell}>{user.email || "—"}</td>
+                                                                <td className={styles.dateCell}>{formatAnyDate(user.deletedDate)}</td>
                                                                 <td>
                                                                     <button
                                                                         type="button"
@@ -335,7 +390,7 @@ export default function AdminPage() {
                                             </div>
                                         )
                                     ) : deletedCompanies.length === 0 ? (
-                                        <div className={styles.message}>Nėra ištrintų įmonių.</div>
+                                        <div className={styles.emptyState}>Nėra ištrintų įmonių.</div>
                                     ) : (
                                         <div className={styles.tableWrap}>
                                             <table className={styles.deletedTable}>
@@ -352,11 +407,11 @@ export default function AdminPage() {
                                                 <tbody>
                                                     {deletedCompanies.map((company) => (
                                                         <tr key={company.id}>
-                                                            <td>{company.id}</td>
+                                                            <td className={styles.idCell}>{company.id}</td>
                                                             <td>{company.companyName || "—"}</td>
                                                             <td>{company.code || "—"}</td>
                                                             <td>{company.companyType || "—"}</td>
-                                                            <td>{formatAnyDate(company.deletedDate)}</td>
+                                                            <td className={styles.dateCell}>{formatAnyDate(company.deletedDate)}</td>
                                                             <td>
                                                                 <button
                                                                     type="button"
@@ -382,6 +437,7 @@ export default function AdminPage() {
                                             onClick={loadDeletedItems}
                                             disabled={loadingDeleted}
                                         >
+                                            <RefreshCw size={14} />
                                             Atnaujinti sąrašą
                                         </button>
                                     </div>
@@ -389,63 +445,74 @@ export default function AdminPage() {
                             )}
                         </div>
 
-                        <div className={styles.card}>
-                            <div className={styles.cardTitle}>Audit logs</div>
-
-                            {error && <div className={styles.messageError}>{error}</div>}
-
-                            {logs === null ? (
-                                <div className={styles.message}>Loading audit logs...</div>
-                            ) : logs.length === 0 ? (
-                                <div className={styles.message}>No audit logs found.</div>
-                            ) : (
-                                <div className={styles.tableWrap}>
-                                    <table className={styles.table}>
-                                        <thead>
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Naudotojas</th>
-                                                <th>Veiksmas</th>
-                                                <th>Data</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {[...logs]
-                                                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                                                .map((log) => (
-                                                    <tr key={log.id}>
-                                                        <td>{log.id}</td>
-                                                        <td>
-                                                            <Link href={`/naudotojai/${log.userId}`}>
-                                                                {log.userId ?? "—"}
-                                                            </Link>
-                                                        </td>
-                                                        <td className={styles.actionCell}>{log.action}</td>
-                                                        <td>{formatAnyDate(log.createdAt)}</td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
-                                    </table>
+                        {/* Audit logs */}
+                        <div className={`${styles.card} ${styles.sectionCard}`}>
+                            <div className={styles.sectionHeaderStatic}>
+                                <div className={styles.sectionHeaderLeft}>
+                                    <div className={`${styles.sectionIcon} ${styles.sectionIconGray}`}>
+                                        <ScrollText size={18} />
+                                    </div>
+                                    <span className={styles.sectionTitle}>Audit logs</span>
                                 </div>
-                            )}
+                            </div>
 
-                            <div className={styles.actionsRow}>
-                                <button
-                                    type="button"
-                                    className={styles.primaryButton}
-                                    onClick={() => loadLogs(0)}
-                                    disabled={loadingLogs}
-                                >
-                                    Refresh
-                                </button>
-                                <button
-                                    type="button"
-                                    className={styles.secondaryButton}
-                                    onClick={() => loadLogs(offset + limit)}
-                                    disabled={loadingLogs || logs === null}
-                                >
-                                    Load more
-                                </button>
+                            <div className={styles.sectionBody}>
+                                {error && <div className={styles.messageError}>{error}</div>}
+
+                                {logs === null ? (
+                                    <div className={styles.message}>Kraunami audit logs...</div>
+                                ) : logs.length === 0 ? (
+                                    <div className={styles.emptyState}>Audit logų nerasta.</div>
+                                ) : (
+                                    <div className={styles.tableWrap}>
+                                        <table className={styles.table}>
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Naudotojas</th>
+                                                    <th>Veiksmas</th>
+                                                    <th>Data</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...logs]
+                                                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                                                    .map((log) => (
+                                                        <tr key={log.id}>
+                                                            <td className={styles.idCell}>{log.id}</td>
+                                                            <td>
+                                                                <Link className={styles.userLink} href={`/naudotojai/${log.userId}`}>
+                                                                    {log.userId ?? "—"}
+                                                                </Link>
+                                                            </td>
+                                                            <td className={styles.actionCell}>{log.action}</td>
+                                                            <td className={styles.dateCell}>{formatAnyDate(log.createdAt)}</td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                <div className={styles.actionsRow}>
+                                    <button
+                                        type="button"
+                                        className={styles.primaryButton}
+                                        onClick={() => loadLogs(0)}
+                                        disabled={loadingLogs}
+                                    >
+                                        <RefreshCw size={14} />
+                                        Atnaujinti
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryButton}
+                                        onClick={() => loadLogs(offset + limit)}
+                                        disabled={loadingLogs || logs === null}
+                                    >
+                                        Rodyti daugiau
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </>

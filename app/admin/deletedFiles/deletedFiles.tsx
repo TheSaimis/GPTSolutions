@@ -7,14 +7,16 @@ import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { CatalogueTreeProvider } from "@/app/sablonai/catalogueTreeContext";
+import { Download } from "lucide-react";
+import styles from "./deletedFiles.module.scss";
 
 type Props = {
-    deletedRoot: string
+    deletedRoot: string;
 };
 
 export default function DeletedFiles({ deletedRoot }: Props) {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
-    const [fileType, setFileType] = useState(`deleted`);
+    const [fileType] = useState("deleted");
 
     useEffect(() => {
         async function getTemplateList() {
@@ -25,23 +27,26 @@ export default function DeletedFiles({ deletedRoot }: Props) {
                 return;
             }
             const tree = await CatalougeApi.catalogueGetDeleted(deletedRoot);
-
             setCachedCatalogueTree(cacheKey, tree);
             setTemplateList(tree);
         }
         getTemplateList();
-    }, []);
+    }, [deletedRoot, fileType]);
 
     async function downloadDeleted() {
         const { blob, filename } = await CatalougeApi.catalogueDownload("deleted", deletedRoot);
         downloadBlob({ blob, filename });
     }
 
-    return (<>
-        <button onClick={downloadDeleted} className="buttons">atsisiusti</button>
-        <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
-            <FileList overflow={true}/>
-        </CatalogueTreeProvider>
-    </>
+    return (
+        <div className={styles.wrapper}>
+            <button onClick={downloadDeleted} type="button" className={styles.downloadButton}>
+                <Download size={14} />
+                Atsisiųsti visus
+            </button>
+            <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
+                <FileList overflow={true} />
+            </CatalogueTreeProvider>
+        </div>
     );
 }
