@@ -160,6 +160,63 @@ final class FileController extends AbstractController
      * Grąžina dokumento duomenis ir metaduomenis. Nurodai root (templates|generated) ir path – gauni viską.
      * Pvz.: GET /api/files/document-data/generated/UAB/CompanyName/doc.docx
      */
+    /**
+     * GET /api/files/deleted?root=templates|generated
+     * Grąžina ištrintų dokumentų katalogo turinį. root opcjonalus – jei tuščias, grąžina templates ir generated.
+     */
+    #[Route('/deleted', name: 'api_files_deleted_list', methods: ['GET'])]
+    public function listDeleted(Request $request): JsonResponse
+    {
+        $root = trim((string) $request->query->get('root', ''));
+        if ($root !== '' && ! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
+            return new JsonResponse(['error' => 'Neleistinas root. Leidžiami: templates, generated'], 400);
+        }
+
+        $items = $this->fileService->listDeleted($root);
+
+        return new JsonResponse(['deleted' => $items]);
+    }
+
+    /**
+     * POST /api/files/restore
+     * Atkuria failą iš /deleted. Body: { "root": "templates"|"generated", "path": "4 Tvarkos/doc.docx" }
+     */
+    #[Route('/restore', name: 'api_files_restore', methods: ['POST'])]
+    public function restore(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+        }
+
+        $root = trim((string) ($data['root'] ?? ''));
+        $path = trim((string) ($data['path'] ?? $data['directory'] ?? ''));
+
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'root (templates|generated) is required'], 400);
+        }
+        if ($path === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+        }
+
+        $path = str_replace('\\', '/', $path);
+        if (str_starts_with($path, $root . '/')) {
+            $path = substr($path, strlen($root) + 1);
+        }
+
+        $status = $this->fileService->restore($root, $path);
+        if ($status === 'SUCCESS') {
+            $this->auditLogger->log("Failas atkurtas: {$root}/{$path}");
+        }
+
+        return new JsonResponse(
+            ['status' => $status, 'path' => $root . '/' . $path],
+            $status === 'SUCCESS' ? 200 : 400
+        );
+    }
+
     #[Route('/document-data/{root}/{path}', name: 'api_files_document_data', methods: ['GET'], requirements: ['path' => '.+'], utf8: true)]
     public function getDocumentData(string $root, string $path): JsonResponse
     {

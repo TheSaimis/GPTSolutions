@@ -235,6 +235,128 @@ final class FileService
     }
 
     /**
+     * Grąžina ištrintų dokumentų katalogo turinį. Struktūra: deleted/{baseDir}/{path}.
+     *
+     * @param string $baseDir templates|generated arba tuščia (tada grąžina abu)
+     * @return array{baseDir: string, path: string, name: string, type: string, size?: int, children?: array}[]
+     */
+    public function listDeleted(string $baseDir = ''): array
+    {
+        $deletedRoot = $this->projectDir . '/deleted';
+        if (! is_dir($deletedRoot)) {
+            return [];
+        }
+
+        $result = [];
+        $dirs   = $baseDir !== '' ? [$baseDir] : ['templates', 'generated'];
+
+        foreach ($dirs as $dir) {
+            if (! in_array($dir, ['templates', 'generated'], true)) {
+                continue;
+            }
+            $fullDir = $deletedRoot . '/' . $dir;
+            if (! is_dir($fullDir)) {
+                continue;
+            }
+            $items = $this->listDeletedRecursive($fullDir, $deletedRoot . '/' . $dir, $dir);
+            foreach ($items as $item) {
+                $item['baseDir'] = $dir;
+                $result[]        = $item;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{path: string, name: string, type: string, size?: int, modifiedAt?: string, children?: array}[]
+     */
+    private function listDeletedRecursive(string $fullPath, string $baseFull, string $baseDir): array
+    {
+        $result = [];
+        $items  = scandir($fullPath) ?: [];
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || str_starts_with($item, '~') || $item === 'desktop.ini') {
+                continue;
+            }
+            $itemPath = $fullPath . '/' . $item;
+            $relPath  = substr($itemPath, strlen($baseFull) + 1);
+            $relPath  = str_replace('\\', '/', $relPath);
+
+            if (is_dir($itemPath)) {
+                $result[] = [
+                    'path'     => $relPath,
+                    'name'     => $item,
+                    'type'     => 'directory',
+                    'baseDir'  => $baseDir,
+                    'children' => $this->listDeletedRecursive($itemPath, $baseFull, $baseDir),
+                ];
+            } else {
+                $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
+                if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+                    continue;
+                }
+                $result[] = [
+                    'path'      => $relPath,
+                    'name'      => $item,
+                    'type'      => 'file',
+                    'baseDir'   => $baseDir,
+                    'size'      => filesize($itemPath),
+                    'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Atkuria failą iš /deleted/{baseDir}/{path} atgal į {baseDir}/{path}.
+     *
+     * @return 'SUCCESS'|'FAIL'
+     */
+    public function restore(string $baseDir, string $path): string
+    {
+        $path = trim(str_replace('\\', '/', $path));
+        if ($path === '' || str_contains($path, '..') || str_starts_with($path, '/')) {
+            return self::FAIL;
+        }
+
+        if (! in_array($baseDir, ['templates', 'generated'], true)) {
+            return self::FAIL;
+        }
+
+        $deletedPath = $this->projectDir . '/deleted/' . $baseDir . '/' . $path;
+        $resolved    = realpath($deletedPath);
+        $deletedBase = realpath($this->projectDir . '/deleted/' . $baseDir);
+        if ($resolved === false || ! is_file($resolved) || $deletedBase === false || ! str_starts_with($resolved, $deletedBase)) {
+            return self::FAIL;
+        }
+
+        $targetFull = $this->getBaseFullPath($baseDir);
+        if ($targetFull === null) {
+            return self::FAIL;
+        }
+
+        $targetPath = $targetFull . '/' . $path;
+        $targetDir  = dirname($targetPath);
+        if (! is_dir($targetDir) && ! mkdir($targetDir, 0775, true)) {
+            return self::FAIL;
+        }
+        if (file_exists($targetPath)) {
+            return self::FAIL;
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+            return self::FAIL;
+        }
+
+        return rename($resolved, $targetPath) ? self::SUCCESS : self::FAIL;
+    }
+
+    /**
      * @return string|null Pilnas kelias į baseDir arba null jei neegzistuoja
      */
     public function getBaseFullPath(string $baseDir): ?string
