@@ -9,9 +9,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-use Symfony\Component\HttpFoundation\Response;
 
 #[Route('/api/company')]
 final class CompanyController extends AbstractController
@@ -210,8 +210,8 @@ final class CompanyController extends AbstractController
         $this->auditLogger->log("Atnaujinta įmonė \"{$company->getCompanyName()}\" (ID: {$id})");
 
         return $this->json([
-            'status'  => 'SUCCESS',
-            'data' => $company,
+            'status' => 'SUCCESS',
+            'data'   => $company,
         ], Response::HTTP_OK);
     }
 
@@ -231,7 +231,31 @@ final class CompanyController extends AbstractController
 
         $this->auditLogger->log("Įmonė \"{$company->getCompanyName()}\" (ID: {$id}) pažymėta ištrinimui");
 
-        return new JsonResponse(['status' => 'SUCCESS']);
+        return new JsonResponse([
+            'status' => 'SUCCESS',
+            'data'   => [
+                'id'          => $company->getId(),
+                'companyName' => $company->getCompanyName(),
+                'code'        => $company->getCode(),
+                'email'       => $company->getEmail(),
+                'phone'       => $company->getPhone(),
+                'deleted'     => $company->isDeleted(),
+                'deletedDate' => $company->getDeletedDate()?->format('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
+    #[Route('/all/deleted', name: 'api_company_all_deleted', methods: ['GET'])]
+    public function getAllDeleted(CompanyRequisiteRepository $repo): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $companies = $repo->findBy(['deleted' => true]);
+        $result    = [];
+        foreach ($companies as $company) {
+            $result[] = $this->toArray($company);
+        }
+        return new JsonResponse($result);
     }
 
     private function sanitizeForFilename(string $name): string
@@ -268,6 +292,8 @@ final class CompanyController extends AbstractController
             'directory'        => $c->getDirectory(),
             'createdAt'        => $c->getCreatedAt()?->format('Y-m-d H:i:s'),
             'modifiedAt'       => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
+            'deleted'          => $c->isDeleted(),
+            'deletedDate'      => $c->getDeletedDate()?->format('Y-m-d H:i:s'),
         ];
     }
 }

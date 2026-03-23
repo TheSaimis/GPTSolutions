@@ -78,6 +78,27 @@ final class UserController extends AbstractController
         ], 201);
     }
 
+    #[Route('/users/all/deleted', name: 'app_user_all_deleted', methods: ['GET'])]
+    public function getAllDeletedUsers(UserRepository $repo): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $users = $repo->findBy(['deleted' => true]);
+        $data = [];
+        foreach ($users as $user) {
+            $data[] = [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'firstName' => $user->getFirstName(),
+                'lastName' => $user->getLastName(),
+                'role' => $user->getRoles(),
+                'deleted' => $user->isDeleted(),
+                'deletedDate' => $user->getDeletedDate(),
+            ];
+        }
+        return new JsonResponse($data);
+    }
+
     #[Route('/users/all', name: 'app_user_all', methods: ['GET'])]
     public function getAllUsers(UserRepository $repo): JsonResponse
     {

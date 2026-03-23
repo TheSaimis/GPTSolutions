@@ -280,16 +280,20 @@ final class FileService
             if ($item === '.' || $item === '..' || str_starts_with($item, '~') || $item === 'desktop.ini') {
                 continue;
             }
+
             $itemPath = $fullPath . '/' . $item;
             $relPath  = substr($itemPath, strlen($baseFull) + 1);
             $relPath  = str_replace('\\', '/', $relPath);
+
+            if ($baseDir !== '') {
+                $relPath = $baseDir . ($relPath !== '' ? '/' . $relPath : '');
+            }
 
             if (is_dir($itemPath)) {
                 $result[] = [
                     'path'     => $relPath,
                     'name'     => $item,
                     'type'     => 'directory',
-                    'baseDir'  => $baseDir,
                     'children' => $this->listDeletedRecursive($itemPath, $baseFull, $baseDir),
                 ];
             } else {
@@ -297,17 +301,23 @@ final class FileService
                 if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
                     continue;
                 }
-                $result[] = [
-                    'path'      => $relPath,
-                    'name'      => $item,
-                    'type'      => 'file',
-                    'baseDir'   => $baseDir,
-                    'size'      => filesize($itemPath),
+
+                $entry = [
+                    'path'       => $relPath,
+                    'name'       => $item,
+                    'type'       => 'file',
+                    'size'       => filesize($itemPath),
+                    'createdAt'  => date('Y-m-d H:i:s', filectime($itemPath)),
                     'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),
                 ];
+
+                if ($ext === 'docx' || $ext === 'xlsx') {
+                    $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                }
+
+                $result[] = $entry;
             }
         }
-
         return $result;
     }
 
@@ -316,43 +326,52 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function restore(string $baseDir, string $path): string
+    public function restore(string $path): string
     {
-        $path = trim(str_replace('\\', '/', $path));
-        if ($path === '' || str_contains($path, '..') || str_starts_with($path, '/')) {
+        $path = trim(str_replace('\\', '/', $path), '/');
+        if ($path === '' || str_contains($path, '..')) {
             return self::FAIL;
         }
-
-        if (! in_array($baseDir, ['templates', 'generated'], true)) {
+    
+        [$baseDir, $relativePath] = array_pad(explode('/', $path, 2), 2, null);
+    
+        if (
+            $baseDir === null ||
+            $relativePath === null ||
+            !in_array($baseDir, ['templates', 'generated'], true)
+        ) {
             return self::FAIL;
         }
-
-        $deletedPath = $this->projectDir . '/deleted/' . $baseDir . '/' . $path;
-        $resolved    = realpath($deletedPath);
+    
         $deletedBase = realpath($this->projectDir . '/deleted/' . $baseDir);
-        if ($resolved === false || ! is_file($resolved) || $deletedBase === false || ! str_starts_with($resolved, $deletedBase)) {
+        $resolved = $deletedBase ? realpath($deletedBase . '/' . $relativePath) : false;
+    
+        if (
+            $deletedBase === false ||
+            $resolved === false ||
+            !is_file($resolved) ||
+            !str_starts_with($resolved, $deletedBase)
+        ) {
             return self::FAIL;
         }
-
+    
         $targetFull = $this->getBaseFullPath($baseDir);
         if ($targetFull === null) {
             return self::FAIL;
         }
-
-        $targetPath = $targetFull . '/' . $path;
-        $targetDir  = dirname($targetPath);
-        if (! is_dir($targetDir) && ! mkdir($targetDir, 0775, true)) {
+    
+        $targetPath = $targetFull . '/' . $relativePath;
+        $targetDir = dirname($targetPath);
+    
+        if ((!is_dir($targetDir) && !mkdir($targetDir, 0775, true)) || file_exists($targetPath)) {
             return self::FAIL;
         }
-        if (file_exists($targetPath)) {
+    
+        $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
             return self::FAIL;
         }
-
-        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
-            return self::FAIL;
-        }
-
+    
         return rename($resolved, $targetPath) ? self::SUCCESS : self::FAIL;
     }
 
@@ -362,9 +381,10 @@ final class FileService
     public function getBaseFullPath(string $baseDir): ?string
     {
         $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
-        $mapped = match ($baseDir) {
+        $mapped  = match ($baseDir) {
             'templates' => 'templates',
             'generated' => 'generated',
+            'deleted'   => 'deleted',
             default     => null,
         };
         if ($mapped === null) {

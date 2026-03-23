@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Symfony\Bundle\SecurityBundle\Security;
+
 /**
  * Ištrina katalogą {baseDir}/{directory}.
- * delete(directory, baseDir) → SUCCESS | FAIL
+ *
+ * Elgsena:
+ * - templates/generated -> soft delete į /deleted/{baseDir}/{directory}
+ * - deleted -> jei vartotojas turi ROLE_ADMIN, ištrina visam laikui
  */
 final class DeleteCatalogue
 {
@@ -15,40 +20,38 @@ final class DeleteCatalogue
 
     public function __construct(
         private readonly string $projectDir,
+        private readonly Security $security,
     ) {}
 
     /**
-     * Ištrina katalogą {baseDir}/{directory}.
-     *
-     * Leidžiami tik baseDir:
-     * - templates
-     * - generated
-     *
-     * @param string $directory Kelias po baseDir (pvz. "4 Tvarkos/Naujas")
-     * @param string $baseDir   "templates" arba "generated"
-     * @return 'SUCCESS'|'FAIL'
+     * @param string $directory Kelias po baseDir
+     * @param string $baseDir   "templates" | "generated" | "deleted"
+     * @return string
      */
     public function delete(string $directory, string $baseDir): string
     {
         $directory = trim(str_replace('\\', '/', $directory), '/');
         if ($directory === '' || $directory === '.') {
-            return "Invalid directory";
+            return 'Invalid directory';
         }
 
         $base = $this->resolveBase($baseDir);
         if ($base === null) {
-            return "Invalid base directory";
+            return 'Invalid base directory';
         }
 
         $targetPath = $base . '/' . $directory;
         $resolvedTarget = realpath($targetPath);
 
         if ($resolvedTarget === false || !is_dir($resolvedTarget)) {
-            return "Not a directory";
+            return 'Not a directory';
         }
 
         // extra safety: must stay inside allowed base
-        if (!str_starts_with($resolvedTarget, $base . DIRECTORY_SEPARATOR) && $resolvedTarget !== $base) {
+        if (
+            !str_starts_with($resolvedTarget, $base . DIRECTORY_SEPARATOR)
+            && $resolvedTarget !== $base
+        ) {
             return "Can't delete outside base directory";
         }
 
@@ -58,6 +61,17 @@ final class DeleteCatalogue
         }
 
         try {
+            // HARD DELETE only from /deleted and only for admins
+            if ($baseDir === 'deleted') {
+                if (!$this->security->isGranted('ROLE_ADMIN')) {
+                    return 'Only admin can permanently delete from deleted';
+                }
+
+                $this->removeDirectory($resolvedTarget);
+                return self::SUCCESS;
+            }
+
+            // SOFT DELETE for templates/generated
             $deletedBase = $this->projectDir . '/deleted/' . $baseDir . '/' . $directory;
             $parentDir = dirname($deletedBase);
 
@@ -65,13 +79,16 @@ final class DeleteCatalogue
                 return "Failed to create $parentDir";
             }
 
+            // if same deleted folder already exists, remove it first
             if (is_dir($deletedBase)) {
                 $this->removeDirectory($deletedBase);
             }
 
-            return rename($resolvedTarget, $deletedBase) ? self::SUCCESS : "Failed to rename $resolvedTarget to $deletedBase";
-        } catch (\Throwable) {
-            return "Some sort of error happened or sum shi";
+            return rename($resolvedTarget, $deletedBase)
+                ? self::SUCCESS
+                : "Failed to rename $resolvedTarget to $deletedBase";
+        } catch (\Throwable $e) {
+            return $e->getMessage();
         }
     }
 
@@ -94,10 +111,16 @@ final class DeleteCatalogue
         $fullPath = match ($baseDir) {
             'templates' => $this->projectDir . '/templates',
             'generated' => $this->projectDir . '/generated',
+            'deleted' => $this->projectDir . '/deleted',
             default => null,
         };
 
         if ($fullPath === null) {
+            return null;
+        }
+
+        // deleted might not exist yet
+        if ($baseDir === 'deleted' && !is_dir($fullPath)) {
             return null;
         }
 

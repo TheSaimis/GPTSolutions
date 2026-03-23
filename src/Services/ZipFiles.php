@@ -10,7 +10,7 @@ use ZipArchive;
 
 final class ZipFiles
 {
-    private const ALLOWED_ROOTS = ['templates', 'generated'];
+    private const ALLOWED_ROOTS = ['templates', 'generated', 'deleted'];
     private const ALLOWED_FILE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx'];
 
     public function __construct(

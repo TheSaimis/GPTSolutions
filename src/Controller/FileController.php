@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/files')]
 final class FileController extends AbstractController
 {
-    private const ALLOWED_BASE_DIRS = ['templates', 'generated'];
+    private const ALLOWED_BASE_DIRS = ['templates', 'generated', 'deleted'];
 
     public function __construct(
         private readonly FileService $fileService,
@@ -71,7 +71,7 @@ final class FileController extends AbstractController
         if (! $file) {
             return new JsonResponse(['error' => 'Missing file field "template"'], 400);
         }
-        if (! in_array($root, ['templates', 'generated'], true)) {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
         $path = str_replace('\\', '/', $path);
@@ -96,7 +96,7 @@ final class FileController extends AbstractController
         $root    = trim((string) (is_array($data) ? ($data['root'] ?? $request->request->get('root')) : ''));
         $path    = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
         $newName = trim((string) (is_array($data) ? ($data['name'] ?? $request->request->get('name')) : ''));
-        if (! in_array($root, ['templates', 'generated'], true)) {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
         if ($path === '' || $newName === '') {
@@ -130,7 +130,7 @@ final class FileController extends AbstractController
         $root = trim((string) (is_array($data) ? ($data['root'] ?? $request->request->get('root')) : ''));
         $path = trim((string) (is_array($data) ? ($data['directory'] ?? $request->request->get('directory')) : ''));
 
-        if (! in_array($root, ['templates', 'generated'], true)) {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
         if ($path === '') {
@@ -168,13 +168,14 @@ final class FileController extends AbstractController
     public function listDeleted(Request $request): JsonResponse
     {
         $root = trim((string) $request->query->get('root', ''));
+
         if ($root !== '' && ! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas root. Leidžiami: templates, generated'], 400);
         }
 
         $items = $this->fileService->listDeleted($root);
 
-        return new JsonResponse(['deleted' => $items]);
+        return new JsonResponse($items);
     }
 
     /**
@@ -191,28 +192,21 @@ final class FileController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
         }
 
-        $root = trim((string) ($data['root'] ?? ''));
         $path = trim((string) ($data['path'] ?? $data['directory'] ?? ''));
 
-        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'root (templates|generated) is required'], 400);
-        }
         if ($path === '') {
             return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
         }
 
         $path = str_replace('\\', '/', $path);
-        if (str_starts_with($path, $root . '/')) {
-            $path = substr($path, strlen($root) + 1);
-        }
 
-        $status = $this->fileService->restore($root, $path);
+        $status = $this->fileService->restore($path);
         if ($status === 'SUCCESS') {
-            $this->auditLogger->log("Failas atkurtas: {$root}/{$path}");
+            $this->auditLogger->log("Failas atkurtas: {$path}");
         }
 
         return new JsonResponse(
-            ['status' => $status, 'path' => $root . '/' . $path],
+            ['status' => $status, 'path' => $path],
             $status === 'SUCCESS' ? 200 : 400
         );
     }
@@ -231,7 +225,7 @@ final class FileController extends AbstractController
 
         $custom = $result['metadata']['custom'] ?? [];
         if (isset($custom['customVariables']) && is_string($custom['customVariables'])) {
-            $decoded = json_decode($custom['customVariables'], true);
+            $decoded                   = json_decode($custom['customVariables'], true);
             $custom['customVariables'] = is_array($decoded) ? $decoded : [];
         }
 
@@ -248,7 +242,7 @@ final class FileController extends AbstractController
     #[Route('/download/{root}/{path}', name: 'api_downlaod_file', methods: ['GET'], requirements: ['path' => '.+'], utf8: true)]
     public function getGeneratedFile(string $path, string $root): JsonResponse | BinaryFileResponse
     {
-        if (! in_array($root, ['templates', 'generated'], true)) {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
 
@@ -263,9 +257,9 @@ final class FileController extends AbstractController
         $response = new BinaryFileResponse($resolved);
         $response->headers->set('Content-Type', match ($ext) {
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'doc' => 'application/msword',
+            'doc'  => 'application/msword',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'xls' => 'application/vnd.ms-excel',
+            'xls'  => 'application/vnd.ms-excel',
         });
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
@@ -277,14 +271,14 @@ final class FileController extends AbstractController
     #[Route('/pdf/{root}/{path}', name: 'api_file_pdf', methods: ['GET'], requirements: ['path' => '.+'])]
     public function viewAsPdf(string $root, string $path): JsonResponse | BinaryFileResponse
     {
-        if (! in_array($root, ['templates', 'generated'], true)) {
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
-        $baseDir = $root === 'generated' ? 'generated' : 'templates';
+        $baseDir = $root;
 
         $resolved = $this->fileService->resolvePath($root, $path);
         if ($resolved === null || ! is_file($resolved)) {
-            return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
+            return new JsonResponse(['error' => 'Failas nerastas: ' . $root . '/' . $path], 404);
         }
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));

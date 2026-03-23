@@ -24,6 +24,7 @@ final class CatalogueController extends AbstractController
     private const BASE_DIR_MAP = [
         'templates' => 'templates',
         'generated' => 'generated',
+        'deleted'   => 'deleted',
     ];
 
     public function __construct(
