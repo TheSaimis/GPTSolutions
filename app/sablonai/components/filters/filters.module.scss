@@ -3,15 +3,12 @@
     width: auto;
     flex-shrink: 0;
     align-self: stretch;
-    height: 100%;
     display: flex;
 
     .filters {
-
         position: sticky;
-        top: 24px;
+        top: 80px;
         overflow-y: auto;
-        overflow-x: hidden;
         max-height: calc(100vh - 48px);
         background: #ffffff;
         border: 1px solid #e7ebf2;
@@ -22,7 +19,7 @@
         flex-direction: column;
         gap: 22px;
         margin-left: 10px;
-        height: fit-content;
+        height: 90vh;
         width: 320px;
         max-width: 40vw;
         z-index: 10;
