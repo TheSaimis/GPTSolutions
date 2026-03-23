@@ -32,5 +32,8 @@ export const CompanyApi = {
             CompanyStore.update(id, res.data);
         }
         return res;
-    }
+    },
+
+    companyRestore: (id: number) => api.post(`/api/restore/${id}/company`),
+    companyDelete: (id: number) => api.post(`/api/delete/${id}/company`),
 };
