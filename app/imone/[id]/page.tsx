@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Save } from "lucide-react";
+import { Building2, Save, Trash } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
 import { MessageStore } from "@/lib/globalVariables/messages";
@@ -12,6 +12,7 @@ import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import { useConfirmAction } from "@/components/confirmationPanel/confirmationPanel";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -31,7 +32,10 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     const [managerLastName, setManagerLastName] = useState("");
     const [managerGender, setManagerGender] = useState("");
     const [role, setRole] = useState("");
+    const [deleted, setDeleted] = useState<boolean | undefined>(false);
+    const [deletedDate, setDeletedDate] = useState("");
     const [readOnly, setReadOnly] = useState<{ createdAt?: string; modifiedAt?: string; documentDate?: string }>({});
+    const { confirmAction } = useConfirmAction();
 
     useEffect(() => {
         if (Number.isNaN(id)) {
@@ -51,6 +55,8 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                     setManagerFirstName(c.managerFirstName ?? "");
                     setManagerLastName(c.managerLastName ?? "");
                     setManagerGender(c.managerGender ?? "");
+                    setDeleted(c.deleted);
+                    setDeletedDate(c.deletedDate ?? "");
                     setRole(c.role ?? "");
                     setReadOnly({
                         createdAt: c.createdAt,
@@ -61,6 +67,40 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
             })
             .finally(() => setLoading(false));
     }, [id]);
+
+    async function deleteCompany() {
+        if (Number.isNaN(id)) return;
+        try {
+            const confirmed = await confirmAction({
+                title: "Ištrinti naudotoją?",
+                message: "Atliekus ši veiksmą įmonė išliks duomenų bazėje 7 dienas.\n Praėjus šiam laikotarpiui imonė bus ištrinta visam laikui",
+                type: "delete",
+                confirmText: "Ištrinti",
+                cancelText: "Atšaukti",
+                icon: Trash,
+            });
+            if (!confirmed) return;
+
+            await CompanyApi.companyDelete(id);
+            MessageStore.push({ title: "Sėkmingai", message: "Įmonė ištrinta", backgroundColor: "#22C55E" });
+            setDeleted(true);
+            setDeletedDate(new Date().toISOString());
+        } catch {
+            // error handled by api
+        }
+    }
+
+    async function restoreCompany() {
+        if (Number.isNaN(id)) return;
+        try {
+            await CompanyApi.companyRestore(id);
+            MessageStore.push({ title: "Sėkmingai", message: "Įmonė atkurta", backgroundColor: "#22C55E" });
+            setDeleted(false);
+            setDeletedDate("");
+        } catch {
+            // error handled by api
+        }
+    }
 
     async function handleSubmit() {
         if (Number.isNaN(id)) return;
@@ -109,9 +149,29 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                         <h1 className={styles.title}>Redaguoti įmonę</h1>
                         <p className={styles.subtitle}>Keiskite įmonės duomenis (ID, sukūrimo ir redagavimo datos nekeičiamos)</p>
                     </div>
+                    {!deleted &&
+                        <div className={styles.trashIcon} onClick={deleteCompany}>
+                            <Trash size={24} />
+                        </div>
+                    }
                 </div>
 
                 <div className={styles.divider} />
+
+                {deleted && (
+                    <>
+                        <div className={styles.deletedSection}>
+                            <div className={styles.deletedRow}>
+                                <p className={styles.deletedLabel}>Ši įmonė yra pažymėta ištrinimui</p>
+                                <p className={styles.deletedValue}>Ištrinimo data: {deletedDate}</p>
+                                <p>Praėjus 7 dienom nuo ištrinimo datos vartotojas bus pašalintas iš duomenų bazės visam laikui</p>
+                            </div>
+                            <button onClick={restoreCompany} className="buttons">Atstatyti įmonę</button>
+                        </div>
+                        <div className={styles.divider} />
+                    </>
+                )
+                }
 
                 <div className={styles.readOnlySection}>
                     <div className={styles.readOnlyRow}>

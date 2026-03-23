@@ -100,6 +100,15 @@ export default function Files({ data, fileType }: List) {
     });
   }
 
+  async function restoreFile() {
+    FilesApi.restoreFile(data.path).then((res) => {
+      if (res.status === "SUCCESS") {
+        DirectoryStore.remove(data.path);
+        setCatalogueTree((prev) => removeFileFromTree(prev, data.path));
+      }
+    })
+  }
+
   function downloadFile() {
     FilesApi.downloadFile(`${fileType}/${data.path}`).then((res) => { downloadBlob(res); });
   }
@@ -113,6 +122,7 @@ export default function Files({ data, fileType }: List) {
     const date = new Date(dateStr.replace(" ", "T")); // important fix
     return date.toLocaleDateString("lt-LT"); // Lithuanian format
   };
+
 
   return (
     <div>
@@ -152,6 +162,15 @@ export default function Files({ data, fileType }: List) {
                     inputRef.current?.focus();
                   },
                 },
+                ...(fileType === "deleted"
+                  ? [
+                    {
+                      id: "restore",
+                      label: `Atstatyti failą ${data.name}`,
+                      onClick: restoreFile,
+                    },
+                  ]
+                  : []),
                 {
                   id: "delete",
                   label: `Ištrinti failą ${data.name}`,

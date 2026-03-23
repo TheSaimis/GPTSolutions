@@ -5,6 +5,7 @@ $text-dark: #0F172A;
 $text-muted: #64748B;
 $border: #E2E8F0;
 
+
 .companyCard {
     background: #ffffff;
     border-radius: 16px;
@@ -188,4 +189,8 @@ $border: #E2E8F0;
         grid-template-columns: 1fr;
         gap: 2px;
     }
+}
+
+.deleted {
+    background-color: rgb(255, 161, 161);
 }

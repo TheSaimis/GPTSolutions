@@ -11,10 +11,74 @@ import { UsersApi } from "@/lib/api/users";
 import { CompanyApi } from "@/lib/api/companies";
 import type { User } from "@/lib/types/User";
 import type { Company } from "@/lib/types/Company";
+import DeletedFiles from "./deletedFiles/deletedFiles";
 import { Download, RotateCcw, Trash2, ChevronDown } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 
 type DeletedTab = "users" | "companies";
+
+type SymfonyDateLike = {
+    date?: string;
+    timezone_type?: number;
+    timezone?: string;
+};
+
+function formatAnyDate(value: unknown): string {
+    if (!value) return "—";
+
+    if (typeof value === "string") {
+        const normalized = value.includes("T") ? value : value.replace(" ", "T");
+        const parsed = new Date(normalized);
+        return Number.isNaN(parsed.getTime())
+            ? value
+            : parsed.toLocaleString("lt-LT", {
+                timeZone: "Europe/Vilnius",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+    }
+
+    if (value instanceof Date) {
+        return value.toLocaleString("lt-LT", {
+            timeZone: "Europe/Vilnius",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        });
+    }
+
+    if (typeof value === "object" && value !== null && "date" in value) {
+        const symfonyDate = value as SymfonyDateLike;
+        if (!symfonyDate.date) return "—";
+
+        const normalized = symfonyDate.date.includes("T")
+            ? symfonyDate.date
+            : symfonyDate.date.replace(" ", "T");
+
+        const parsed = new Date(normalized);
+
+        return Number.isNaN(parsed.getTime())
+            ? symfonyDate.date
+            : parsed.toLocaleString("lt-LT", {
+                timeZone: "Europe/Vilnius",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+    }
+
+    return String(value);
+}
 
 export default function AdminPage() {
     const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -24,6 +88,7 @@ export default function AdminPage() {
     const [error, setError] = useState<string | null>(null);
     const [limit] = useState(20);
     const [offset, setOffset] = useState(0);
+    const [deletedRoot, setDeletedRoot] = useState<string>("templates");
 
     const [deletedTab, setDeletedTab] = useState<DeletedTab>("users");
     const [deletedUsers, setDeletedUsers] = useState<User[]>([]);
@@ -35,8 +100,7 @@ export default function AdminPage() {
     useEffect(() => {
         document.title = "Administravimas";
         const role = localStorage.getItem("role") || "";
-        const isAdmin = role === "ROLE_ADMIN";
-        setAllowed(isAdmin);
+        setAllowed(role === "ROLE_ADMIN");
     }, []);
 
     async function downloadGeneratedZip() {
@@ -72,8 +136,8 @@ export default function AdminPage() {
             setDeletedUsers(allUsers.filter((u) => u.deleted));
 
             try {
-                const allCompanies = await CompanyApi.getAll();
-                setDeletedCompanies(allCompanies.filter((c) => c.deleted));
+                const allCompanies = await CompanyApi.getAllDeleted();
+                setDeletedCompanies(allCompanies);
             } catch {
                 setDeletedCompanies([]);
             }
@@ -90,8 +154,6 @@ export default function AdminPage() {
         try {
             await UsersApi.userRestore(id);
             setDeletedUsers((prev) => prev.filter((u) => u.id !== id));
-        } catch {
-            /* handled by api */
         } finally {
             setRestoringId(null);
         }
@@ -102,8 +164,6 @@ export default function AdminPage() {
         try {
             await CompanyApi.companyRestore(id);
             setDeletedCompanies((prev) => prev.filter((c) => c.id !== id));
-        } catch {
-            /* handled by api */
         } finally {
             setRestoringId(null);
         }
@@ -118,16 +178,20 @@ export default function AdminPage() {
 
     const deletedCount = deletedUsers.length + deletedCompanies.length;
 
+    if (allowed === false) {
+        notFound();
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.content}>
                 <PageBackBar />
+
                 <div className={styles.topBar}>
                     <div className={styles.pageTitle}>Administratoriaus skydelis</div>
                     <div className={styles.pageSubtitle}>Prieinama tik administratoriams (ROLE_ADMIN)</div>
                 </div>
 
-                {allowed === false && notFound()}
                 {allowed === null ? (
                     <div className={styles.message}>Kraunama...</div>
                 ) : (
@@ -163,7 +227,33 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        {/* Deleted items section */}
+                        <div className={styles.deletedFiles}>
+                            <button
+                                className="buttons"
+                                onClick={() => setDeletedRoot("templates")}
+                            >
+                                Ištrinti šablonai
+                            </button>
+                            <button
+                                className="buttons"
+                                onClick={() => setDeletedRoot("generated")}
+                            >
+                                Ištrinti dokumentai
+                            </button>
+
+                            <div>
+                                <p>IŠTRINUS DOKUMENTUS IŠ ŠIO KATALOGO, JIE BUS IŠTRINTI VISAM LAIKUI</p>
+                            </div>
+
+                            {/* ik it looks stupid but it doesnt refresh otherwise and this segment of code is hopeless anyways */}
+                            {deletedRoot === "templates" &&
+                                <DeletedFiles deletedRoot={deletedRoot} />
+                            }
+                            {deletedRoot === "generated" &&
+                                <DeletedFiles deletedRoot={deletedRoot} />
+                            }
+                        </div>
+
                         <div className={`${styles.card} ${styles.deletedSection}`}>
                             <button
                                 type="button"
@@ -226,7 +316,7 @@ export default function AdminPage() {
                                                                 <td>{user.firstName || "—"}</td>
                                                                 <td>{user.lastName || "—"}</td>
                                                                 <td>{user.email || "—"}</td>
-                                                                <td>{user.deletedDate || "—"}</td>
+                                                                <td>{formatAnyDate(user.deletedDate)}</td>
                                                                 <td>
                                                                     <button
                                                                         type="button"
@@ -266,7 +356,7 @@ export default function AdminPage() {
                                                             <td>{company.companyName || "—"}</td>
                                                             <td>{company.code || "—"}</td>
                                                             <td>{company.companyType || "—"}</td>
-                                                            <td>{company.deletedDate || "—"}</td>
+                                                            <td>{formatAnyDate(company.deletedDate)}</td>
                                                             <td>
                                                                 <button
                                                                     type="button"
@@ -330,10 +420,8 @@ export default function AdminPage() {
                                                                 {log.userId ?? "—"}
                                                             </Link>
                                                         </td>
-                                                        <td className={styles.actionCell}>
-                                                            {log.action}
-                                                        </td>
-                                                        <td>{log.createdAt}</td>
+                                                        <td className={styles.actionCell}>{log.action}</td>
+                                                        <td>{formatAnyDate(log.createdAt)}</td>
                                                     </tr>
                                                 ))}
                                         </tbody>

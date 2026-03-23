@@ -48,6 +48,21 @@ $border: #E2E8F0;
     max-width: 560px;
 }
 
+.deletedSection {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #ff00001e;
+
+    .deletedRow {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
 .cardHeader {
     display: flex;
     align-items: center;
@@ -127,7 +142,7 @@ $border: #E2E8F0;
     display: flex;
     gap: 16px;
 
-    > * {
+    >* {
         flex: 1;
         min-width: 0;
     }
@@ -200,4 +215,17 @@ $border: #E2E8F0;
             font-size: 1.1rem;
         }
     }
+}
+
+.trashIcon {
+    color: red;
+    padding: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+    border-radius: 5px;
+}
+
+.trashIcon:hover {
+    background-color: red;
+    color: white;
 }

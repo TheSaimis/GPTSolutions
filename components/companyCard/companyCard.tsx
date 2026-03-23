@@ -51,7 +51,7 @@ export default function CompanyCard({ id, company: companyProp, variant = "large
 
     return (
         <article
-            className={`${styles.companyCard} ${variant === "compact" ? styles.compact : ""} ${variant === "mini" ? styles.mini : ""}`}
+            className={`${styles.companyCard} ${company.deleted ? styles.deleted : ""} ${variant === "compact" ? styles.compact : ""} ${variant === "mini" ? styles.mini : ""}`}
         >
             <div className={styles.cardHeader}>
                 <div className={styles.cardIcon}>

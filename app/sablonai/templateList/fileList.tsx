@@ -15,7 +15,11 @@ import { useContextMenu } from "@/components/contextMenu/menuComponents/contextM
 import { FILE_TYPES } from "@/lib/types/TemplateList";
 import { useEffect, useState, useMemo, useRef } from "react";
 
-export default function FileList() {
+type FileListProps = {
+    overflow?: boolean;
+};
+
+export default function FileList({ overflow }: FileListProps) {
     const { catalogueTree, filteredCatalogueTree, filters, setFilters, fileType } = useCatalogueTree();
     const [file, setFile] = useState<File | null>(null);
     const [create, setCreate] = useState(false);
@@ -55,7 +59,7 @@ export default function FileList() {
             </div>
             <div className={styles.templateList} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
                 <div className={styles.card}>
-                    <div>
+                    <div className={styles.search}>
                         <InputFieldText
                             value={filters.search}
                             onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
@@ -63,14 +67,14 @@ export default function FileList() {
                             icon={Search}
                         />
                     </div>
-                    <div className={styles.catalogueTree}>
+                    <div className={`${styles.catalogueTree} ${overflow ? styles.overflow : ""}`}>
                         {create && (
                             <CreateDirectory fileType={fileType} onFocus={setCreate} />
                         )}
                         {catalogueTree && catalogueTree?.length > 0 ? (filteredCatalogueTree.map((node) =>
                             node.type === "file" ? (
                                 <Files
-                                    key={node.path ?? node.name}
+                                    key={`${node.name}-${node.type}-${node.path}`}
                                     fileType={fileType}
                                     data={node}
                                 />
@@ -83,12 +87,12 @@ export default function FileList() {
                                     fileType={fileType}
                                 />
                             )
-                        )) : 
-                        <div className={styles.empty}>
-                            <h1>Katalogas tuščias</h1>
-                            <CreateDirectory placeholder={"Naujas katalogas"} path={""} icon={FolderPlus} fileType={fileType} onFocus={setCreate} />
-                            <InputFieldFile placeholder="Naujas dokumentas" ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
-                        </div>
+                        )) :
+                            <div className={styles.empty}>
+                                <h1>Katalogas tuščias</h1>
+                                <CreateDirectory placeholder={"Naujas katalogas"} path={""} icon={FolderPlus} fileType={fileType} onFocus={setCreate} />
+                                <InputFieldFile placeholder="Naujas dokumentas" ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+                            </div>
                         }
                     </div>
                 </div>

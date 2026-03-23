@@ -46,8 +46,6 @@ export default function Page({ params }: PageProps) {
       setCompanyId(res.metadata?.custom?.companyId || "");
       setUserId(res.metadata?.custom?.userId || "");
       setCustomVariables(res.metadata?.custom?.customVariables || null);
-
-      console.log(res);
     }
     getItems();
   }, [templateId, root, fullPath]);
@@ -92,11 +90,8 @@ export default function Page({ params }: PageProps) {
       Object.entries(customVariables || {}).filter(([, value]) => value.trim() !== "")
     );
 
-    console.log(cleanedCustomVariables);
     const res = await TemplateApi.createDocument(Number(companyId), [templatePath], cleanedCustomVariables, fullPath.split("/").pop());
     const today = nowSqlDate();
-    console.log(user);
-    console.log(currentUser);
     setUser(currentUser);
     if (res) setModifiedDate(today);
   }
@@ -213,9 +208,9 @@ export default function Page({ params }: PageProps) {
           <div className={style.side}>
             <h2 className={style.sideTitle}>Įmonės informacija</h2>
             <div className={style.sideBody}>
-              {companyId &&
-                <CompanyCard id={Number(companyId)} />
-              }
+              {companyId && (
+                <CompanyCard id={Number(companyId)} company={company ?? undefined} />
+              )}
             </div>
           </div>
         </div>

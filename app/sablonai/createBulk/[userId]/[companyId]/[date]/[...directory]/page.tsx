@@ -58,7 +58,6 @@ export default function Page({ params }: PageProps) {
         const first = localStorage.getItem("name");
         const last = localStorage.getItem("lastName");
         const id = localStorage.getItem("id");
-        console.log(first, last, id);
         if (first && last) {
           setCurrentUser({ firstName: first, lastName: last, id: Number(id) });
         }
@@ -76,8 +75,6 @@ export default function Page({ params }: PageProps) {
         if (!templatePath) return;
         const res = await TemplateApi.createDocument(Number(companyId), [templatePath], {}, fullPath.split("/").pop());
         const today = nowSqlDate();
-        console.log(user);
-        console.log(currentUser);
         setUser(currentUser);
         if (res) setDate(today);
     }

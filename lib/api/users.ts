@@ -2,7 +2,8 @@ import { api } from "./api";
 import type { User } from "../types/User";
 
 export const UsersApi = {
-    getAll: () => api.get<User[]>("/users/all", { loadingMessage: "Kraunamos naudotojai..." }),
+    getAll: () => api.get<User[]>("/users/all", { loadingMessage: "Kraunami naudotojai..." }),
+    getAllDeleted: () => api.get<User[]>("/users/all/deleted", { loadingMessage: "Kraunami ištrinti naudotojai..." }),
     getById: (id: number) => api.get<User>(`/users/${id}`),
     userCreate: (user: User, errorMessage?: string, errorTitle?: string) => api.post<User>("/users/create", user),
     userUpdate: (id: number, user: Partial<Pick<User, "email" | "firstName" | "lastName" | "role" | "password">>) =>

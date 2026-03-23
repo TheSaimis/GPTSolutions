@@ -12,6 +12,11 @@ export const CompanyApi = {
         return res;
     },
 
+    getAllDeleted: async () => {
+        const res = await api.get<Company[]>("/api/company/all/deleted", { loadingMessage: "Kraunamos ištrintos įmonės...", });
+        return res;
+    },
+
     getById: async (id: number) => {
         const existing = useCompanyStore.getState().companies.find((cmp) => cmp.id === id);
         if (existing) return existing;
@@ -34,6 +39,25 @@ export const CompanyApi = {
         return res;
     },
 
-    companyRestore: (id: number) => api.post(`/api/restore/${id}/company`),
-    companyDelete: (id: number) => api.post(`/api/delete/${id}/company`),
+    companyRestore: async (id: number) => {
+        const res = await api.post<ApiStatus<Company>>(`/api/restore/${id}/company`);
+        if (res.status === "SUCCESS") {
+            CompanyStore.update(id, {
+                deleted: false,
+                deletedDate: undefined,
+            });
+        }
+        return res;
+    },
+
+    companyDelete: async (id: number) => {
+        const res = await api.post<ApiStatus<Company>>(`/api/delete/${id}/company`);
+        if (res.status === "SUCCESS") {
+            CompanyStore.update(id, {
+                deleted: true,
+                deletedDate: new Date().toISOString(),
+            });
+        }
+        return res;
+    },
 };

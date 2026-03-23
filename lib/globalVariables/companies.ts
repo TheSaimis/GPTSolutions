@@ -19,15 +19,20 @@ export const useCompanyStore = create<CompanyStore>((set) => ({
 
     set: (companies) => set({ companies, wasSet: true }),
 
-    push: (cmp) =>
-        set((state) => ({
-            companies: [
-                ...state.companies,
-                {
-                    ...cmp,
-                },
-            ],
-        })),
+    push: (company: Company) =>
+        set((state) => {
+            const exists = state.companies.some((c) => c.id === company.id);
+            if (exists) {
+                return {
+                    companies: state.companies.map((c) =>
+                        c.id === company.id ? { ...c, ...company } : c
+                    ),
+                };
+            }
+            return {
+                companies: [...state.companies, company],
+            };
+        }),
 
     update: (id, cmp) =>
         set((state) => ({

@@ -54,7 +54,6 @@ export default function TemplatePage() {
     async function getCompanies() {
         const data = await CompanyApi.getAll();
         setCompanies(data);
-        console.log(data);
     }
 
     async function createDocument() {

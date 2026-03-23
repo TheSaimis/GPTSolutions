@@ -20,9 +20,10 @@ type DirectoryList = {
     fileType: string,
     children?: TemplateList[]
     path?: string
+    basedir?: string
 }
 
-export default function Directory({ name, children, path, fileType }: DirectoryList) {
+export default function Directory({ name, children, path, fileType, basedir }: DirectoryList) {
 
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [rename, setRename] = useState<boolean>(false);
@@ -48,6 +49,11 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
         const res = await CatalougeApi.catalogueDownload(fileType ?? "", path ?? "");
         downloadBlob(res);
     }
+
+    
+    useEffect(() => {
+        console.log(path)
+    }, []);
 
     const menuItems = useMemo(
         () => [
@@ -121,7 +127,8 @@ export default function Directory({ name, children, path, fileType }: DirectoryL
                     <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
                 }
                 {(children ?? []).map((child) => child.type === "file" ? (
-                    <Files key={child.path ?? child.name} fileType={fileType} data={child} />
+                    
+                    <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
                 ) : (
                     <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
                 )

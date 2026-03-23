@@ -32,7 +32,7 @@ export const FilesApi = {
   },
 
   getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),
-
   renameFile: (directory: string, name: string, root: string) => api.post<{ status: string }>("/api/files/rename", { directory, name, root }),
   deleteFile: (directory: string, root: string) => api.post<{ status: string }>("/api/files/delete", { directory, root }),
+  restoreFile: (directory: string) => api.post<{ status: string }>("/api/files/restore", { directory }),
 }

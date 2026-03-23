@@ -21,6 +21,7 @@ $border: #E2E8F0;
         display: flex;
         flex-direction: column;
         align-self: stretch;
+        position: relative;
         // min-width: 30vw;
         // max-width: 100%;
         // flex: 1;
@@ -40,6 +41,13 @@ $border: #E2E8F0;
             min-height: 0;
             display: flex;
             flex-direction: column;
+            .search {
+                position: sticky;
+                top: 60px;
+                z-index: 10;
+                background: white;
+                padding-bottom: 8px;
+            }
         }
 
         .catalogueTree {
@@ -49,6 +57,10 @@ $border: #E2E8F0;
             flex: 1;
             min-height: 200px;
             overflow-y: auto;
+        }
+        .overflow {
+            overflow-y: auto;
+            max-height: 80vh;
         }
 
         .files {
