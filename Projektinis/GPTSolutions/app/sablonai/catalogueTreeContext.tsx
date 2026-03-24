@@ -1,0 +1,113 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
+import { TemplateList } from "@/lib/types/TemplateList";
+import { filterCatalogueTree } from "./components/utilities/catalogueTreeFilter";
+import { setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
+
+export type CatalogueFilters = {
+  search: string;
+  types: string[];
+  companies: string[];
+  languages: string[];
+  createdBy: string[];
+  userIds: string[];
+  companyIds: string[];
+  templateIds: string[];
+  documentIds: string[];
+  mimeTypes: string[];
+  createdFrom: string;
+  createdTo: string;
+  showEmptyDirectories: boolean;
+};
+
+type CatalogueTreeType = {
+  fileType: string;
+  filters: CatalogueFilters;
+  setFilters: React.Dispatch<React.SetStateAction<CatalogueFilters>>;
+  catalogueTree: TemplateList[] | undefined;
+  setCatalogueTree: React.Dispatch<React.SetStateAction<TemplateList[]>>;
+  filteredCatalogueTree: TemplateList[];
+};
+
+const CatalogueTreeContext = createContext<CatalogueTreeType | undefined>(undefined);
+
+const defaultFilters: CatalogueFilters = {
+  search: "",
+  types: [],
+  companies: [],
+  languages: [],
+  createdBy: [],
+  userIds: [],
+  companyIds: [],
+  templateIds: [],
+  documentIds: [],
+  mimeTypes: [],
+  createdFrom: "",
+  createdTo: "",
+  showEmptyDirectories: true,
+};
+
+export function CatalogueTreeProvider({
+  children,
+  initialTree,
+  cacheKey,
+  fileType,
+}: {
+  children: ReactNode;
+  initialTree: TemplateList[];
+  fileType: string;
+  cacheKey?: string;
+}) {
+  const [filters, setFilters] = useState<CatalogueFilters>(defaultFilters);
+  const [catalogueTree, setCatalogueTree] = useState<TemplateList[]>(initialTree ?? []);
+  const didMountRef = useRef(false);
+
+  useEffect(() => {
+    setCatalogueTree(initialTree ?? []);
+  }, [initialTree]);
+
+  const filteredCatalogueTree = useMemo(() => {
+    return filterCatalogueTree(catalogueTree ?? [], filters);
+  }, [catalogueTree, filters]);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
+    setCachedCatalogueTree(cacheKey ?? fileType, catalogueTree ?? []);
+  }, [catalogueTree, cacheKey, fileType]);
+
+  return (
+    <CatalogueTreeContext.Provider
+      value={{
+        filters,
+        fileType,
+        setFilters,
+        catalogueTree,
+        setCatalogueTree,
+        filteredCatalogueTree,
+      }}
+    >
+      {children}
+    </CatalogueTreeContext.Provider>
+  );
+}
+
+export function useCatalogueTree() {
+  const context = useContext(CatalogueTreeContext);
+  if (!context) {
+    throw new Error("useCatalogueTree must be used inside CatalogueTreeProvider");
+  }
+  return context;
+}

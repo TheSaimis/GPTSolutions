@@ -1,0 +1,196 @@
+$primary: #EF2629;
+$primary-light: rgba(239, 38, 41, 0.08);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+
+.companyCard {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    border: 1px solid $border;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid $border;
+
+    .editButton {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        color: $text-muted;
+        background: $bg;
+        transition: color 0.15s ease, background 0.15s ease;
+
+        &:hover {
+            color: $primary;
+            background: $primary-light;
+        }
+    }
+
+    .cardIcon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: $primary-light;
+        color: $primary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .companyName {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0;
+        letter-spacing: -0.01em;
+    }
+}
+
+.rekvizitai {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+
+    .row {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 12px;
+        align-items: baseline;
+        margin: 0;
+    }
+
+    .label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: $text-muted;
+        // text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin: 0;
+    }
+
+    .value {
+        font-size: 0.938rem;
+        color: $text-dark;
+        margin: 0;
+        word-break: break-word;
+    }
+}
+
+.compact {
+    padding: 18px;
+
+    .cardHeader {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+
+        .companyName {
+            font-size: 1rem;
+        }
+    }
+
+    .rekvizitai {
+        gap: 8px;
+
+        .row {
+            grid-template-columns: 110px 1fr;
+            gap: 8px;
+        }
+
+        .label {
+            font-size: 0.75rem;
+        }
+
+        .value {
+            font-size: 0.86rem;
+        }
+    }
+}
+
+.mini {
+    padding: 14px;
+
+    .cardHeader {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+
+        .cardIcon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        .companyName {
+            font-size: 0.95rem;
+            line-height: 1.25;
+        }
+
+        .editButton {
+            width: 30px;
+            height: 30px;
+        }
+    }
+
+    .rekvizitai {
+        gap: 6px;
+
+        .row {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+
+        .label {
+            font-size: 0.72rem;
+        }
+
+        .value {
+            font-size: 0.84rem;
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .companyCard {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .cardHeader {
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+
+        .cardIcon {
+            width: 38px;
+            height: 38px;
+        }
+
+        .companyName {
+            font-size: 1rem;
+        }
+    }
+
+    .rekvizitai .row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}
+
+.deleted {
+    background-color: rgb(255, 161, 161);
+}

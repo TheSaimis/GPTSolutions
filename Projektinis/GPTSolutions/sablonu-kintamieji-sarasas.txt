@@ -1,0 +1,61 @@
+ŠABLONŲ KINTAMŲJŲ SĄRAŠAS
+=========================
+Įrašykite šiuos kintamuosius į Word dokumentą kaip šabloną. Sistema juos pakeis į tikrąsias reikšmes.
+
+——— ĮMONĖS KINTAMIEJAI (naudojami šablonuose) ———
+
+${kompanija}          – Įmonės pavadinimas
+${tipas}              – Įmonės kategorija (trumpinys)
+${tipasPilnas}        – Pilnas įmonės kategorijos pavadinimas
+${adresas}            – Įmonės registracijos adresas
+${kodas}              – Įmonės kodas
+${data} ${documentDate} – Dokumento data pagal šablono kalbą: LT „2022 m. gegužės 02 d.“, EN „2 May 2022“, RU „2 мая 2022 г.“; ${dataSkaitmenimis} – Y-m-d
+${vadovas}            – Įmonės vadovo vardas ir pavardė
+${vardas}             – Vadovo vardas
+${pavarde}            – Vadovo pavardė
+${role}               – Pasirašančio asmens pareigos
+
+——— LIETUVIŠKAI (LT šablonai) – pareigos pagal managerType ir vardas/pavardė ———
+
+Pareigos (vadovas, vadovė, direktorius, direktorė):
+${vadovo} ${vadoves}  – kilmininkas (vadovo / vadovės); ${vadoves} – tas pats be „ė“
+${vadovasNom}         – vardininkas
+${vadovui} ${vadovei} – naudininkas (vyr./mot. forma pagal tipą)
+${vadovą} ${vadovę}   – galininkas (abi raidės – ta pati reikšmė)
+${vadovu}             – įnagininkas
+${vadove} ${vadovėje} – vietininkas (ta pati reikšmė, teisinga forma pagal tipą)
+${vadovasKreip} ${vadovai} – šauksmininkas (kreipinys)
+
+Vardas ir pavardė (kilmininkas jau: ${vardo}, ${pavardes}; šauksm.: ${varde}, ${pavardeS}):
+${vardui} ${pavardui} – naudininkas
+${vardą} ${pavardą}   – galininkas
+${vardu} ${pavardu}   – įnagininkas
+${vardviet} ${pavardviet} – vietininkas
+
+——— PAGAL DUOMENŲ BAZĘ (Company laukai) ———
+
+id                   – Įmonės ID
+companyType          – Įmonės tipas (UAB, AB, MB, …)
+companyName          – Įmonės pavadinimas
+code                 – Įmonės kodas
+address              – Adresas
+cityOrDistrict       – Miestas / rajonas
+managerType          – Vadovo tipas
+managerFirstName     – Vadovo vardas
+managerLastName      – Vadovo pavardė
+managerGender        – Vadovo lytis
+documentDate         – Dokumento data
+role                 – Pareigos
+modifiedAt           – Redaguota
+createdAt            – Sukurta
+
+——— NAUDOTOJO LAUKAI (User) ———
+
+id                   – Naudotojo ID
+email                – El. paštas
+firstName            – Vardas
+lastName             – Pavardė
+role                 – Rolė (ROLE_ADMIN / ROLE_USER)
+
+=========================
+Naudojimas Word dokumente: įrašykite kintamąjį ten, kur turi atsirasti reikšmė, pvz.: ${kompanija}, ${adresas}, ${data}.

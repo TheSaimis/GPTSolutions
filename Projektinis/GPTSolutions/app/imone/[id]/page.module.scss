@@ -1,0 +1,231 @@
+$primary: #EF2629;
+$primary-hover: #d91f22;
+$primary-light: rgba(239, 38, 41, 0.08);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+.page {
+    flex: 1;
+    background: $bg;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 48px;
+}
+
+.topBar {
+    width: 100%;
+    max-width: 560px;
+    margin-bottom: 20px;
+
+    .backLink {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: $text-muted;
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: $text-dark;
+        }
+    }
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    padding: 32px;
+    width: 100%;
+    max-width: 560px;
+}
+
+.deletedSection {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #ff00001e;
+
+    .deletedRow {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .fileIcon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: $primary-light;
+        color: $primary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 2px;
+        letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+        color: $text-muted;
+        margin: 0;
+    }
+}
+
+.divider {
+    height: 1px;
+    background: $border;
+    margin: 24px 0;
+}
+
+.readOnlySection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: $bg;
+    border-radius: 10px;
+    margin-bottom: 4px;
+
+    .readOnlyRow {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .readOnlyLabel {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: $text-muted;
+        letter-spacing: 0.03em;
+    }
+
+    .readOnlyValue {
+        font-size: 0.938rem;
+        color: $text-dark;
+        font-family: ui-monospace, monospace;
+    }
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.row {
+    display: flex;
+    gap: 16px;
+
+    >* {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+.submitButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 24px;
+    font-size: 0.938rem;
+    font-weight: 600;
+    color: #fff;
+    background: $primary;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+
+    &:hover {
+        background: $primary-hover;
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+}
+
+.message {
+    font-size: 0.938rem;
+    color: $text-muted;
+    margin: 0;
+    padding: 24px;
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: 20px 12px 32px;
+    }
+
+    .card {
+        padding: 20px 16px;
+    }
+
+    .row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .readOnlySection {
+        padding: 12px;
+
+        .readOnlyRow {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+    }
+
+    .cardHeader {
+        gap: 12px;
+
+        .fileIcon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .title {
+            font-size: 1.1rem;
+        }
+    }
+}
+
+.trashIcon {
+    color: red;
+    padding: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+    border-radius: 5px;
+}
+
+.trashIcon:hover {
+    background-color: red;
+    color: white;
+}

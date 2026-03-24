@@ -1,0 +1,151 @@
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+
+.page {
+    flex: 1;
+    background: $bg;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 48px;
+}
+
+.topBar {
+    width: 100%;
+    max-width: 640px;
+    margin-bottom: 20px;
+
+    .backLink {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: $text-muted;
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: $text-dark;
+        }
+    }
+}
+
+.content {
+    width: 100%;
+    max-width: 1040px;
+}
+
+.pageTitle {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: $text-dark;
+    margin: 0 0 20px;
+    letter-spacing: -0.02em;
+}
+
+.message {
+    font-size: 0.938rem;
+    color: $text-muted;
+    margin: 0;
+    padding: 24px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.searchRow {
+    display: flex;
+}
+
+.searchInput {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid #d7dee8;
+    background: #fff;
+    padding: 0 12px;
+    font-size: 0.92rem;
+    color: $text-dark;
+    outline: none;
+
+    &:focus {
+        border-color: #a3b8d1;
+    }
+}
+
+.filtersRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.select {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #d7dee8;
+    background: #fff;
+    padding: 0 10px;
+    font-size: 0.88rem;
+    color: $text-dark;
+    outline: none;
+
+    &:focus {
+        border-color: #a3b8d1;
+    }
+}
+
+.cardList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.compactList {
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.miniList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+@media (max-width: 900px) {
+    .filtersRow {
+        grid-template-columns: 1fr;
+    }
+
+    .cardList {
+        grid-template-columns: 1fr;
+    }
+
+    .miniList {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: 16px 10px 32px;
+    }
+
+    .pageTitle {
+        font-size: 1.15rem;
+    }
+
+    .miniList {
+        grid-template-columns: 1fr;
+    }
+}

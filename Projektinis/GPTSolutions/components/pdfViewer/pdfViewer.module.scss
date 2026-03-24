@@ -1,0 +1,42 @@
+.pdfViewer {
+    opacity: 0;
+    transition: 0.3s;
+    width: 100%;
+    height: 100%;
+    z-index: 1000000;
+    background-color: #00000062;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: white;
+        cursor: pointer;
+        z-index: 1;
+    }
+
+    iframe {
+        width: 90%;
+        height: 90%;
+        border: none;
+        border-radius: 8px;
+        scale: 90%;
+    }
+}
+
+.pdfViewer.open {
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    .pdfViewer iframe {
+        width: 98%;
+        height: 85%;
+        border-radius: 4px;
+    }
+}

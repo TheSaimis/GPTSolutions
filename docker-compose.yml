@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./ProjektinisBackend/GPTSolutions
+    ports:
+      - "8000:80"
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: 0
+      APP_SECRET: some-long-random-string
+      DATABASE_URL: "mysql://symfony:doc1973@db:3306/GPT-solutions"
+      LIBREOFFICE_BIN: /usr/bin/soffice
+      JWT_SECRET_KEY: /var/www/html/config/jwt/private.pem
+      JWT_PUBLIC_KEY: /var/www/html/config/jwt/public.pem
+      JWT_PASSPHRASE: satnamie
+    volumes:
+      - jwt_keys:/var/www/html/config/jwt
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./Projektinis/GPTSolutions
+      args:
+        NEXT_PUBLIC_BACKEND_API_URL: "http://localhost:8000"
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_BACKEND_API_URL: "http://localhost:8000"
+
+  db:
+    image: mysql:8.0
+    platform: linux/x86_64
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: GPT-solutions
+      MYSQL_USER: symfony
+      MYSQL_PASSWORD: doc1973
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-container2
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: root
+    depends_on:
+      - db
+
+volumes:
+  jwt_keys:

@@ -1,0 +1,114 @@
+.header {
+    background-color: #d42225;
+    color: white;
+    padding: 0 40px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+    .logo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        flex-shrink: 0;
+
+        .logoImage {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
+        }
+    }
+
+    .burger {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        transition: background 0.15s ease;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    }
+
+    .nav {
+        display: flex;
+        gap: 4px;
+
+        .navLink {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            white-space: nowrap;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.15);
+                color: #fff;
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 0 16px;
+
+        .logo .logoImage {
+            height: 28px;
+        }
+
+        .burger {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #d42225;
+            flex-direction: column;
+            padding: 16px;
+            gap: 4px;
+            z-index: 99;
+            overflow-y: auto;
+            animation: slideDown 0.2s ease;
+
+            .navLink {
+                font-size: 1rem;
+                padding: 14px 16px;
+                border-radius: 10px;
+            }
+        }
+
+        .navOpen {
+            display: flex;
+        }
+    }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,179 @@
+"use client";
+
+import styles from "./filters.module.scss";
+import { useCatalogueTree } from "../../catalogueTreeContext";
+import CheckBox from "@/components/inputFields/checkBox";
+import InputFieldText from "@/components/inputFields/inputFieldText";
+import InputFieldDate from "@/components/inputFields/inputFieldDate";
+import { COMPANY_TYPES } from "@/lib/types/Company";
+import { ListFilter } from "lucide-react";
+
+export default function Filters() {
+
+  const { filters, setFilters } = useCatalogueTree();
+
+  function toggleArrayValue(arr: string[], value: string, checked: boolean) {
+    if (checked) return [...arr, value];
+    return arr.filter(v => v !== value);
+  }
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.filters}>
+
+        <h1>
+          <ListFilter size={20} />
+          Filtrai
+        </h1>
+
+        {/* TYPE FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Tipas</h2>
+
+          <div className={styles.checkboxGroup}>
+            {COMPANY_TYPES.map((type) => (
+              <div key={type} className={styles.types}>
+                <CheckBox
+                  value={filters.types.includes(type)}
+                  onChange={(checked) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      types: toggleArrayValue(prev.types, type, checked)
+                    }))
+                  }
+                />
+                <span>{type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* COMPANY FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <InputFieldText
+            value={filters.companies[0] ?? ""}
+            placeholder="Įmonė"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                companies: value ? [value] : []
+              }))
+            }
+          />
+        </div>
+
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Failo formatas</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              {
+                value: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                label: "Word",
+              },
+              {
+                value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                label: "Excel",
+              },
+            ].map((mime) => (
+              <div key={mime.value} className={styles.types}>
+                <CheckBox
+                  value={filters.mimeTypes.includes(mime.value)}
+                  onChange={(checked) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      mimeTypes: toggleArrayValue(prev.mimeTypes, mime.value, checked),
+                    }))
+                  }
+                />
+                <span>{mime.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* LANGUAGE FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Kalba</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              { code: "LT", label: "Lietuviu" },
+              { code: "RU", label: "Rusu" },
+              { code: "EN", label: "Anglu" },
+            ].map((lang) => (
+              <div key={lang.code} className={styles.types}>
+                <CheckBox
+                  value={filters.languages.includes(lang.code)}
+                  onChange={(checked) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      languages: toggleArrayValue(prev.languages, lang.code, checked),
+                    }))
+                  }
+                />
+                <span>{lang.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CREATED BY FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <InputFieldText
+            value={filters.createdBy[0] ?? ""}
+            placeholder="Vartotojas"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdBy: value ? [value] : []
+              }))
+            }
+          />
+        </div>
+
+        {/* DATE FILTER */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+
+          <InputFieldDate
+            value={filters.createdFrom}
+            placeholder="Data nuo"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdFrom: value
+              }))
+            }
+          />
+
+          <InputFieldDate
+            value={filters.createdTo}
+            placeholder="Data iki"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdTo: value
+              }))
+            }
+          />
+
+        </div>
+
+        {/* SHOW EMPTY FOLDERS */}
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <div className={styles.toggleRow}>
+            <CheckBox
+              value={filters.showEmptyDirectories}
+              onChange={(checked) =>
+                setFilters(prev => ({
+                  ...prev,
+                  showEmptyDirectories: checked
+                }))
+              }
+            />
+            <span>Rodyti tuščius aplankus</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
