@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build: ./ProjektinisBackend/GPTSolutions
@@ -14,8 +12,6 @@ services:
       JWT_SECRET_KEY: /var/www/html/config/jwt/private.pem
       JWT_PUBLIC_KEY: /var/www/html/config/jwt/public.pem
       JWT_PASSPHRASE: satnamie
-    volumes:
-      - jwt_keys:/var/www/html/config/jwt
     depends_on:
       - db
 
@@ -40,6 +36,8 @@ services:
       MYSQL_PASSWORD: doc1973
       MYSQL_ROOT_PASSWORD: root
     volumes:
+      # Duomenų bazės failai lieka Docker tūryje – neprarandama po `docker compose down`
+      - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
 
   phpmyadmin:
@@ -55,4 +53,4 @@ services:
       - db
 
 volumes:
-  jwt_keys:
+  mysql_data:
