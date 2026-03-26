@@ -25,8 +25,12 @@ class RiskSubcategory
     private int $lineNumber = 0;
 
     #[ORM\ManyToOne(targetEntity: RiskCategory::class, inversedBy: 'subcategories')]
-    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?RiskCategory $category = null;
+
+    #[ORM\ManyToOne(targetEntity: RiskGroup::class, inversedBy: 'directSubcategories')]
+    #[ORM\JoinColumn(name: 'group_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
+    private ?RiskGroup $group = null;
 
     /** @var Collection<int, RiskList> */
     #[ORM\OneToMany(targetEntity: RiskList::class, mappedBy: 'riskSubcategory')]
@@ -73,6 +77,28 @@ class RiskSubcategory
     {
         $this->category = $category;
         return $this;
+    }
+
+    public function getGroup(): ?RiskGroup
+    {
+        return $this->group;
+    }
+
+    public function setGroup(?RiskGroup $group): static
+    {
+        $this->group = $group;
+        return $this;
+    }
+
+    /**
+     * Grąžina grupę: arba per kategoriją, arba tiesioginę.
+     */
+    public function getEffectiveGroup(): ?RiskGroup
+    {
+        if ($this->category !== null) {
+            return $this->category->getGroup();
+        }
+        return $this->group;
     }
 
     /** @return Collection<int, RiskList> */

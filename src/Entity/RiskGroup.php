@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Repository\RiskCategoryRepository;
+use App\Repository\RiskGroupRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: RiskCategoryRepository::class)]
-#[ORM\Table(name: 'risk_categories')]
-class RiskCategory
+#[ORM\Entity(repositoryClass: RiskGroupRepository::class)]
+#[ORM\Table(name: 'risk_groups')]
+class RiskGroup
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -24,17 +24,18 @@ class RiskCategory
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $lineNumber = 0;
 
-    #[ORM\ManyToOne(targetEntity: RiskGroup::class, inversedBy: 'categories')]
-    #[ORM\JoinColumn(name: 'group_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
-    private ?RiskGroup $group = null;
+    /** @var Collection<int, RiskCategory> */
+    #[ORM\OneToMany(targetEntity: RiskCategory::class, mappedBy: 'group')]
+    private Collection $categories;
 
     /** @var Collection<int, RiskSubcategory> */
-    #[ORM\OneToMany(targetEntity: RiskSubcategory::class, mappedBy: 'category')]
-    private Collection $subcategories;
+    #[ORM\OneToMany(targetEntity: RiskSubcategory::class, mappedBy: 'group')]
+    private Collection $directSubcategories;
 
     public function __construct()
     {
-        $this->subcategories = new ArrayCollection();
+        $this->categories          = new ArrayCollection();
+        $this->directSubcategories = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -64,20 +65,15 @@ class RiskCategory
         return $this;
     }
 
-    public function getGroup(): ?RiskGroup
+    /** @return Collection<int, RiskCategory> */
+    public function getCategories(): Collection
     {
-        return $this->group;
-    }
-
-    public function setGroup(?RiskGroup $group): static
-    {
-        $this->group = $group;
-        return $this;
+        return $this->categories;
     }
 
     /** @return Collection<int, RiskSubcategory> */
-    public function getSubcategories(): Collection
+    public function getDirectSubcategories(): Collection
     {
-        return $this->subcategories;
+        return $this->directSubcategories;
     }
 }
