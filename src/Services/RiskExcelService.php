@@ -15,15 +15,13 @@ use App\Entity\Worker;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 final class RiskExcelService
 {
-    private const BORDER_THIN  = 'thin';
-    private const YELLOW       = 'FFFF00';
-    private const GRAY_STRIPE  = 'D9D9D9';
+    private const BORDER_THIN = 'thin';
+    private const GRAY_FILL   = 'D9D9D9';
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -242,8 +240,8 @@ final class RiskExcelService
         $totalCols     = $dataStartCol + $colCount - 1;
         $lastColLetter = $this->colLetter($totalCols);
         $midCol        = $this->colLetter((int) floor(($dataStartCol + $totalCols) / 2));
+        $bColLetter    = $this->colLetter(2); // B
 
-        // ── Column widths: A=12, B=20, data columns=4.5
         $sheet->getColumnDimension('A')->setWidth(12);
         $sheet->getColumnDimension('B')->setWidth(20);
         for ($c = $dataStartCol; $c <= $totalCols; $c++) {
@@ -272,25 +270,22 @@ final class RiskExcelService
             $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($posEnd) . $row);
         }
         $sheet->getStyle($this->colLetter($dataStartCol) . $row)->getAlignment()->setShrinkToFit(true);
-
         $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje.');
-        $this->fillRow($sheet, 'A' . $row, $lastColLetter . $row, self::YELLOW);
         $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
         $row++;
 
-        // ═══════ TABLE AREA START ═══════
+        // ═══════ TABLE START ═══════
         $tableStartRow = $row;
 
         // ── "Darbo aplinkos kenksmingi ir pavojingi veiksniai"
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
         $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $lastColLetter . $row);
-        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
         $row++;
 
         // ── Group header row (Fiziniai, Fizikiniai, ...)
-        $groupRow = $row;
         $sheet->setCellValue('A' . $row, 'Kūno dalys');
         $sheet->mergeCells('A' . $row . ':B' . ($row + 1));
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
@@ -312,7 +307,7 @@ final class RiskExcelService
             }
             $col += $groupColCount;
         }
-        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
         $row++;
 
         // ── Category header row (Mechaniniai, Skysčiai, ...)
@@ -344,8 +339,7 @@ final class RiskExcelService
                 }
             }
         }
-        $this->yellowBoldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
-        $this->fillRow($sheet, 'A' . $row, 'B' . $row, self::YELLOW);
+        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
         $row++;
 
         // ── Subcategory names (vertical text, tall row)
@@ -356,11 +350,11 @@ final class RiskExcelService
             $sheet->getStyle($letter . $row)->getAlignment()->setTextRotation(90);
             $col++;
         }
-        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
         $sheet->getRowDimension($row)->setRowHeight(120);
         $row++;
 
-        // ═══════ DATA ROWS ═══════
+        // ═══════ DATA ROWS (horizontalus pilka/balta nuo B stulpelio) ═══════
         $dataRowIndex = 0;
         foreach ($bodyPartCategories as $bpCat) {
             $bodyParts = $this->getBodyPartsForCategory($bpCat);
@@ -381,14 +375,14 @@ final class RiskExcelService
                     $col++;
                 }
 
-                // Horizontalus spalvų kaitaliojimas
-                $rowRange = 'A' . $row . ':' . $lastColLetter . $row;
-                $sheet->getStyle($rowRange)->getAlignment()
+                $sheet->getStyle('B' . $row . ':' . $lastColLetter . $row)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 if ($dataRowIndex % 2 === 1) {
-                    $this->fillRow($sheet, 'A' . $row, $lastColLetter . $row, self::GRAY_STRIPE);
+                    $sheet->getStyle('B' . $row . ':' . $lastColLetter . $row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB(self::GRAY_FILL);
                 }
 
                 $dataRowIndex++;
@@ -410,16 +404,13 @@ final class RiskExcelService
         }
         $dataEndRow = max($row - 1, $tableStartRow);
 
-        // ── Borders for entire table
+        // ── Borders
         $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
         $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(self::BORDER_THIN);
 
         // ═══════ FOOTER ═══════
         $row++;
         $sheet->setCellValue('A' . $row, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
-        $sheet->getStyle('A' . $row)->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB(self::YELLOW);
         $row++;
         $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
@@ -455,31 +446,17 @@ final class RiskExcelService
         return $count;
     }
 
-    private function yellowBoldCenter(
+    private function boldCenter(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         string $startCell,
         string $endCell,
     ): void {
         $range = $startCell . ':' . $endCell;
-        $sheet->getStyle($range)->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB(self::YELLOW);
         $sheet->getStyle($range)->getFont()->setBold(true);
         $sheet->getStyle($range)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
-    }
-
-    private function fillRow(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
-        string $startCell,
-        string $endCell,
-        string $color,
-    ): void {
-        $sheet->getStyle($startCell . ':' . $endCell)->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB($color);
     }
 
     private function lithuanianMonth(int $month): string
