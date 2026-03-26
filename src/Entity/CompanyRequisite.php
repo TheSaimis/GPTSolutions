@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\CompanyRequisiteRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -66,6 +68,20 @@ class CompanyRequisite
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedDate = null;
+
+    /** @var Collection<int, CompanyWorker> */
+    #[ORM\OneToMany(
+        targetEntity: CompanyWorker::class,
+        mappedBy: 'companyRequisite',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    private Collection $companyWorkers;
+
+    public function __construct()
+    {
+        $this->companyWorkers = new ArrayCollection();
+    }
 
     #[ORM\PrePersist]
     public function onCreate(): void
@@ -270,6 +286,33 @@ class CompanyRequisite
     public function setDeletedDate(?\DateTimeImmutable $deletedDate): static
     {
         $this->deletedDate = $deletedDate;
+        return $this;
+    }
+
+    /** @return Collection<int, CompanyWorker> */
+    public function getCompanyWorkers(): Collection
+    {
+        return $this->companyWorkers;
+    }
+
+    public function addCompanyWorker(CompanyWorker $companyWorker): static
+    {
+        if (! $this->companyWorkers->contains($companyWorker)) {
+            $this->companyWorkers->add($companyWorker);
+            $companyWorker->setCompanyRequisite($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCompanyWorker(CompanyWorker $companyWorker): static
+    {
+        if ($this->companyWorkers->removeElement($companyWorker)) {
+            if ($companyWorker->getCompanyRequisite() === $this) {
+                $companyWorker->setCompanyRequisite(null);
+            }
+        }
+
         return $this;
     }
 }

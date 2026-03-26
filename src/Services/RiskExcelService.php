@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Entity\BodyPart;
 use App\Entity\BodyPartCategory;
-use App\Entity\Company;
+use App\Entity\CompanyRequisite;
 use App\Entity\RiskCategory;
 use App\Entity\RiskGroup;
 use App\Entity\RiskList;
@@ -30,7 +30,7 @@ final class RiskExcelService
 
     public function generate(int $companyId): string
     {
-        $company = $this->em->getRepository(Company::class)->find($companyId);
+        $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if ($company === null) {
             throw new \InvalidArgumentException("Įmonė nerastas: ID {$companyId}");
         }
@@ -84,7 +84,7 @@ final class RiskExcelService
     // ─── Data fetching ───────────────────────────────
 
     /** @return Worker[] */
-    private function getCompanyWorkers(Company $company): array
+    private function getCompanyWorkers(CompanyRequisite $company): array
     {
         $workers = [];
         foreach ($company->getCompanyWorkers() as $cw) {
@@ -229,7 +229,7 @@ final class RiskExcelService
     private function renderWorkerTable(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         int $startRow,
-        Company $company,
+        CompanyRequisite $company,
         Worker $worker,
         array $bodyPartCategories,
         array $riskGroups,

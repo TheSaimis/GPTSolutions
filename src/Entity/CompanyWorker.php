@@ -17,9 +17,9 @@ class CompanyWorker
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'companyWorkers')]
+    #[ORM\ManyToOne(targetEntity: CompanyRequisite::class, inversedBy: 'companyWorkers')]
     #[ORM\JoinColumn(name: 'company_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
-    private ?Company $company = null;
+    private ?CompanyRequisite $company = null;
 
     #[ORM\ManyToOne(targetEntity: Worker::class, inversedBy: 'companyWorkers')]
     #[ORM\JoinColumn(name: 'worker_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
@@ -30,12 +30,12 @@ class CompanyWorker
         return $this->id;
     }
 
-    public function getCompany(): ?Company
+    public function getCompany(): ?CompanyRequisite
     {
         return $this->company;
     }
 
-    public function setCompany(?Company $company): static
+    public function setCompany(?CompanyRequisite $company): static
     {
         $this->company = $company;
         return $this;
