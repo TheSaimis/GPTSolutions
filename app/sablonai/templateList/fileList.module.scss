@@ -47,6 +47,32 @@ $border: #E2E8F0;
                 z-index: 10;
                 background: white;
                 padding-bottom: 8px;
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+        }
+
+        .filterToggle {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            height: 42px;
+            border-radius: 10px;
+            border: 1px solid #d7dee8;
+            background: #fff;
+            color: $text-dark;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.15s, border-color 0.15s;
+
+            &:hover {
+                background: #f8fafc;
+                border-color: #a3b8d1;
             }
         }
 
@@ -224,6 +250,10 @@ $border: #E2E8F0;
         flex-direction: column;
         max-width: none;
         min-height: 0;
+
+        .templateList .filterToggle {
+            display: inline-flex;
+        }
     }
 }
 
