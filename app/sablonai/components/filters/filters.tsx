@@ -149,7 +149,6 @@ export default function Filters() {
             <InputFieldSelect
               options={companyOptions}
               selected={filters.companies[0] ?? "Visos įmonės"}
-              placeholder="Įmonė"
               onChange={(value) =>
                 setFilters(prev => ({
                   ...prev,
@@ -223,7 +222,6 @@ export default function Filters() {
             <InputFieldSelect
               options={userOptions}
               selected={filters.createdBy[0] ?? "Visi vartotojai"}
-              placeholder="Vartotojas"
               onChange={(value) =>
                 setFilters(prev => ({
                   ...prev,

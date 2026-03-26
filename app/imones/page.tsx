@@ -15,6 +15,7 @@ export default function ImonesPage() {
     const [companyType, setCompanyType] = useState("");
     const [companyName, setCompanyName] = useState("");
     const [address, setAddress] = useState("");
+    const [cityOrDistrict, setCityOrDistrict] = useState("");
     const [code, setCode] = useState("");
     const [managerFirstName, setManagerFirstName] = useState("");
     const [managerLastName, setManagerLastName] = useState("");
@@ -32,6 +33,7 @@ export default function ImonesPage() {
                 companyType,
                 companyName,
                 address,
+                cityOrDistrict,
                 code,
                 managerFirstName,
                 managerLastName,
@@ -72,6 +74,7 @@ export default function ImonesPage() {
                     <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis" />
 
                     <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
+                    <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
                     <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas" />
 
                     <div className={styles.row}>

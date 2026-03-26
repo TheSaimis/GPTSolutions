@@ -53,6 +53,7 @@ export const wordVariables = [
     "${TIPASPILNAS}",
   
     "${adresas}",
+    "${Miestas}",
     "${kodas}",
     "${code}",
   
