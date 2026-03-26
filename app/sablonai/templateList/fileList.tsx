@@ -106,7 +106,7 @@ export default function FileList({ overflow }: FileListProps) {
                     </div>
                 </div>
             </div>
-            <Filters isOpen={filtersOpen} onClose={() => setFiltersOpen(false)} />
+            <Filters/>
         </DropZone>
     );
 }

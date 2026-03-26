@@ -1,0 +1,10 @@
+.bodyParts {
+    .bodyPartCategory {
+        max-width: 300px;
+        outline: 1px solid;
+        display: flex;
+        .bodyPartCell {
+            border-left: 1px solid;
+        }
+    }
+}

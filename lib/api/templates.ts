@@ -41,7 +41,14 @@ export const TemplateApi = {
     clearCachedCatalogueTree("generated");
     clearWordFileCache();
     return result;
-}
+  },
+
+  createAPPDocument: (companyId: number) => {
+    const result = api.getBlob(
+      `/api/risk/export/${companyId}`,
+    )
+    return result;
+  }
   // getTemplatePDF: (path: string) =>
   //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
 

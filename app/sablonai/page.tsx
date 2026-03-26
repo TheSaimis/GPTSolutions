@@ -12,6 +12,7 @@ import { Download, ExternalLink } from "lucide-react";
 import { CatalogueTreeProvider } from "./catalogueTreeContext";
 import { useRouter } from "next/navigation";
 import PageBackBar from "@/components/navigation/PageBackBar";
+import Link from "next/link";
 
 export default function TemplatePage() {
   const [templateList, setTemplateList] = useState<TemplateList[]>([]);
@@ -39,6 +40,11 @@ export default function TemplatePage() {
     downloadBlob({ blob, filename });
   }
 
+  async function downloadAAP() {
+    const { blob, filename } = await TemplateApi.createAPPDocument(1);
+    downloadBlob({ blob, filename });
+  }
+
   return (
     <div className={styles.templates}>
       <PageBackBar className={styles.backBar} />
@@ -59,6 +65,7 @@ export default function TemplatePage() {
             <Download size={18} />
             Atsisiųsti šablonų katalogą
           </button>
+
           <button
             type="button"
             onClick={() => router.push("/sablonai/sukurtiDokumentai")}
@@ -70,8 +77,18 @@ export default function TemplatePage() {
         </div>
       </div>
 
+      <div className={styles.templateNav}>
+          <Link href="/sablonai/kiti/AAP">AAP</Link>
+          |
+          <Link href="/sablonai/">Sveikatos tikrinimo pažymos</Link>
+          |
+          <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>
+          |
+          <Link href="/sablonai/sukurtiDokumentai">nemokamai išduodamų asmeninių apsaugos priemonių sarašas</Link>
+      </div>
+
       <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
-        <FileList/>
+        <FileList />
       </CatalogueTreeProvider>
     </div>
   );

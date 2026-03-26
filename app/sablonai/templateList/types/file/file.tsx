@@ -52,7 +52,7 @@ export default function Files({ data, fileType }: List) {
       if (data.metadata?.custom?.templateId === undefined || data.metadata?.custom?.userId === undefined || data.metadata?.custom?.companyId === undefined) return
       router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${fileType}/${data.path}`);
     } else if (fileType == "templates") {
-      router.push(`/sablonai/${data.path}`);
+      router.push(`/sablonai/kurtiDokumenta/${data.path}`);
     }
   }
 
