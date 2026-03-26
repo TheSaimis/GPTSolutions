@@ -15,13 +15,15 @@ use App\Entity\Worker;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 final class RiskExcelService
 {
-    private const BORDER_THIN = 'thin';
-    private const GRAY_FILL   = 'D9D9D9';
+    private const BORDER_THIN  = 'thin';
+    private const YELLOW       = 'FFFF00';
+    private const GRAY_STRIPE  = 'D9D9D9';
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -185,8 +187,7 @@ final class RiskExcelService
             }
 
             foreach ($categories as $cat) {
-                $subs = $this->getSubcategoriesForCategory($cat);
-                foreach ($subs as $sub) {
+                foreach ($this->getSubcategoriesForCategory($cat) as $sub) {
                     $columns[] = ['subcategory' => $sub, 'category' => $cat, 'group' => $group];
                 }
             }
@@ -236,43 +237,56 @@ final class RiskExcelService
         array $columns,
         array $riskMap,
     ): int {
-        $dataStartCol  = 3;
-        $totalCols     = $dataStartCol + count($columns) - 1;
+        $dataStartCol  = 3; // column C
+        $colCount      = count($columns);
+        $totalCols     = $dataStartCol + $colCount - 1;
         $lastColLetter = $this->colLetter($totalCols);
-        $midColLetter  = $this->colLetter((int) floor(($dataStartCol + $totalCols) / 2));
+        $midCol        = $this->colLetter((int) floor(($dataStartCol + $totalCols) / 2));
+
+        // ── Column widths: A=12, B=20, data columns=4.5
+        $sheet->getColumnDimension('A')->setWidth(12);
+        $sheet->getColumnDimension('B')->setWidth(20);
+        for ($c = $dataStartCol; $c <= $totalCols; $c++) {
+            $sheet->getColumnDimension($this->colLetter($c))->setWidth(4.5);
+        }
 
         $row = $startRow;
 
-        // ── Above-table labels: (pareigos) (parašas) (vardo raidė, pavardė)
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
-        $sheet->setCellValue($midColLetter . $row, '(parašas)');
-        $sheet->setCellValue($lastColLetter . $row, '(vardo raidė, pavardė)');
-        $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
-        $row++;
-
-        // ── Title: "Profesinės rizikos veiksnių įvertinimo..."
+        // ═══════ ROW 1: Title ═══════
         $sheet->setCellValue('A' . $row, 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones');
         $sheet->mergeCells('A' . $row . ':' . $lastColLetter . $row);
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(11);
+        $sheet->getStyle('A' . $row)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
         $row++;
 
-        // ── Company | Position | "darbo vietoje."
+        // ═══════ ROW 2: Company | Position | "darbo vietoje." ═══════
         $sheet->setCellValue('A' . $row, $company->getName());
+        $sheet->mergeCells('A' . $row . ':B' . $row);
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+
+        $posEnd = max($dataStartCol, $totalCols - 1);
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName());
-        $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($totalCols - 1) . $row);
+        if ($posEnd > $dataStartCol) {
+            $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($posEnd) . $row);
+        }
+        $sheet->getStyle($this->colLetter($dataStartCol) . $row)->getAlignment()->setShrinkToFit(true);
+
         $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje.');
-        $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->fillRow($sheet, 'A' . $row, $lastColLetter . $row, self::YELLOW);
+        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
         $row++;
 
-        // ══════════════ TABLE START ══════════════
+        // ═══════ TABLE AREA START ═══════
         $tableStartRow = $row;
 
-        // ── "Darbo aplinkos kenksmingi ir pavojingi veiksniai" merged
+        // ── "Darbo aplinkos kenksmingi ir pavojingi veiksniai"
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
         $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $lastColLetter . $row);
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
         $row++;
 
         // ── Group header row (Fiziniai, Fizikiniai, ...)
@@ -290,15 +304,15 @@ final class RiskExcelService
             if ($groupColCount === 0) {
                 continue;
             }
-            $startColLetter = $this->colLetter($col);
-            $endColLetter   = $this->colLetter($col + $groupColCount - 1);
-            $sheet->setCellValue($startColLetter . $row, $group->getName());
+            $sLetter = $this->colLetter($col);
+            $eLetter = $this->colLetter($col + $groupColCount - 1);
+            $sheet->setCellValue($sLetter . $row, $group->getName());
             if ($groupColCount > 1) {
-                $sheet->mergeCells($startColLetter . $row . ':' . $endColLetter . $row);
+                $sheet->mergeCells($sLetter . $row . ':' . $eLetter . $row);
             }
             $col += $groupColCount;
         }
-        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
+        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
         $row++;
 
         // ── Category header row (Mechaniniai, Skysčiai, ...)
@@ -312,11 +326,11 @@ final class RiskExcelService
                 if ($catSubCount === 0) {
                     continue;
                 }
-                $startColLetter = $this->colLetter($col);
-                $endColLetter   = $this->colLetter($col + $catSubCount - 1);
-                $sheet->setCellValue($startColLetter . $row, $cat->getName());
+                $sLetter = $this->colLetter($col);
+                $eLetter = $this->colLetter($col + $catSubCount - 1);
+                $sheet->setCellValue($sLetter . $row, $cat->getName());
                 if ($catSubCount > 1) {
-                    $sheet->mergeCells($startColLetter . $row . ':' . $endColLetter . $row);
+                    $sheet->mergeCells($sLetter . $row . ':' . $eLetter . $row);
                 }
                 $col += $catSubCount;
             }
@@ -330,23 +344,23 @@ final class RiskExcelService
                 }
             }
         }
-        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
+        $this->yellowBoldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
+        $this->fillRow($sheet, 'A' . $row, 'B' . $row, self::YELLOW);
         $row++;
 
-        // ── Subcategory names (vertical text)
+        // ── Subcategory names (vertical text, tall row)
         $col = $dataStartCol;
         foreach ($columns as $sc) {
             $letter = $this->colLetter($col);
             $sheet->setCellValue($letter . $row, $sc['subcategory']->getName());
             $sheet->getStyle($letter . $row)->getAlignment()->setTextRotation(90);
-            $sheet->getColumnDimension($letter)->setWidth(4.5);
             $col++;
         }
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->yellowBoldCenter($sheet, 'A' . $row, $lastColLetter . $row);
         $sheet->getRowDimension($row)->setRowHeight(120);
         $row++;
 
-        // ── Data rows with alternating gray/white
+        // ═══════ DATA ROWS ═══════
         $dataRowIndex = 0;
         foreach ($bodyPartCategories as $bpCat) {
             $bodyParts = $this->getBodyPartsForCategory($bpCat);
@@ -363,19 +377,20 @@ final class RiskExcelService
                     $key = $bp->getId() . '-' . $sc['subcategory']->getId();
                     if (isset($riskMap[$key])) {
                         $sheet->setCellValue($this->colLetter($col) . $row, '+');
-                        $sheet->getStyle($this->colLetter($col) . $row)
-                            ->getAlignment()
-                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
                     $col++;
                 }
 
+                // Horizontalus spalvų kaitaliojimas
+                $rowRange = 'A' . $row . ':' . $lastColLetter . $row;
+                $sheet->getStyle($rowRange)->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+
                 if ($dataRowIndex % 2 === 1) {
-                    $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)
-                        ->getFill()
-                        ->setFillType(Fill::FILL_SOLID)
-                        ->getStartColor()->setRGB(self::GRAY_FILL);
+                    $this->fillRow($sheet, 'A' . $row, $lastColLetter . $row, self::GRAY_STRIPE);
                 }
+
                 $dataRowIndex++;
                 $row++;
             }
@@ -389,32 +404,34 @@ final class RiskExcelService
                 $sheet->getStyle('A' . $catStartRow)->getFont()->setBold(true);
                 $sheet->getStyle('A' . $catStartRow)->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                     ->setWrapText(true);
             }
         }
-        $dataEndRow = $row - 1;
+        $dataEndRow = max($row - 1, $tableStartRow);
 
-        // ── Borders for entire table (from "Darbo aplinkos..." to last data row)
-        if ($dataEndRow >= $tableStartRow) {
-            $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
-            $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(self::BORDER_THIN);
-        }
+        // ── Borders for entire table
+        $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
+        $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(self::BORDER_THIN);
 
-        // ── Column widths
-        $sheet->getColumnDimension('A')->setWidth(12);
-        $sheet->getColumnDimension('B')->setWidth(20);
-
-        // ── Footer
+        // ═══════ FOOTER ═══════
         $row++;
         $sheet->setCellValue('A' . $row, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
-        $row += 2;
+        $sheet->getStyle('A' . $row)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB(self::YELLOW);
+        $row++;
         $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
-        $sheet->setCellValue($midColLetter . $row, '(parašas)');
+        $sheet->setCellValue($midCol . $row, '(parašas)');
         $sheet->setCellValue($lastColLetter . $row, '(vardo raidė, pavardė)');
+        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         return $row;
     }
+
+    // ─── Helpers ──────────────────────────────────────
 
     private function countColumnsForGroup(RiskGroup $group, array $columns): int
     {
@@ -438,12 +455,15 @@ final class RiskExcelService
         return $count;
     }
 
-    private function boldCenter(
+    private function yellowBoldCenter(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         string $startCell,
-        string $endCell
+        string $endCell,
     ): void {
         $range = $startCell . ':' . $endCell;
+        $sheet->getStyle($range)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB(self::YELLOW);
         $sheet->getStyle($range)->getFont()->setBold(true);
         $sheet->getStyle($range)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
@@ -451,15 +471,15 @@ final class RiskExcelService
             ->setWrapText(true);
     }
 
-    private function centerRange(
+    private function fillRow(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         string $startCell,
-        string $endCell
+        string $endCell,
+        string $color,
     ): void {
-        $range = $startCell . ':' . $endCell;
-        $sheet->getStyle($range)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle($startCell . ':' . $endCell)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB($color);
     }
 
     private function lithuanianMonth(int $month): string
