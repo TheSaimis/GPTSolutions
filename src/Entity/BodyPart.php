@@ -21,6 +21,9 @@ class BodyPart
     #[ORM\Column(length: 255)]
     private string $name = '';
 
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $lineNumber = 0;
+
     #[ORM\ManyToOne(targetEntity: BodyPartCategory::class, inversedBy: 'bodyParts')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?BodyPartCategory $category = null;
@@ -47,6 +50,17 @@ class BodyPart
     public function setName(string $name): static
     {
         $this->name = $name;
+        return $this;
+    }
+
+    public function getLineNumber(): int
+    {
+        return $this->lineNumber;
+    }
+
+    public function setLineNumber(int $lineNumber): static
+    {
+        $this->lineNumber = $lineNumber;
         return $this;
     }
 

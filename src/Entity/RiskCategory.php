@@ -21,6 +21,9 @@ class RiskCategory
     #[ORM\Column(length: 255)]
     private string $name = '';
 
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $lineNumber = 0;
+
     /** @var Collection<int, RiskSubcategory> */
     #[ORM\OneToMany(targetEntity: RiskSubcategory::class, mappedBy: 'category')]
     private Collection $subcategories;
@@ -43,6 +46,17 @@ class RiskCategory
     public function setName(string $name): static
     {
         $this->name = $name;
+        return $this;
+    }
+
+    public function getLineNumber(): int
+    {
+        return $this->lineNumber;
+    }
+
+    public function setLineNumber(int $lineNumber): static
+    {
+        $this->lineNumber = $lineNumber;
         return $this;
     }
 
