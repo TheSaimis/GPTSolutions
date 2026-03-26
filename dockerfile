@@ -41,7 +41,7 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
 RUN printf '<Directory /var/www/html/public>\n\
     AllowOverride All\n\
     Require all granted\n\
-</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+    </Directory>\n' > /etc/apache2/conf-available/symfony.conf \
     && a2enconf symfony
 
 # Writable dirs for Symfony + LibreOffice
@@ -53,6 +53,9 @@ RUN mkdir -p /tmp/libreoffice-profile \
     /var/www/html/var/pdf \
     && chmod -R 777 /tmp /var/www/html/var
 
-RUN php bin/console cache:clear || true
-
-CMD ["apache2-foreground"]
+CMD sh -c '\
+    if [ ! -f /var/www/html/config/jwt/private.pem ]; then \
+    echo "Generating JWT keys..."; \
+    php bin/console lexik:jwt:generate-keypair --skip-if-exists; \
+    fi && \
+    exec apache2-foreground'

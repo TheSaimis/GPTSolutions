@@ -13,15 +13,29 @@ use App\Entity\RiskList;
 use App\Entity\RiskSubcategory;
 use App\Entity\Worker;
 use Doctrine\ORM\EntityManagerInterface;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 final class RiskExcelService
 {
-    private const BORDER_THIN = 'thin';
+    private const BORDER_THIN = Border::BORDER_THIN;
     private const GRAY_FILL   = 'D9D9D9';
+    private const YELLOW_FILL = 'FFF200';
+
+    /**
+     * Struktūros pradžia:
+     * A - kūno dalių kategorija
+     * B - kūno dalis
+     * C... - rizikų stulpeliai
+     */
+    private const BODY_PART_CATEGORY_COL = 1; // A
+    private const BODY_PART_COL          = 2; // B
+    private const DATA_START_COL         = 3; // C
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -32,7 +46,7 @@ final class RiskExcelService
     {
         $company = $this->em->getRepository(Company::class)->find($companyId);
         if ($company === null) {
-            throw new \InvalidArgumentException("Įmonė nerastas: ID {$companyId}");
+            throw new \InvalidArgumentException("Įmonė nerasta: ID {$companyId}");
         }
 
         $workers = $this->getCompanyWorkers($company);
@@ -42,27 +56,37 @@ final class RiskExcelService
 
         $bodyPartCategories = $this->getBodyPartCategories();
         $riskGroups         = $this->getRiskGroups();
-        $columns            = $this->buildColumns($riskGroups);
+        $columnTree         = $this->buildColumnTree($riskGroups);
+
+        if ($columnTree['leafColumns'] === []) {
+            throw new \InvalidArgumentException('Nėra rizikos subkategorijų eksporto generavimui');
+        }
 
         $spreadsheet = new Spreadsheet();
-        $sheet       = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Rizikos vertinimas');
 
-        $currentRow = 1;
+        // Pašalinam default sheet turinį - naudosim po vieną sheet kiekvienam worker
+        $defaultSheet = $spreadsheet->getActiveSheet();
+        $spreadsheet->removeSheetByIndex($spreadsheet->getIndex($defaultSheet));
 
-        foreach ($workers as $worker) {
-            $riskMap    = $this->buildRiskMap($worker);
-            $currentRow = $this->renderWorkerTable(
+        foreach ($workers as $index => $worker) {
+            $sheetTitle = $this->makeSheetTitle($worker, $index + 1);
+            $sheet      = new Worksheet($spreadsheet, $sheetTitle);
+            $spreadsheet->addSheet($sheet);
+
+            $riskMap = $this->buildRiskMap($worker);
+
+            $this->renderWorkerSheet(
                 $sheet,
-                $currentRow,
                 $company,
                 $worker,
                 $bodyPartCategories,
-                $riskGroups,
-                $columns,
+                $columnTree,
                 $riskMap
             );
-            $currentRow += 2;
+        }
+
+        if ($spreadsheet->getSheetCount() > 0) {
+            $spreadsheet->setActiveSheetIndex(0);
         }
 
         $outputDir = $this->projectDir . '/var/risk_export';
@@ -70,7 +94,7 @@ final class RiskExcelService
             mkdir($outputDir, 0775, true);
         }
 
-        $slug     = preg_replace('/[^\w]+/', '_', $company->getName()) ?: 'company';
+        $slug     = preg_replace('/[^\p{L}\p{N}]+/u', '_', $company->getName()) ?: 'company';
         $filename = 'rizikos_vertinimas_' . $slug . '.xlsx';
         $path     = $outputDir . '/' . $filename;
 
@@ -81,15 +105,21 @@ final class RiskExcelService
         return $path;
     }
 
-    // ─── Data fetching ───────────────────────────────
+    // ─────────────────────────────────────────────
+    // Data
+    // ─────────────────────────────────────────────
 
     /** @return Worker[] */
     private function getCompanyWorkers(Company $company): array
     {
         $workers = [];
         foreach ($company->getCompanyWorkers() as $cw) {
-            $workers[] = $cw->getWorker();
+            $worker = $cw->getWorker();
+            if ($worker !== null) {
+                $workers[] = $worker;
+            }
         }
+
         return $workers;
     }
 
@@ -169,35 +199,6 @@ final class RiskExcelService
     }
 
     /**
-     * @return array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}[]
-     */
-    private function buildColumns(array $riskGroups): array
-    {
-        $columns = [];
-        foreach ($riskGroups as $group) {
-            $categories = $this->getCategoriesForGroup($group);
-
-            if ($categories === []) {
-                foreach ($this->getDirectSubcategoriesForGroup($group) as $sub) {
-                    $columns[] = ['subcategory' => $sub, 'category' => null, 'group' => $group];
-                }
-                continue;
-            }
-
-            foreach ($categories as $cat) {
-                foreach ($this->getSubcategoriesForCategory($cat) as $sub) {
-                    $columns[] = ['subcategory' => $sub, 'category' => $cat, 'group' => $group];
-                }
-            }
-
-            foreach ($this->getDirectSubcategoriesForGroup($group) as $sub) {
-                $columns[] = ['subcategory' => $sub, 'category' => null, 'group' => $group];
-            }
-        }
-        return $columns;
-    }
-
-    /**
      * @return array<string, true>
      */
     private function buildRiskMap(Worker $worker): array
@@ -210,249 +211,473 @@ final class RiskExcelService
             ->getResult();
 
         $map = [];
+
         /** @var RiskList $rl */
         foreach ($lists as $rl) {
-            $key       = $rl->getBodyPart()->getId() . '-' . $rl->getRiskSubcategory()->getId();
+            $bodyPart      = $rl->getBodyPart();
+            $subcategory   = $rl->getRiskSubcategory();
+
+            if ($bodyPart === null || $subcategory === null) {
+                continue;
+            }
+
+            $key = $bodyPart->getId() . '-' . $subcategory->getId();
             $map[$key] = true;
         }
+
         return $map;
     }
 
-    // ─── Rendering ───────────────────────────────────
+    /**
+     * Sugeneruoja header medį taip, kaip reikia Excel logikai:
+     *
+     * - row 1: title
+     * - row 3: company / worker / darbo vietoje
+     * - row 4: merged "Darbo aplinkos..."
+     * - row 5: group
+     * - row 6: category arba direct subcategory
+     * - row 7: leaf subcategory
+     *
+     * Jei group turi subcategory be category, ji užima row 6:7.
+     *
+     * @return array{
+     *     groups: array<int, array{
+     *         group: RiskGroup,
+     *         startCol: int,
+     *         endCol: int,
+     *         items: array<int, array{
+     *             type: 'category'|'direct',
+     *             category: ?RiskCategory,
+     *             directSubcategory: ?RiskSubcategory,
+     *             startCol: int,
+     *             endCol: int,
+     *             leafs: array<int, RiskSubcategory>
+     *         }>
+     *     }>,
+     *     leafColumns: array<int, array{
+     *         subcategory: RiskSubcategory,
+     *         col: int,
+     *         group: RiskGroup,
+     *         category: ?RiskCategory
+     *     }>,
+     *     columnMap: array<int, int>
+     * }
+     */
+    private function buildColumnTree(array $riskGroups): array
+    {
+        $groups     = [];
+        $leafCols   = [];
+        $columnMap  = [];
+        $currentCol = self::DATA_START_COL;
+
+        foreach ($riskGroups as $group) {
+            $groupStartCol = $currentCol;
+            $items         = [];
+
+            $categories = $this->getCategoriesForGroup($group);
+            foreach ($categories as $category) {
+                $subs = $this->getSubcategoriesForCategory($category);
+                if ($subs === []) {
+                    continue;
+                }
+
+                $itemStartCol = $currentCol;
+                foreach ($subs as $sub) {
+                    $leafCols[] = [
+                        'subcategory' => $sub,
+                        'col'         => $currentCol,
+                        'group'       => $group,
+                        'category'    => $category,
+                    ];
+                    $columnMap[$sub->getId()] = $currentCol;
+                    $currentCol++;
+                }
+                $itemEndCol = $currentCol - 1;
+
+                $items[] = [
+                    'type'              => 'category',
+                    'category'          => $category,
+                    'directSubcategory' => null,
+                    'startCol'          => $itemStartCol,
+                    'endCol'            => $itemEndCol,
+                    'leafs'             => $subs,
+                ];
+            }
+
+            $directSubs = $this->getDirectSubcategoriesForGroup($group);
+            foreach ($directSubs as $sub) {
+                $leafCols[] = [
+                    'subcategory' => $sub,
+                    'col'         => $currentCol,
+                    'group'       => $group,
+                    'category'    => null,
+                ];
+                $columnMap[$sub->getId()] = $currentCol;
+
+                $items[] = [
+                    'type'              => 'direct',
+                    'category'          => null,
+                    'directSubcategory' => $sub,
+                    'startCol'          => $currentCol,
+                    'endCol'            => $currentCol,
+                    'leafs'             => [$sub],
+                ];
+
+                $currentCol++;
+            }
+
+            if ($currentCol > $groupStartCol) {
+                $groups[] = [
+                    'group'    => $group,
+                    'startCol' => $groupStartCol,
+                    'endCol'   => $currentCol - 1,
+                    'items'    => $items,
+                ];
+            }
+        }
+
+        return [
+            'groups'     => $groups,
+            'leafColumns'=> $leafCols,
+            'columnMap'  => $columnMap,
+        ];
+    }
+
+    // ─────────────────────────────────────────────
+    // Rendering
+    // ─────────────────────────────────────────────
 
     /**
-     * @param RiskGroup[] $riskGroups
-     * @param array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}[] $columns
+     * @param BodyPartCategory[] $bodyPartCategories
+     * @param array{
+     *     groups: array<int, array{
+     *         group: RiskGroup,
+     *         startCol: int,
+     *         endCol: int,
+     *         items: array<int, array{
+     *             type: 'category'|'direct',
+     *             category: ?RiskCategory,
+     *             directSubcategory: ?RiskSubcategory,
+     *             startCol: int,
+     *             endCol: int,
+     *             leafs: array<int, RiskSubcategory>
+     *         }>
+     *     }>,
+     *     leafColumns: array<int, array{
+     *         subcategory: RiskSubcategory,
+     *         col: int,
+     *         group: RiskGroup,
+     *         category: ?RiskCategory
+     *     }>,
+     *     columnMap: array<int, int>
+     * } $columnTree
      * @param array<string, true> $riskMap
      */
-    private function renderWorkerTable(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
-        int $startRow,
+    private function renderWorkerSheet(
+        Worksheet $sheet,
         Company $company,
         Worker $worker,
         array $bodyPartCategories,
-        array $riskGroups,
-        array $columns,
+        array $columnTree,
         array $riskMap,
-    ): int {
-        $dataStartCol  = 3; // column C
-        $colCount      = count($columns);
-        $totalCols     = $dataStartCol + $colCount - 1;
-        $lastColLetter = $this->colLetter($totalCols);
-        $midCol        = $this->colLetter((int) floor(($dataStartCol + $totalCols) / 2));
-        $bColLetter    = $this->colLetter(2); // B
+    ): void {
+        $leafColumns = $columnTree['leafColumns'];
+        $groups      = $columnTree['groups'];
 
-        $sheet->getColumnDimension('A')->setWidth(12);
-        $sheet->getColumnDimension('B')->setWidth(20);
-        for ($c = $dataStartCol; $c <= $totalCols; $c++) {
-            $sheet->getColumnDimension($this->colLetter($c))->setWidth(4.5);
+        $lastCol     = self::DATA_START_COL + count($leafColumns) - 1;
+        $lastLetter  = $this->colLetter($lastCol);
+
+        // ── Global sheet style
+        $sheet->getDefaultRowDimension()->setRowHeight(20);
+        $sheet->freezePane('C8');
+        $sheet->getSheetView()->setZoomScale(90);
+
+        // ── Row 1: Title
+        $sheet->setCellValue('A1', 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones');
+        $sheet->mergeCells('A1:' . $lastLetter . '1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $this->centerRange($sheet, 'A1', $lastLetter . '1');
+
+        // ── Row 3: company / worker / darbo vietoje
+        $companyEndCol = max(self::BODY_PART_COL, min(self::DATA_START_COL + 4, $lastCol));
+        $workerStartCol = $companyEndCol + 1;
+        $workerEndCol = max($workerStartCol, $lastCol - 1);
+
+        $sheet->setCellValue('A3', 'UAB "' . $company->getName() . '"');
+        if ($companyEndCol > 1) {
+            $sheet->mergeCells('A3:' . $this->colLetter($companyEndCol) . '3');
         }
 
-        $row = $startRow;
-
-        // ═══════ ROW 1: Title ═══════
-        $sheet->setCellValue('A' . $row, 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones');
-        $sheet->mergeCells('A' . $row . ':' . $lastColLetter . $row);
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(11);
-        $sheet->getStyle('A' . $row)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-        $row++;
-
-        // ═══════ ROW 2: Company | Position | "darbo vietoje." ═══════
-        $sheet->setCellValue('A' . $row, $company->getName());
-        $sheet->mergeCells('A' . $row . ':B' . $row);
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-
-        $posEnd = max($dataStartCol, $totalCols - 1);
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName());
-        if ($posEnd > $dataStartCol) {
-            $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($posEnd) . $row);
+        $sheet->setCellValue(
+            $this->colLetter($workerStartCol) . '3',
+            $this->getWorkerDisplayName($worker)
+        );
+        if ($workerEndCol > $workerStartCol) {
+            $sheet->mergeCells(
+                $this->colLetter($workerStartCol) . '3:' . $this->colLetter($workerEndCol) . '3'
+            );
         }
-        $sheet->getStyle($this->colLetter($dataStartCol) . $row)->getAlignment()->setShrinkToFit(true);
-        $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje.');
-        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
+
+        $sheet->setCellValue($lastLetter . '3', 'darbo vietoje');
+        $sheet->getStyle('A3:' . $lastLetter . '3')->getFont()->setBold(true);
+        $this->centerRange($sheet, 'A3', $lastLetter . '3');
+        $sheet->getStyle('A3:' . $this->colLetter($companyEndCol) . '3')
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB(self::YELLOW_FILL);
+
+        // ── Row 4: merged label
+        $sheet->setCellValue($this->colLetter(self::DATA_START_COL) . '4', 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
+        $sheet->mergeCells($this->colLetter(self::DATA_START_COL) . '4:' . $lastLetter . '4');
+        $this->centerRange($sheet, $this->colLetter(self::DATA_START_COL) . '4', $lastLetter . '4');
+        $sheet->getStyle($this->colLetter(self::DATA_START_COL) . '4')->getFont()->setBold(true);
+
+        // ── Left header
+        $sheet->setCellValue('A5', 'Kūno dalys');
+        $sheet->mergeCells('A5:B7');
+        $sheet->getStyle('A5')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A5')->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
-        $row++;
 
-        // ═══════ TABLE START ═══════
-        $tableStartRow = $row;
+        // ── Row 5: group headers
+        foreach ($groups as $groupNode) {
+            $start = $this->colLetter($groupNode['startCol']);
+            $end   = $this->colLetter($groupNode['endCol']);
 
-        // ── "Darbo aplinkos kenksmingi ir pavojingi veiksniai"
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
-        $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $lastColLetter . $row);
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
-        $row++;
+            $sheet->setCellValue($start . '5', $groupNode['group']->getName());
+            if ($groupNode['startCol'] < $groupNode['endCol']) {
+                $sheet->mergeCells($start . '5:' . $end . '5');
+            }
 
-        // ── Group header row (Fiziniai, Fizikiniai, ...)
-        $sheet->setCellValue('A' . $row, 'Kūno dalys');
-        $sheet->mergeCells('A' . $row . ':B' . ($row + 1));
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $row)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle($start . '5:' . $end . '5')->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER)
+                ->setWrapText(true);
 
-        $col = $dataStartCol;
-        foreach ($riskGroups as $group) {
-            $groupColCount = $this->countColumnsForGroup($group, $columns);
-            if ($groupColCount === 0) {
+            $sheet->getStyle($start . '5')->getFont()->setBold(true)->setSize(12);
+        }
+
+        // ── Row 6 and 7:
+        // category item -> row 6 merged across its leaf columns, leaf labels row 7
+        // direct subcategory -> merged vertically row 6:7
+        foreach ($groups as $groupNode) {
+            foreach ($groupNode['items'] as $item) {
+                $start = $this->colLetter($item['startCol']);
+                $end   = $this->colLetter($item['endCol']);
+
+                if ($item['type'] === 'category' && $item['category'] !== null) {
+                    $sheet->setCellValue($start . '6', $item['category']->getName());
+                    if ($item['startCol'] < $item['endCol']) {
+                        $sheet->mergeCells($start . '6:' . $end . '6');
+                    }
+
+                    $sheet->getStyle($start . '6:' . $end . '6')->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(Alignment::VERTICAL_CENTER)
+                        ->setWrapText(true);
+
+                    $sheet->getStyle($start . '6')->getFont()->setBold(true);
+                }
+
+                if ($item['type'] === 'direct' && $item['directSubcategory'] !== null) {
+                    $sheet->setCellValue($start . '6', $item['directSubcategory']->getName());
+                    $sheet->mergeCells($start . '6:' . $start . '7');
+                    $sheet->getStyle($start . '6:' . $start . '7')->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(Alignment::VERTICAL_CENTER)
+                        ->setTextRotation(90)
+                        ->setWrapText(true);
+
+                    $sheet->getStyle($start . '6')->getFont()->setBold(true);
+                }
+            }
+        }
+
+        // ── Row 7: leaf subcategories under categories
+        foreach ($leafColumns as $leaf) {
+            if ($leaf['category'] === null) {
                 continue;
             }
-            $sLetter = $this->colLetter($col);
-            $eLetter = $this->colLetter($col + $groupColCount - 1);
-            $sheet->setCellValue($sLetter . $row, $group->getName());
-            if ($groupColCount > 1) {
-                $sheet->mergeCells($sLetter . $row . ':' . $eLetter . $row);
-            }
-            $col += $groupColCount;
+
+            $colLetter = $this->colLetter($leaf['col']);
+            $sheet->setCellValue($colLetter . '7', $leaf['subcategory']->getName());
+            $sheet->getStyle($colLetter . '7')->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_BOTTOM)
+                ->setTextRotation(90)
+                ->setWrapText(true);
+            $sheet->getStyle($colLetter . '7')->getFont()->setBold(false);
         }
-        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
-        $row++;
 
-        // ── Category header row (Mechaniniai, Skysčiai, ...)
-        $col = $dataStartCol;
-        foreach ($riskGroups as $group) {
-            $categories = $this->getCategoriesForGroup($group);
-            $directSubs = $this->getDirectSubcategoriesForGroup($group);
+        $sheet->getRowDimension(5)->setRowHeight(28);
+        $sheet->getRowDimension(6)->setRowHeight(35);
+        $sheet->getRowDimension(7)->setRowHeight(170);
 
-            foreach ($categories as $cat) {
-                $catSubCount = $this->countColumnsForCategory($cat, $columns);
-                if ($catSubCount === 0) {
-                    continue;
-                }
-                $sLetter = $this->colLetter($col);
-                $eLetter = $this->colLetter($col + $catSubCount - 1);
-                $sheet->setCellValue($sLetter . $row, $cat->getName());
-                if ($catSubCount > 1) {
-                    $sheet->mergeCells($sLetter . $row . ':' . $eLetter . $row);
-                }
-                $col += $catSubCount;
-            }
-
-            foreach ($directSubs as $sub) {
-                foreach ($columns as $c) {
-                    if ($c['subcategory']->getId() === $sub->getId()) {
-                        $col++;
-                        break;
-                    }
-                }
-            }
+        // ── Column widths
+        $sheet->getColumnDimension('A')->setWidth(16);
+        $sheet->getColumnDimension('B')->setWidth(20);
+        for ($col = self::DATA_START_COL; $col <= $lastCol; $col++) {
+            $sheet->getColumnDimension($this->colLetter($col))->setWidth(5);
         }
-        $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
-        $row++;
 
-        // ── Subcategory names (vertical text, tall row)
-        $col = $dataStartCol;
-        foreach ($columns as $sc) {
-            $letter = $this->colLetter($col);
-            $sheet->setCellValue($letter . $row, $sc['subcategory']->getName());
-            $sheet->getStyle($letter . $row)->getAlignment()->setTextRotation(90);
-            $col++;
-        }
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
-        $sheet->getRowDimension($row)->setRowHeight(120);
-        $row++;
+        // ── Data rows from row 8
+        $rowMap  = [];
+        $row     = 8;
+        $stripe  = 0;
 
-        // ═══════ DATA ROWS (horizontalus pilka/balta nuo B stulpelio) ═══════
-        $dataRowIndex = 0;
-        foreach ($bodyPartCategories as $bpCat) {
-            $bodyParts = $this->getBodyPartsForCategory($bpCat);
+        foreach ($bodyPartCategories as $bpCategory) {
+            $bodyParts = $this->getBodyPartsForCategory($bpCategory);
             if ($bodyParts === []) {
                 continue;
             }
 
-            $catStartRow = $row;
-            foreach ($bodyParts as $bp) {
-                $sheet->setCellValue('B' . $row, $bp->getName());
+            $categoryStartRow = $row;
 
-                $col = $dataStartCol;
-                foreach ($columns as $sc) {
-                    $key = $bp->getId() . '-' . $sc['subcategory']->getId();
-                    if (isset($riskMap[$key])) {
-                        $sheet->setCellValue($this->colLetter($col) . $row, '+');
-                    }
-                    $col++;
-                }
-
-                $sheet->getStyle('B' . $row . ':' . $lastColLetter . $row)->getAlignment()
+            foreach ($bodyParts as $bodyPart) {
+                $sheet->setCellValue('B' . $row, $bodyPart->getName());
+                $sheet->getStyle('B' . $row)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                    ->setVertical(Alignment::VERTICAL_CENTER);
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(true);
 
-                if ($dataRowIndex % 2 === 1) {
-                    $sheet->getStyle('B' . $row . ':' . $lastColLetter . $row)->getFill()
+                $rowMap[$bodyPart->getId()] = $row;
+
+                if ($stripe % 2 === 0) {
+                    $sheet->getStyle('A' . $row . ':' . $lastLetter . $row)
+                        ->getFill()
                         ->setFillType(Fill::FILL_SOLID)
-                        ->getStartColor()->setRGB(self::GRAY_FILL);
+                        ->getStartColor()
+                        ->setRGB(self::GRAY_FILL);
                 }
 
-                $dataRowIndex++;
+                $stripe++;
                 $row++;
             }
 
-            $catEndRow = $row - 1;
-            if ($catStartRow <= $catEndRow) {
-                $sheet->setCellValue('A' . $catStartRow, $bpCat->getName());
-                if ($catEndRow > $catStartRow) {
-                    $sheet->mergeCells('A' . $catStartRow . ':A' . $catEndRow);
-                }
-                $sheet->getStyle('A' . $catStartRow)->getFont()->setBold(true);
-                $sheet->getStyle('A' . $catStartRow)->getAlignment()
-                    ->setVertical(Alignment::VERTICAL_CENTER)
-                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                    ->setWrapText(true);
+            $categoryEndRow = $row - 1;
+
+            $sheet->setCellValue('A' . $categoryStartRow, $bpCategory->getName());
+            if ($categoryEndRow > $categoryStartRow) {
+                $sheet->mergeCells('A' . $categoryStartRow . ':A' . $categoryEndRow);
             }
+
+            $sheet->getStyle('A' . $categoryStartRow . ':A' . $categoryEndRow)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $categoryStartRow . ':A' . $categoryEndRow)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER)
+                ->setWrapText(true);
         }
-        $dataEndRow = max($row - 1, $tableStartRow);
+
+        $dataEndRow = $row - 1;
+
+        // ── Put "+"
+        foreach ($riskMap as $key => $_) {
+            [$bodyPartId, $subcategoryId] = array_map('intval', explode('-', $key, 2));
+
+            $targetRow = $rowMap[$bodyPartId] ?? null;
+            $targetCol = $columnTree['columnMap'][$subcategoryId] ?? null;
+
+            if ($targetRow === null || $targetCol === null) {
+                continue;
+            }
+
+            $cell = $this->colLetter($targetCol) . $targetRow;
+            $sheet->setCellValue($cell, '+');
+            $sheet->getStyle($cell)->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle($cell)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
 
         // ── Borders
-        $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
-        $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(self::BORDER_THIN);
+        $tableStartCell = 'A4';
+        $tableEndCell   = $lastLetter . $dataEndRow;
 
-        // ═══════ FOOTER ═══════
-        $row++;
-        $sheet->setCellValue('A' . $row, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
-        $sheet->setCellValue($midCol . $row, '(parašas)');
-        $sheet->setCellValue($lastColLetter . $row, '(vardo raidė, pavardė)');
-        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($tableStartCell . ':' . $tableEndCell)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(self::BORDER_THIN);
 
-        return $row;
+        // ── Vertical align for data area
+        $sheet->getStyle('A8:' . $lastLetter . $dataEndRow)->getAlignment()
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // ── Footer
+        $footerRow = $dataEndRow + 2;
+        $sheet->setCellValue('A' . $footerRow, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
+        $sheet->getStyle('A' . $footerRow)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB(self::YELLOW_FILL);
+
+        $footerRow += 2;
+        $sheet->setCellValue('A' . $footerRow, 'Lentelę užpildė:');
+
+        $signRoleCol  = self::DATA_START_COL;
+        $signSignCol  = max(self::DATA_START_COL + 6, (int) floor(($lastCol + self::DATA_START_COL) / 2));
+        $signNameCol  = $lastCol;
+
+        $sheet->setCellValue($this->colLetter($signRoleCol) . $footerRow, '(pareigos)');
+        $sheet->setCellValue($this->colLetter($signSignCol) . $footerRow, '(parašas)');
+        $sheet->setCellValue($this->colLetter($signNameCol) . $footerRow, '(vardo raidė, pavardė)');
+
+        $this->centerRange($sheet, $this->colLetter($signRoleCol) . $footerRow, $this->colLetter($signNameCol) . $footerRow);
+
+        // ── Page setup
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0);
+        $sheet->getPageMargins()->setTop(0.3);
+        $sheet->getPageMargins()->setBottom(0.3);
+        $sheet->getPageMargins()->setLeft(0.2);
+        $sheet->getPageMargins()->setRight(0.2);
     }
 
-    // ─── Helpers ──────────────────────────────────────
+    // ─────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────
 
-    private function countColumnsForGroup(RiskGroup $group, array $columns): int
+    private function getWorkerDisplayName(Worker $worker): string
     {
-        $count = 0;
-        foreach ($columns as $c) {
-            if ($c['group']->getId() === $group->getId()) {
-                $count++;
-            }
+        if (method_exists($worker, 'getPosition') && is_string($worker->getPosition()) && trim($worker->getPosition()) !== '') {
+            return trim($worker->getPosition());
         }
-        return $count;
+
+        if (method_exists($worker, 'getJobTitle') && is_string($worker->getJobTitle()) && trim($worker->getJobTitle()) !== '') {
+            return trim($worker->getJobTitle());
+        }
+
+        if (method_exists($worker, 'getProfession') && is_string($worker->getProfession()) && trim($worker->getProfession()) !== '') {
+            return trim($worker->getProfession());
+        }
+
+        if (method_exists($worker, 'getName') && is_string($worker->getName()) && trim($worker->getName()) !== '') {
+            return trim($worker->getName());
+        }
+
+        return 'Darbuotojas';
     }
 
-    private function countColumnsForCategory(RiskCategory $cat, array $columns): int
+    private function makeSheetTitle(Worker $worker, int $index): string
     {
-        $count = 0;
-        foreach ($columns as $c) {
-            if ($c['category'] !== null && $c['category']->getId() === $cat->getId()) {
-                $count++;
-            }
+        $base = $this->getWorkerDisplayName($worker);
+        $base = preg_replace('/[\\\\\\/\\?\\*\\:\\[\\]]+/', ' ', $base) ?? 'Darbuotojas';
+        $base = trim($base);
+
+        if ($base === '') {
+            $base = 'Darbuotojas_' . $index;
         }
-        return $count;
+
+        // Excel sheet title max 31 chars
+        $base = mb_substr($base, 0, 31);
+
+        return $base !== '' ? $base : 'Darbuotojas_' . $index;
     }
 
-    private function boldCenter(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
-        string $startCell,
-        string $endCell,
-    ): void {
+    private function centerRange(Worksheet $sheet, string $startCell, string $endCell): void
+    {
         $range = $startCell . ':' . $endCell;
-        $sheet->getStyle($range)->getFont()->setBold(true);
         $sheet->getStyle($range)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
@@ -462,21 +687,25 @@ final class RiskExcelService
     private function lithuanianMonth(int $month): string
     {
         $months = [
-            1 => 'sausio', 2 => 'vasario', 3 => 'kovo', 4 => 'balandžio',
-            5 => 'gegužės', 6 => 'birželio', 7 => 'liepos', 8 => 'rugpjūčio',
-            9 => 'rugsėjo', 10 => 'spalio', 11 => 'lapkričio', 12 => 'gruodžio',
+            1  => 'sausio',
+            2  => 'vasario',
+            3  => 'kovo',
+            4  => 'balandžio',
+            5  => 'gegužės',
+            6  => 'birželio',
+            7  => 'liepos',
+            8  => 'rugpjūčio',
+            9  => 'rugsėjo',
+            10 => 'spalio',
+            11 => 'lapkričio',
+            12 => 'gruodžio',
         ];
+
         return $months[$month] ?? '';
     }
 
     private function colLetter(int $colNumber): string
     {
-        $letter = '';
-        while ($colNumber > 0) {
-            $mod        = ($colNumber - 1) % 26;
-            $letter     = chr(65 + $mod) . $letter;
-            $colNumber  = (int) (($colNumber - $mod) / 26);
-        }
-        return $letter;
+        return Coordinate::stringFromColumnIndex($colNumber);
     }
 }

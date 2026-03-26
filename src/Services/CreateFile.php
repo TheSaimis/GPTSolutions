@@ -82,6 +82,7 @@ final class CreateFile
         $tipas        = (string) ($data['tipas'] ?? $data['companyType'] ?? '');
         $tipasPilnas  = (string) ($data['tipasPilnas'] ?? $data['companyType'] ?? '');
         $adresas      = (string) ($data['adresas'] ?? $data['address'] ?? '');
+        $miestas      = (string) ($data['miestas'] ?? $data['cityOrDistrict'] ?? '');
 
         $companyId   = (string) ($data['companyId'] ?? '');
         $userId      = (string) ($data['userId'] ?? '');
@@ -240,6 +241,7 @@ final class CreateFile
         $this->setValueCaseInsensitive($processor, 'vardas', $vardas);
         $this->setValueCaseInsensitive($processor, 'pavarde', $pavarde);
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
+        $this->setValueCaseInsensitive($processor, 'miestas', $miestas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
@@ -307,6 +309,7 @@ final class CreateFile
         $tipas        = (string) ($data['tipas'] ?? $data['companyType'] ?? '');
         $tipasPilnas  = (string) ($data['tipasPilnas'] ?? $data['companyType'] ?? '');
         $adresas      = (string) ($data['adresas'] ?? $data['address'] ?? '');
+        $miestas      = (string) ($data['miestas'] ?? $data['cityOrDistrict'] ?? '');
 
         $companyId   = (string) ($data['companyId'] ?? '');
         $userId      = (string) ($data['userId'] ?? '');
@@ -369,6 +372,7 @@ final class CreateFile
             'tipas'        => $tipas,
             'tipasPilnas'  => $tipasPilnas,
             'adresas'      => $adresas,
+            'miestas'      => $miestas,
             'vadovas'      => $vadovas,
             'lytis'        => $lytis,
         ];

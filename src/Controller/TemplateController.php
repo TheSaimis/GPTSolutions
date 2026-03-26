@@ -66,7 +66,6 @@ final class TemplateController extends AbstractController
                 return new JsonResponse(['error' => 'Category not found'], 404);
             }
         }
-
         return new JsonResponse(['templates' => $this->filterTemplatesOnly($items)]);
     }
 
@@ -186,6 +185,7 @@ final class TemplateController extends AbstractController
             'tipas'       => (string) ($company->getCompanyType() ?? ''),
             'tipasPilnas' => (string) ($company->getCategory() ?? ''),
             'adresas'     => (string) ($company->getAddress() ?? ''),
+            'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
             'managerType' => (string) ($company->getManagerType() ?? ''),
             'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
             'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
