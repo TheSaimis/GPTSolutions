@@ -11,8 +11,11 @@ import styles from "./page.module.scss";
 import { Building2, SlidersHorizontal, X } from "lucide-react";
 import {
     COMPANY_SORT_OPTIONS,
+    DELETED_STATUS_OPTIONS,
     buildCompanyTypeOptions,
     sortCompanies,
+    matchesDeletedFilter,
+    type DeletedFilter,
 } from "@/lib/filters";
 
 export default function ImoniuSarasasPage() {
@@ -20,6 +23,7 @@ export default function ImoniuSarasasPage() {
     const [search, setSearch] = useState("");
     const [selectedType, setSelectedType] = useState("all");
     const [sortBy, setSortBy] = useState("name-asc");
+    const [deletedFilter, setDeletedFilter] = useState<DeletedFilter>("active");
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     useEffect(() => {
@@ -53,13 +57,14 @@ export default function ImoniuSarasasPage() {
         };
 
         const list = companies.filter((company) => {
+            if (!matchesDeletedFilter(company, deletedFilter)) return false;
             const matchesType = selectedType === "all" || company.companyType === selectedType;
             if (!matchesType) return false;
             return matchesSearch(company);
         });
 
         return sortCompanies(list, sortBy);
-    }, [companies, search, selectedType, sortBy]);
+    }, [companies, search, selectedType, sortBy, deletedFilter]);
 
     const sortLabel = useMemo(
         () => COMPANY_SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? sortBy,
@@ -69,6 +74,7 @@ export default function ImoniuSarasasPage() {
     const activeFilterCount = [
         selectedType !== "all",
         sortBy !== "name-asc",
+        deletedFilter !== "active",
     ].filter(Boolean).length;
 
     const filterFields = (
@@ -79,6 +85,12 @@ export default function ImoniuSarasasPage() {
                 selected={selectedType === "all" ? "Visi tipai" : selectedType}
                 placeholder="Įmonės tipas"
                 onChange={setSelectedType}
+            />
+            <InputFieldSelect
+                options={DELETED_STATUS_OPTIONS}
+                placeholder="Būsena"
+                selected={DELETED_STATUS_OPTIONS.find((o) => o.value === deletedFilter)?.label ?? "Būsena"}
+                onChange={(v) => setDeletedFilter(v as DeletedFilter)}
             />
             <InputFieldSelect
                 key={`sort-${sortBy}`}

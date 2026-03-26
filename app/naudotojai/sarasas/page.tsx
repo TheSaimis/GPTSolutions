@@ -13,9 +13,12 @@ import {
     ROLE_OPTIONS,
     USER_SORT_OPTIONS,
     USER_VIEW_OPTIONS,
+    DELETED_STATUS_OPTIONS,
     normalizeRole,
     roleLabel,
     sortUsers,
+    matchesDeletedFilter,
+    type DeletedFilter,
 } from "@/lib/filters";
 
 export default function NaudotojuSarasasPage() {
@@ -24,6 +27,7 @@ export default function NaudotojuSarasasPage() {
     const [selectedRole, setSelectedRole] = useState("all");
     const [sortBy, setSortBy] = useState("name-asc");
     const [viewMode, setViewMode] = useState<"large" | "compact" | "mini">("large");
+    const [deletedFilter, setDeletedFilter] = useState<DeletedFilter>("active");
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     useEffect(() => {
@@ -39,6 +43,8 @@ export default function NaudotojuSarasasPage() {
         const startsWithSearch = (value?: string) => (value ?? "").toLowerCase().startsWith(searchLower);
 
         const list = users.filter((user) => {
+            if (!matchesDeletedFilter(user, deletedFilter)) return false;
+
             const normalizedRole = normalizeRole(user.role);
             const matchesRole = selectedRole === "all" || normalizedRole === selectedRole;
             if (!matchesRole) return false;
@@ -49,12 +55,13 @@ export default function NaudotojuSarasasPage() {
         });
 
         return sortUsers(list, sortBy);
-    }, [users, search, selectedRole, sortBy]);
+    }, [users, search, selectedRole, sortBy, deletedFilter]);
 
     const activeFilterCount = [
         selectedRole !== "all",
         sortBy !== "name-asc",
         viewMode !== "large",
+        deletedFilter !== "active",
     ].filter(Boolean).length;
 
     const filterFields = (
@@ -64,6 +71,12 @@ export default function NaudotojuSarasasPage() {
                 placeholder="Pareigos"
                 selected={"Pareigos"}
                 onChange={setSelectedRole}
+            />
+            <InputFieldSelect
+                options={DELETED_STATUS_OPTIONS}
+                placeholder="Būsena"
+                selected={DELETED_STATUS_OPTIONS.find((o) => o.value === deletedFilter)?.label ?? "Būsena"}
+                onChange={(v) => setDeletedFilter(v as DeletedFilter)}
             />
             <InputFieldSelect
                 options={USER_SORT_OPTIONS}

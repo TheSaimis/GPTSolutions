@@ -123,6 +123,25 @@ export function buildUserOptions(users: User[]): SelectOption[] {
     return [{ value: "all", label: "Visi vartotojai" }, ...names.map((n) => ({ value: n, label: n }))];
 }
 
+// ── Deleted status filter ──
+
+export type DeletedFilter = "active" | "deleted" | "all";
+
+export const DELETED_STATUS_OPTIONS: SelectOption[] = [
+    { value: "active", label: "Aktyvūs" },
+    { value: "deleted", label: "Ištrinti" },
+    { value: "all", label: "Visi" },
+];
+
+export function matchesDeletedFilter<T extends { deleted?: boolean }>(
+    item: T,
+    filter: DeletedFilter
+): boolean {
+    if (filter === "all") return true;
+    if (filter === "deleted") return item.deleted === true;
+    return !item.deleted;
+}
+
 export function toggleArrayValue(arr: string[], value: string, checked: boolean): string[] {
     if (checked) return [...arr, value];
     return arr.filter((v) => v !== value);

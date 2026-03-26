@@ -8,7 +8,7 @@ import CreateDirectory from "./types/directory/functions/createDirectory";
 import Filters from "../components/filters/filters";
 import DropZone from "@/components/inputFields/dropZone";
 import InputFieldFile from "@/components/inputFields/inputFieldFile";
-import { Search, FolderPlus } from "lucide-react";
+import { Search, FolderPlus, SlidersHorizontal } from "lucide-react";
 import { useCatalogueTree } from "../catalogueTreeContext";
 import { useCreateFile } from "./types/directory/functions/createFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
@@ -23,6 +23,7 @@ export default function FileList({ overflow }: FileListProps) {
     const { catalogueTree, filteredCatalogueTree, filters, setFilters, fileType } = useCatalogueTree();
     const [file, setFile] = useState<File | null>(null);
     const [create, setCreate] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const { createFile } = useCreateFile();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
@@ -66,6 +67,14 @@ export default function FileList({ overflow }: FileListProps) {
                             placeholder="Paieška"
                             icon={Search}
                         />
+                        <button
+                            type="button"
+                            className={styles.filterToggle}
+                            onClick={() => setFiltersOpen(true)}
+                        >
+                            <SlidersHorizontal size={18} />
+                            Filtrai
+                        </button>
                     </div>
                     <div className={`${styles.catalogueTree} ${overflow ? styles.overflow : ""}`}>
                         {create && (
@@ -97,7 +106,7 @@ export default function FileList({ overflow }: FileListProps) {
                     </div>
                 </div>
             </div>
-            <Filters />
+            <Filters isOpen={filtersOpen} onClose={() => setFiltersOpen(false)} />
         </DropZone>
     );
 }
