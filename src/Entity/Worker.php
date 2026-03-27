@@ -29,10 +29,15 @@ class Worker
     #[ORM\OneToMany(targetEntity: CompanyWorker::class, mappedBy: 'worker')]
     private Collection $companyWorkers;
 
+    /** @var Collection<int, WorkerRisk> */
+    #[ORM\OneToMany(targetEntity: WorkerRisk::class, mappedBy: 'worker')]
+    private Collection $workerRisks;
+
     public function __construct()
     {
         $this->riskLists      = new ArrayCollection();
         $this->companyWorkers = new ArrayCollection();
+        $this->workerRisks    = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -61,5 +66,11 @@ class Worker
     public function getCompanyWorkers(): Collection
     {
         return $this->companyWorkers;
+    }
+
+    /** @return Collection<int, WorkerRisk> */
+    public function getWorkerRisks(): Collection
+    {
+        return $this->workerRisks;
     }
 }

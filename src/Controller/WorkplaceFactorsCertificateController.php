@@ -105,5 +105,45 @@ final class WorkplaceFactorsCertificateController extends AbstractController
 
         return $response;
     }
+
+    /**
+     * POST /api/workplace-factors-certificate/createCertificate
+     * Body:
+     * {
+     *   "companyId": 1,
+     *   "workers": [
+     *      {"workerId": 3, "checkPeriod": "Tikrintis kas 2 metus"},
+     *      {"workerId": 5, "checkPeriod": "Tikrintis kas 1 metus"}
+     *   ]
+     * }
+     */
+    #[Route('/createCertificate', name: 'api_workplace_factors_certificate_data', methods: ['POST'])]
+    public function createCertificate(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+        }
+
+        $companyId = $data['companyId'] ?? null;
+        if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
+            return new JsonResponse(['error' => 'companyId is required'], 400);
+        }
+
+        $workers = $data['workers'] ?? [];
+        if (! is_array($workers)) {
+            $workers = [];
+        }
+
+        try {
+            $payload = $this->certificateService->buildCertificateData((int) $companyId, $workers);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'Nepavyko surinkti pažymos duomenų: ' . $e->getMessage()], 500);
+        }
+
+        return new JsonResponse($payload);
+    }
 }
 

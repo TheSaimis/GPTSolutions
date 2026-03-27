@@ -34,13 +34,14 @@ final class HealthRiskController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $data = json_decode($request->getContent(), true);
-        if (! is_array($data) || trim((string) ($data['name'] ?? '')) === '' || trim((string) ($data['code'] ?? '')) === '') {
-            return new JsonResponse(['error' => 'name ir code yra privalomi'], 400);
+        $codeOrCipher = trim((string) ($data['code'] ?? $data['cipher'] ?? ''));
+        if (! is_array($data) || trim((string) ($data['name'] ?? '')) === '' || $codeOrCipher === '') {
+            return new JsonResponse(['error' => 'name ir code/cipher yra privalomi'], 400);
         }
 
         $factor = new HealthRiskFactor();
         $factor->setName(trim((string) $data['name']));
-        $factor->setCode(trim((string) $data['code']));
+        $factor->setCode($codeOrCipher);
         $factor->setLineNumber((int) ($data['lineNumber'] ?? 0));
 
         $this->em->persist($factor);
@@ -124,8 +125,8 @@ final class HealthRiskController extends AbstractController
         if (array_key_exists('name', $data)) {
             $factor->setName(trim((string) $data['name']));
         }
-        if (array_key_exists('code', $data)) {
-            $factor->setCode(trim((string) $data['code']));
+        if (array_key_exists('code', $data) || array_key_exists('cipher', $data)) {
+            $factor->setCode(trim((string) ($data['code'] ?? $data['cipher'])));
         }
         if (array_key_exists('lineNumber', $data)) {
             $factor->setLineNumber((int) $data['lineNumber']);

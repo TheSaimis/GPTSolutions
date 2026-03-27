@@ -35,10 +35,15 @@ class HealthRiskFactor
     #[ORM\OneToMany(targetEntity: HealthRiskProfileFactor::class, mappedBy: 'factor')]
     private Collection $profileAssignments;
 
+    /** @var Collection<int, WorkerRisk> */
+    #[ORM\OneToMany(targetEntity: WorkerRisk::class, mappedBy: 'riskFactor')]
+    private Collection $workerRisks;
+
     public function __construct()
     {
         $this->commonAssignments  = new ArrayCollection();
         $this->profileAssignments = new ArrayCollection();
+        $this->workerRisks        = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -89,5 +94,11 @@ class HealthRiskFactor
     public function getProfileAssignments(): Collection
     {
         return $this->profileAssignments;
+    }
+
+    /** @return Collection<int, WorkerRisk> */
+    public function getWorkerRisks(): Collection
+    {
+        return $this->workerRisks;
     }
 }

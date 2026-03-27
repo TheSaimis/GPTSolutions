@@ -51,7 +51,7 @@ final class HealthRiskService
         ];
     }
 
-    /** @return array<int, array{id:int,name:string,code:string,lineNumber:int}> */
+    /** @return array<int, array{id:int,name:string,code:string,cipher:string,lineNumber:int}> */
     public function listFactors(): array
     {
         $rows = $this->em->getRepository(HealthRiskFactor::class)
@@ -65,6 +65,7 @@ final class HealthRiskService
             'id'         => (int) $f->getId(),
             'name'       => $f->getName(),
             'code'       => $f->getCode(),
+            'cipher'     => $f->getCode(),
             'lineNumber' => $f->getLineNumber(),
         ], $rows);
     }
