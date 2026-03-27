@@ -21,7 +21,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 final class RiskExcelService
 {
     private const BORDER_THIN = 'thin';
-    private const GRAY_FILL   = 'D9D9D9';
+    private const GRAY_FILL   = 'F2F2F2';
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -36,8 +36,13 @@ final class RiskExcelService
         }
 
         $workers = $this->getCompanyWorkers($company);
+        $companyName = trim((string) $company->getCompanyName());
+        if ($companyName === '') {
+            $companyName = 'Nenurodyta įmonė';
+        }
+
         if ($workers === []) {
-            throw new \InvalidArgumentException("Įmonei \"{$company->getName()}\" nepriskirta darbuotojų");
+            throw new \InvalidArgumentException("Įmonei \"{$companyName}\" nepriskirta darbuotojų");
         }
 
         $bodyPartCategories = $this->getBodyPartCategories();
@@ -45,7 +50,8 @@ final class RiskExcelService
         $columns            = $this->buildColumns($riskGroups);
 
         $spreadsheet = new Spreadsheet();
-        $sheet       = $spreadsheet->getActiveSheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Times New Roman');
+        $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rizikos vertinimas');
 
         $currentRow = 1;
@@ -56,6 +62,7 @@ final class RiskExcelService
                 $sheet,
                 $currentRow,
                 $company,
+                $companyName,
                 $worker,
                 $bodyPartCategories,
                 $riskGroups,
@@ -70,7 +77,7 @@ final class RiskExcelService
             mkdir($outputDir, 0775, true);
         }
 
-        $slug     = preg_replace('/[^\w]+/', '_', $company->getName()) ?: 'company';
+        $slug     = preg_replace('/[^\w]+/', '_', $companyName) ?: 'company';
         $filename = 'rizikos_vertinimas_' . $slug . '.xlsx';
         $path     = $outputDir . '/' . $filename;
 
@@ -230,6 +237,7 @@ final class RiskExcelService
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         int $startRow,
         CompanyRequisite $company,
+        string $companyName,
         Worker $worker,
         array $bodyPartCategories,
         array $riskGroups,
@@ -258,11 +266,18 @@ final class RiskExcelService
         $row++;
 
         // ── Company | Position | "darbo vietoje."
-        $sheet->setCellValue('A' . $row, $company->getName());
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName());
-        $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($totalCols - 1) . $row);
-        $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje.');
+        $sheet->setCellValue('A' . $row, trim((string) ($company->getCompanyType() ?? '')) . ' ' . $companyName);
+        $sheet->mergeCells('A' . $row . ':B' . $row);
+        $sheet->getStyle('A' . $row)->getFont()->setBold(false);
+        if ($totalCols > $dataStartCol) {
+            $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName());
+            $sheet->mergeCells(
+                $this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($totalCols - 1) . $row
+            );
+            $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje');
+        } else {
+            $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName() . ' darbo vietoje');
+        }
         $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
         $row++;
 
@@ -272,13 +287,13 @@ final class RiskExcelService
         // ── "Darbo aplinkos kenksmingi ir pavojingi veiksniai" merged
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
         $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $lastColLetter . $row);
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
         $row++;
 
         // ── Group header row (Fiziniai, Fizikiniai, ...)
         $groupRow = $row;
         $sheet->setCellValue('A' . $row, 'Kūno dalys');
-        $sheet->mergeCells('A' . $row . ':B' . ($row + 1));
+        $sheet->mergeCells('A' . $row . ':B' . ($row + 2));
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $sheet->getStyle('A' . $row)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
@@ -302,6 +317,8 @@ final class RiskExcelService
         $row++;
 
         // ── Category header row (Mechaniniai, Skysčiai, ...)
+        $categoryRow = $row;
+        $directSubcategoryIds = [];
         $col = $dataStartCol;
         foreach ($riskGroups as $group) {
             $categories = $this->getCategoriesForGroup($group);
@@ -324,6 +341,17 @@ final class RiskExcelService
             foreach ($directSubs as $sub) {
                 foreach ($columns as $c) {
                     if ($c['subcategory']->getId() === $sub->getId()) {
+                        $letter = $this->colLetter($col);
+                        $sheet->setCellValue($letter . $categoryRow, $sub->getName());
+                        $sheet->mergeCells($letter . $categoryRow . ':' . $letter . ($categoryRow + 1));
+                        $sheet->getStyle($letter . $categoryRow)->getAlignment()
+                            ->setTextRotation(90)
+                            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                            ->setVertical(Alignment::VERTICAL_CENTER)
+                            ->setWrapText(true);
+                        $sheet->getColumnDimension($letter)->setAutoSize(false);
+                        $sheet->getColumnDimension($letter)->setWidth(4.2);
+                        $directSubcategoryIds[(int) $sub->getId()] = true;
                         $col++;
                         break;
                     }
@@ -334,20 +362,28 @@ final class RiskExcelService
         $row++;
 
         // ── Subcategory names (vertical text)
+        $subHeaderRow = $row;
         $col = $dataStartCol;
         foreach ($columns as $sc) {
             $letter = $this->colLetter($col);
-            $sheet->setCellValue($letter . $row, $sc['subcategory']->getName());
-            $sheet->getStyle($letter . $row)->getAlignment()->setTextRotation(90);
-            $sheet->getColumnDimension($letter)->setWidth(4.5);
+            $subId = (int) $sc['subcategory']->getId();
+            if (! isset($directSubcategoryIds[$subId])) {
+                $sheet->setCellValue($letter . $row, $sc['subcategory']->getName());
+                $sheet->getStyle($letter . $row)->getAlignment()
+                    ->setTextRotation(90)
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_BOTTOM)
+                    ->setIndent(1)
+                    ->setWrapText(true);
+            }
             $col++;
         }
-        $this->boldCenter($sheet, 'A' . $row, $lastColLetter . $row);
+        // Keep subcategory header cells left-aligned/wrapped; only align frozen left labels.
+        $this->centerRange($sheet, 'A' . $row, 'B' . $row);
         $sheet->getRowDimension($row)->setRowHeight(120);
         $row++;
 
-        // ── Data rows with alternating gray/white
-        $dataRowIndex = 0;
+        // ── Data rows
         foreach ($bodyPartCategories as $bpCat) {
             $bodyParts = $this->getBodyPartsForCategory($bpCat);
             if ($bodyParts === []) {
@@ -364,19 +400,16 @@ final class RiskExcelService
                     if (isset($riskMap[$key])) {
                         $sheet->setCellValue($this->colLetter($col) . $row, '+');
                         $sheet->getStyle($this->colLetter($col) . $row)
+                            ->getFont()
+                            ->setBold(true);
+                        $sheet->getStyle($this->colLetter($col) . $row)
                             ->getAlignment()
-                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                            ->setVertical(Alignment::VERTICAL_CENTER);
                     }
                     $col++;
                 }
 
-                if ($dataRowIndex % 2 === 1) {
-                    $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)
-                        ->getFill()
-                        ->setFillType(Fill::FILL_SOLID)
-                        ->getStartColor()->setRGB(self::GRAY_FILL);
-                }
-                $dataRowIndex++;
                 $row++;
             }
 
@@ -386,7 +419,7 @@ final class RiskExcelService
                 if ($catEndRow > $catStartRow) {
                     $sheet->mergeCells('A' . $catStartRow . ':A' . $catEndRow);
                 }
-                $sheet->getStyle('A' . $catStartRow)->getFont()->setBold(true);
+                $sheet->getStyle('A' . $catStartRow)->getFont();
                 $sheet->getStyle('A' . $catStartRow)->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER)
                     ->setWrapText(true);
@@ -399,6 +432,17 @@ final class RiskExcelService
             $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
             $sheet->getStyle($tableRange)->getBorders()->getAllBorders()->setBorderStyle(self::BORDER_THIN);
         }
+
+        // ── Alternate gray by risk columns (include subcategory header + data rows)
+        $this->applyAlternatingRiskColumnFill(
+            $sheet,
+            $categoryRow,
+            $subHeaderRow,
+            $dataEndRow,
+            $dataStartCol,
+            $columns,
+            $directSubcategoryIds
+        );
 
         // ── Column widths
         $sheet->getColumnDimension('A')->setWidth(12);
@@ -444,11 +488,11 @@ final class RiskExcelService
         string $endCell
     ): void {
         $range = $startCell . ':' . $endCell;
-        $sheet->getStyle($range)->getFont()->setBold(true);
+        $sheet->getStyle($range)->getFont();
         $sheet->getStyle($range)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setWrapText(true);
+            ->setWrapText(false);
     }
 
     private function centerRange(
@@ -460,6 +504,39 @@ final class RiskExcelService
         $sheet->getStyle($range)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
+    }
+
+    /**
+     * @param array<int, array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}> $columns
+     */
+    private function applyAlternatingRiskColumnFill(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $categoryRow,
+        int $subHeaderRow,
+        int $dataEndRow,
+        int $dataStartCol,
+        array $columns,
+        array $directSubcategoryIds
+    ): void {
+        if ($dataEndRow < $subHeaderRow) {
+            return;
+        }
+
+        foreach ($columns as $index => $column) {
+            if ($index % 2 === 0) {
+                continue;
+            }
+
+            $colNumber = $dataStartCol + $index;
+            $letter = $this->colLetter($colNumber);
+            $subId = (int) $column['subcategory']->getId();
+            $startRow = isset($directSubcategoryIds[$subId]) ? $categoryRow : $subHeaderRow;
+            $range = $letter . $startRow . ':' . $letter . $dataEndRow;
+            $sheet->getStyle($range)
+                ->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB(self::GRAY_FILL);
+        }
     }
 
     private function lithuanianMonth(int $month): string
