@@ -57,6 +57,9 @@ class CompanyRequisite
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $role = null;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $healthRiskProfileId = null;
+
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $directory = null;
 
@@ -231,6 +234,17 @@ class CompanyRequisite
     public function setRole(?string $v): static
     {
         $this->role = $v;
+        return $this;
+    }
+
+    public function getHealthRiskProfileId(): ?int
+    {
+        return $this->healthRiskProfileId;
+    }
+
+    public function setHealthRiskProfileId(?int $healthRiskProfileId): static
+    {
+        $this->healthRiskProfileId = $healthRiskProfileId;
         return $this;
     }
 

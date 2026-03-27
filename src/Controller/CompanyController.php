@@ -46,6 +46,11 @@ final class CompanyController extends AbstractController
         $company->setManagerLastName($data['managerLastName'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
+        $company->setHealthRiskProfileId(
+            isset($data['healthRiskProfileId']) && is_numeric((string) $data['healthRiskProfileId'])
+                ? (int) $data['healthRiskProfileId']
+                : null
+        );
         $company->setDirectory(
             trim((string) ($data['directory'] ?? '')) !== ''
                 ? trim((string) $data['directory'])
@@ -186,6 +191,14 @@ final class CompanyController extends AbstractController
             $company->setRole($data['role']);
         }
 
+        if (array_key_exists('healthRiskProfileId', $data)) {
+            $company->setHealthRiskProfileId(
+                is_numeric((string) $data['healthRiskProfileId'])
+                    ? (int) $data['healthRiskProfileId']
+                    : null
+            );
+        }
+
         if (array_key_exists('directory', $data)) {
             $company->setDirectory(trim((string) $data['directory']) !== '' ? $data['directory'] : null);
         } elseif (isset($data['companyName']) || array_key_exists('companyType', $data)) {
@@ -289,6 +302,7 @@ final class CompanyController extends AbstractController
             'managerLastName'  => $c->getManagerLastName(),
             'documentDate'     => $c->getDocumentDate(),
             'role'             => $c->getRole(),
+            'healthRiskProfileId' => $c->getHealthRiskProfileId(),
             'directory'        => $c->getDirectory(),
             'createdAt'        => $c->getCreatedAt()?->format('Y-m-d H:i:s'),
             'modifiedAt'       => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
