@@ -20,6 +20,7 @@ import type {
 import type { Worker } from "@/lib/types/Worker";
 import { bodyPartApi } from "@/lib/api/AAP/bodyPart";
 import { RiskApi } from "@/lib/api/AAP/risk";
+import { WorkersApi } from "@/lib/api/workers";
 
 type AAPTableContextType = {
     bodyPartCategories: BodyPartCategory[];
@@ -50,6 +51,7 @@ type AAPTableContextType = {
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
 
     reset: () => void;
+    refresh: () => Promise<void>;
 };
 
 const AAPTableContext = createContext<AAPTableContextType | null>(null);
@@ -81,35 +83,44 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
         setLoading(false);
     }, []);
 
-    useEffect(() => {
-        async function fetchAll() {
-            setLoading(true);
+    const refresh = useCallback(async () => {
+        setLoading(true);
 
-            const [
-                bodyPartCategories,
-                bodyParts,
-                riskCategories,
-                riskSubCategories,
-                riskGroups,
-                risks,
-            ] = await Promise.all([
-                bodyPartApi.getAllCategories(),
-                bodyPartApi.getAllParts(),
-                RiskApi.getRiskCategories(),
-                RiskApi.getRiskSubcategories(),
-                RiskApi.getRiskGroups(),
-                RiskApi.getRiskLists(),
-            ]);
-            setBodyPartCategories(bodyPartCategories);
-            setBodyParts(bodyParts);
-            setRiskCategories(riskCategories);
-            setRiskSubCategories(riskSubCategories);
-            setRiskGroups(riskGroups);
-            setRisks(risks);
-            setLoading(false);
-        }
-        fetchAll();
+        const [
+            bodyPartCategories,
+            bodyParts,
+            riskCategories,
+            riskSubCategories,
+            riskGroups,
+            risks,
+            workers,
+        ] = await Promise.all([
+            bodyPartApi.getAllCategories(),
+            bodyPartApi.getAllParts(),
+            RiskApi.getRiskCategories(),
+            RiskApi.getRiskSubcategories(),
+            RiskApi.getRiskGroups(),
+            RiskApi.getRiskLists(),
+            WorkersApi.getAll(),
+        ]);
+        setBodyPartCategories(bodyPartCategories);
+        setBodyParts(bodyParts);
+        setRiskCategories(riskCategories);
+        setRiskSubCategories(riskSubCategories);
+        setRiskGroups(riskGroups);
+        setRisks(risks);
+        setWorkers(workers);
+        setSelectedWorkerId((current) => {
+            if (workers.length === 0) return null;
+            if (current === null) return workers[0].id;
+            return workers.some((worker) => worker.id === current) ? current : workers[0].id;
+        });
+        setLoading(false);
     }, []);
+
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
 
     const value = useMemo<AAPTableContextType>(
         () => ({
@@ -141,6 +152,7 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
             setLoading,
 
             reset,
+            refresh,
         }),
         [
             bodyPartCategories,
@@ -153,6 +165,7 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
             selectedWorkerId,
             loading,
             reset,
+            refresh,
         ]
     );
 

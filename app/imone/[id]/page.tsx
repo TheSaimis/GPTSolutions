@@ -13,6 +13,10 @@ import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { useConfirmAction } from "@/components/confirmationPanel/confirmationPanel";
+import { WorkersApi } from "@/lib/api/workers";
+import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
+import type { CompanyWorker } from "@/lib/types/Company";
+import type { Worker } from "@/lib/types/Worker";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -21,7 +25,7 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     const router = useRouter();
     const id = typeof idParam === "string" ? parseInt(idParam, 10) : NaN;
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!Number.isNaN(id));
     const [companyType, setCompanyType] = useState("");
     const [companyName, setCompanyName] = useState("");
     const [address, setAddress] = useState("");
@@ -35,11 +39,13 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     const [deleted, setDeleted] = useState<boolean | undefined>(false);
     const [deletedDate, setDeletedDate] = useState("");
     const [readOnly, setReadOnly] = useState<{ createdAt?: string; modifiedAt?: string; documentDate?: string }>({});
+    const [workers, setWorkers] = useState<Worker[]>([]);
+    const [companyWorkers, setCompanyWorkers] = useState<CompanyWorker[]>([]);
+    const [selectedWorkerIdToAdd, setSelectedWorkerIdToAdd] = useState<number | null>(null);
     const { confirmAction } = useConfirmAction();
 
     useEffect(() => {
         if (Number.isNaN(id)) {
-            setLoading(false);
             return;
         }
         document.title = "Redaguoti įmonę";
@@ -66,7 +72,27 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                 }
             })
             .finally(() => setLoading(false));
+
+        WorkersApi.getAll().then(setWorkers).catch(() => undefined);
+        CompanyWorkersApi.getByCompanyId(id).then(setCompanyWorkers).catch(() => undefined);
     }, [id]);
+
+    async function addWorkerToCompany() {
+        if (Number.isNaN(id) || !selectedWorkerIdToAdd) return;
+        const exists = companyWorkers.some((item) => item.worker?.id === selectedWorkerIdToAdd);
+        if (exists) return;
+        const created = await CompanyWorkersApi.create({
+            companyId: id,
+            workerId: selectedWorkerIdToAdd,
+        });
+        setCompanyWorkers((prev) => [...prev, created]);
+        setSelectedWorkerIdToAdd(null);
+    }
+
+    async function removeWorkerFromCompany(companyWorkerId: number) {
+        await CompanyWorkersApi.delete(companyWorkerId);
+        setCompanyWorkers((prev) => prev.filter((item) => item.id !== companyWorkerId));
+    }
 
     async function deleteCompany() {
         if (Number.isNaN(id)) return;
@@ -219,6 +245,54 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                     </div>
 
                     <InputFieldText value={role} onChange={setRole} placeholder="Pareigos" />
+                </div>
+
+                <div className={styles.workerPanel}>
+                    <h3 className={styles.workerPanelTitle}>Darbuotojų tipai įmonei</h3>
+                    <div className={styles.workerAssignRow}>
+                        <div className={styles.workerSelect}>
+                            <InputFieldSelect
+                                options={workers.map((worker) => ({
+                                    value: String(worker.id),
+                                    label: worker.name,
+                                }))}
+                                selected={
+                                    selectedWorkerIdToAdd !== null
+                                        ? workers.find((worker) => worker.id === selectedWorkerIdToAdd)?.name ?? ""
+                                        : ""
+                                }
+                                placeholder="Pasirinkite darbuotojo tipą"
+                                onChange={(value) => setSelectedWorkerIdToAdd(Number(value))}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            className={styles.addWorkerButton}
+                            onClick={addWorkerToCompany}
+                            disabled={selectedWorkerIdToAdd === null}
+                        >
+                            Pridėti
+                        </button>
+                    </div>
+
+                    <div className={styles.workerTypeList}>
+                        {companyWorkers.length === 0 ? (
+                            <p className={styles.workerPanelMuted}>Šiai įmonei dar nepriskirtas nei vienas darbuotojo tipas.</p>
+                        ) : (
+                            companyWorkers.map((item) => (
+                                <div key={item.id} className={styles.workerTypeItem}>
+                                    <span>{item.worker?.name ?? "Nežinomas tipas"}</span>
+                                    <button
+                                        type="button"
+                                        className={styles.removeWorkerButton}
+                                        onClick={() => removeWorkerFromCompany(item.id)}
+                                    >
+                                        Šalinti
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
 
                 <button className={styles.submitButton} onClick={handleSubmit}>

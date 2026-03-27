@@ -1,0 +1,99 @@
+.wrapper {
+  width: 100%;
+}
+
+
+.table {
+  --category-col-width: 180px;
+  --part-col-width: 220px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: max-content;
+  min-width: max-content;
+  background: #fff;
+}
+
+.th,
+.td {
+  border: 1px solid #d1d5db;
+  padding: 6px;
+  font-size: 12px;
+  vertical-align: middle;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.categoryCol {
+  width: var(--category-col-width);
+  min-width: var(--category-col-width);
+  max-width: var(--category-col-width);
+  white-space: normal;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.partCol {
+  width: var(--part-col-width);
+  min-width: var(--part-col-width);
+  max-width: var(--part-col-width);
+  white-space: normal;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.rotate {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: normal;
+  min-height: 120px;
+  height: auto;
+  text-align: left;
+}
+
+.riskSubcategoryHeader {
+  text-align: left;
+}
+
+.cell {
+  width: 36px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.altColumn {
+  background: #f2f2f2;
+}
+
+.cellButton {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.12s ease;
+}
+
+.cellButton:hover {
+  background: #f8fafc;
+}
+
+.cellButtonActive {
+  color: #0f172a;
+}
+
+.cellButtonInactive {
+  color: #94a3b8;
+}
+
+.cellButtonDisabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.cellDisabled {
+  opacity: 0.6;
+}

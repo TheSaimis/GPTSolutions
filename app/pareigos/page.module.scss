@@ -1,0 +1,61 @@
+.page {
+  padding: 16px;
+}
+
+.card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.title {
+  margin: 0 0 12px;
+}
+
+.createRow {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workerRow {
+  display: grid;
+  grid-template-columns: 1fr 140px 120px;
+  gap: 8px;
+  align-items: end;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: #2563eb;
+  color: #fff;
+}
+
+.secondaryButton {
+  background: #16a34a;
+  color: #fff;
+}
+
+.dangerButton {
+  background: #dc2626;
+  color: #fff;
+}

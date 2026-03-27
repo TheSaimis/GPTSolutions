@@ -1,0 +1,153 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.tableSection {
+  min-width: 0;
+}
+
+.workerPanel {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+  position: sticky;
+  top: 10px;
+}
+
+.workerTitle {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.workerMuted {
+  margin: 0;
+  color: #64748b;
+}
+
+.workerList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workerItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.workerButton {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.workerButtonActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+  font-weight: 700;
+}
+
+.workerAssignButton {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  min-width: 72px;
+}
+
+.workerAssignButtonAdd {
+  background: #16a34a;
+}
+
+.workerAssignButtonAdd:hover {
+  background: #15803d;
+}
+
+.workerAssignButtonRemove {
+  background: #dc2626;
+}
+
+.workerAssignButtonRemove:hover {
+  background: #b91c1c;
+}
+
+.workerAssignButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.documentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.companySelect {
+  width: 100%;
+}
+
+.createDocumentButton {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #16a34a;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.createDocumentButton:hover {
+  background: #15803d;
+}
+
+.createDocumentButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.workerDivider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 12px 0;
+}
+
+.workerCreateSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.createWorkerButton {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #0ea5e9;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.createWorkerButton:hover {
+  background: #0284c7;
+}
+
+.createWorkerButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}

@@ -1,5 +1,5 @@
-import type { BodyPart } from "./bodyPart";
-import type { Worker } from "./worker";
+import type { BodyPart } from "./BodyPart";
+import type { Worker } from "../Worker";
 
 export interface RiskGroup {
   id: number;

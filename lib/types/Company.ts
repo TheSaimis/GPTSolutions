@@ -1,3 +1,5 @@
+import type { Worker } from "./Worker";
+
 export type Company = {
     id?: number;
     companyType?: string;
