@@ -308,7 +308,7 @@ final class RiskExcelService
             return self::TEMPLATE_ABSOLUTE_PATH;
         }
 
-        $fallback = $this->projectDir . '/templates/AAP lentele nauja.xls';
+        $fallback = $this->projectDir . '/templates/AAP lentele nauja.xlsx';
         if (is_file($fallback)) {
             return $fallback;
         }
