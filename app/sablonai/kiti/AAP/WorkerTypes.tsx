@@ -9,6 +9,8 @@ import { downloadBlob } from "@/lib/functions/downloadBlob";
 import type { Company, CompanyWorker } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
+import InputFieldFile from "@/components/inputFields/inputFieldFile";
+import DropZone from "@/components/inputFields/dropZone";
 import { WorkersApi } from "@/lib/api/workers";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
 import styles from "./page.module.scss";
@@ -28,6 +30,10 @@ export default function WorkerTypes() {
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [newWorkerName, setNewWorkerName] = useState("");
   const [creatingWorker, setCreatingWorker] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importingAap, setImportingAap] = useState(false);
+  const [documentOpen, setDocumentOpen] = useState(true);
+  const [workersOpen, setWorkersOpen] = useState(false);
   const [companyWorkers, setCompanyWorkers] = useState<CompanyWorker[]>([]);
   const [pendingWorkerIds, setPendingWorkerIds] = useState<Set<number>>(new Set());
 
@@ -54,6 +60,28 @@ export default function WorkerTypes() {
       .then(setCompanyWorkers)
       .catch(() => setCompanyWorkers([]));
   }, [selectedCompanyId]);
+
+  useEffect(() => {
+    if (!importFile) return;
+
+    async function runImport() {
+      setImportingAap(true);
+      try {
+        await TemplateApi.importAapXlsToDb(importFile);
+        await refresh();
+        MessageStore.push({
+          title: "Sėkmingai",
+          message: "AAP Excel duomenys įkelti į duomenų bazę.",
+          backgroundColor: "#22C55E",
+        });
+      } finally {
+        setImportingAap(false);
+        setImportFile(null);
+      }
+    }
+
+    runImport().catch(() => undefined);
+  }, [importFile, refresh]);
 
   const companyWorkerByWorkerId = useMemo(() => {
     const map = new Map<number, CompanyWorker>();
@@ -135,89 +163,133 @@ export default function WorkerTypes() {
 
   return (
     <aside className={styles.workerPanel}>
-      <h3 className={styles.workerTitle}>AAP dokumentas</h3>
-      <div className={styles.documentSection}>
-        <div className={styles.companySelect}>
-          <InputFieldSelect
-            options={companyOptions}
-            selected={
-              selectedCompanyId !== null
-                ? companyOptions.find((option) => Number(option.value) === selectedCompanyId)?.label
-                : ""
-            }
-            placeholder="Pasirinkite įmonę"
-            onChange={(value) => setSelectedCompanyId(Number(value))}
-          />
+      <button
+        type="button"
+        className={styles.workerDropdownToggle}
+        onClick={() => setDocumentOpen((prev) => !prev)}
+      >
+        <span>AAP dokumentas</span>
+        <span className={styles.workerDropdownArrow}>{documentOpen ? "▴" : "▾"}</span>
+      </button>
+      <div className={`${styles.workerDropdownContent} ${documentOpen ? styles.workerDropdownOpen : ""}`}>
+        <div className={styles.documentSection}>
+          <div className={styles.companySelect}>
+            <InputFieldSelect
+              options={companyOptions}
+              selected={
+                selectedCompanyId !== null
+                  ? companyOptions.find((option) => Number(option.value) === selectedCompanyId)?.label
+                  : ""
+              }
+              placeholder="Pasirinkite įmonę"
+              onChange={(value) => setSelectedCompanyId(Number(value))}
+            />
+          </div>
+          <button
+            type="button"
+            className={styles.createDocumentButton}
+            disabled={creatingDocument || selectedCompanyId === null || pendingRiskUpdates > 0}
+            onClick={createAAPDocument}
+          >
+            {creatingDocument ? "Kuriama..." : "Generuoti AAP Excel"}
+          </button>
         </div>
-        <button
-          type="button"
-          className={styles.createDocumentButton}
-          disabled={creatingDocument || selectedCompanyId === null || pendingRiskUpdates > 0}
-          onClick={createAAPDocument}
-        >
-          {creatingDocument ? "Kuriama..." : "Generuoti AAP Excel"}
-        </button>
+
+        <div className={styles.importSection}>
+          <h4 className={styles.importTitle}>Importuoti AAP Excel į DB</h4>
+          <DropZone
+            onFile={setImportFile}
+            accept={[".xls", ".xlsx"]}
+            className={styles.importDropZone}
+            disabled={importingAap}
+          >
+            <div className={styles.importDropZoneInner}>
+              <p className={styles.importHint}>
+                Nutempkite `.xls` / `.xlsx` failą čia
+              </p>
+              <InputFieldFile
+                value={importFile}
+                onChange={setImportFile}
+                accept={[".xls", ".xlsx"]}
+                placeholder="Arba pasirinkite failą"
+              />
+            </div>
+          </DropZone>
+          {importingAap ? (
+            <p className={styles.workerMuted}>Importuojama...</p>
+          ) : null}
+        </div>
       </div>
 
       <div className={styles.workerDivider} />
-      <h3 className={styles.workerTitle}>Darbuotojų tipai</h3>
-      {selectedCompanyId === null ? (
-        <p className={styles.workerMuted}>Pasirinkite įmonę, kad galėtumėte priskirti darbuotojų tipus.</p>
-      ) : null}
+      <button
+        type="button"
+        className={styles.workerDropdownToggle}
+        onClick={() => setWorkersOpen((prev) => !prev)}
+      >
+        <span>Darbuotojų tipai</span>
+        <span className={styles.workerDropdownArrow}>{workersOpen ? "▴" : "▾"}</span>
+      </button>
 
-      <div className={styles.workerCreateSection}>
-        <InputFieldText
-          value={newWorkerName}
-          onChange={setNewWorkerName}
-          placeholder="Naujas darbuotojo tipas"
-        />
-        <button
-          type="button"
-          className={styles.createWorkerButton}
-          onClick={createWorkerType}
-          disabled={creatingWorker || newWorkerName.trim() === ""}
-        >
-          {creatingWorker ? "Kuriama..." : "Pridėti tipą"}
-        </button>
-      </div>
+      <div className={`${styles.workerDropdownContent} ${workersOpen ? styles.workerDropdownOpen : ""}`}>
+        {selectedCompanyId === null ? (
+          <p className={styles.workerMuted}>Pasirinkite įmonę, kad galėtumėte priskirti darbuotojų tipus.</p>
+        ) : null}
 
-      {loading ? (
-        <p className={styles.workerMuted}>Kraunama...</p>
-      ) : workers.length === 0 ? (
-        <p className={styles.workerMuted}>Nėra darbuotojų tipų.</p>
-      ) : (
-        <div className={styles.workerList}>
-          {workers.map((worker) => (
-            <div key={worker.id} className={styles.workerItem}>
-              <button
-                type="button"
-                className={`${styles.workerButton} ${
-                  selectedWorkerId === worker.id ? styles.workerButtonActive : ""
-                }`}
-                onClick={() => setSelectedWorkerId(worker.id)}
-              >
-                {worker.name}
-              </button>
-              <button
-                type="button"
-                className={`${styles.workerAssignButton} ${
-                  companyWorkerByWorkerId.has(worker.id)
-                    ? styles.workerAssignButtonRemove
-                    : styles.workerAssignButtonAdd
-                }`}
-                disabled={selectedCompanyId === null || pendingWorkerIds.has(worker.id)}
-                onClick={() => toggleWorkerInCompany(worker.id)}
-              >
-                {pendingWorkerIds.has(worker.id)
-                  ? "..."
-                  : companyWorkerByWorkerId.has(worker.id)
-                  ? "Šalinti"
-                  : "Pridėti"}
-              </button>
-            </div>
-          ))}
+        <div className={styles.workerCreateSection}>
+          <InputFieldText
+            value={newWorkerName}
+            onChange={setNewWorkerName}
+            placeholder="Naujas darbuotojo tipas"
+          />
+          <button
+            type="button"
+            className={styles.createWorkerButton}
+            onClick={createWorkerType}
+            disabled={creatingWorker || newWorkerName.trim() === ""}
+          >
+            {creatingWorker ? "Kuriama..." : "Pridėti tipą"}
+          </button>
         </div>
-      )}
+
+        {loading ? (
+          <p className={styles.workerMuted}>Kraunama...</p>
+        ) : workers.length === 0 ? (
+          <p className={styles.workerMuted}>Nėra darbuotojų tipų.</p>
+        ) : (
+          <div className={styles.workerList}>
+            {workers.map((worker) => (
+              <div key={worker.id} className={styles.workerItem}>
+                <button
+                  type="button"
+                  className={`${styles.workerButton} ${
+                    selectedWorkerId === worker.id ? styles.workerButtonActive : ""
+                  }`}
+                  onClick={() => setSelectedWorkerId(worker.id)}
+                >
+                  {worker.name}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.workerAssignButton} ${
+                    companyWorkerByWorkerId.has(worker.id)
+                      ? styles.workerAssignButtonRemove
+                      : styles.workerAssignButtonAdd
+                  }`}
+                  disabled={selectedCompanyId === null || pendingWorkerIds.has(worker.id)}
+                  onClick={() => toggleWorkerInCompany(worker.id)}
+                >
+                  {pendingWorkerIds.has(worker.id)
+                    ? "..."
+                    : companyWorkerByWorkerId.has(worker.id)
+                    ? "Šalinti"
+                    : "Pridėti"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

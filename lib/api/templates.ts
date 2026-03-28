@@ -48,6 +48,17 @@ export const TemplateApi = {
       `/api/risk/export/${companyId}`,
     )
     return result;
+  },
+
+  importAapXlsToDb: (file: File, reset = false) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("reset", String(reset));
+    return api.post<{ status: string; message: string; output?: string }>(
+      "/api/risk/import-xls",
+      form,
+      { loadingMessage: "Importuojamas AAP Excel..." }
+    );
   }
   // getTemplatePDF: (path: string) =>
   //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
