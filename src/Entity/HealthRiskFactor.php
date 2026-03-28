@@ -27,23 +27,13 @@ class HealthRiskFactor
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $lineNumber = 0;
 
-    /** @var Collection<int, HealthRiskCommonFactor> */
-    #[ORM\OneToMany(targetEntity: HealthRiskCommonFactor::class, mappedBy: 'factor')]
-    private Collection $commonAssignments;
-
-    /** @var Collection<int, HealthRiskProfileFactor> */
-    #[ORM\OneToMany(targetEntity: HealthRiskProfileFactor::class, mappedBy: 'factor')]
-    private Collection $profileAssignments;
-
     /** @var Collection<int, WorkerRisk> */
     #[ORM\OneToMany(targetEntity: WorkerRisk::class, mappedBy: 'riskFactor')]
     private Collection $workerRisks;
 
     public function __construct()
     {
-        $this->commonAssignments  = new ArrayCollection();
-        $this->profileAssignments = new ArrayCollection();
-        $this->workerRisks        = new ArrayCollection();
+        $this->workerRisks = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -82,18 +72,6 @@ class HealthRiskFactor
     {
         $this->lineNumber = $lineNumber;
         return $this;
-    }
-
-    /** @return Collection<int, HealthRiskCommonFactor> */
-    public function getCommonAssignments(): Collection
-    {
-        return $this->commonAssignments;
-    }
-
-    /** @return Collection<int, HealthRiskProfileFactor> */
-    public function getProfileAssignments(): Collection
-    {
-        return $this->profileAssignments;
     }
 
     /** @return Collection<int, WorkerRisk> */

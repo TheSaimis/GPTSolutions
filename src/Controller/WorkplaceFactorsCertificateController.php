@@ -27,8 +27,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
      * {
      *   "companyId": 1,
      *   "template": "1 Sveikatos tikrinimo pazyma + knyga.docx",
-     *   "healthRiskProfileId": 2,
-     *   "name": "output.docx",
+     *   "checkPeriods": { "1": "1 metai", "2": "2 metai" },
      *   "replacements": { ... papildomi custom laukai ... }
      * }
      */
@@ -50,17 +49,34 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             return new JsonResponse(['error' => 'template is required'], 400);
         }
 
-        $profileId = $data['healthRiskProfileId'] ?? null;
-        $profileId = is_numeric((string) $profileId) ? (int) $profileId : null;
+        $checkPeriods = [];
+        $rawCheckPeriods = $data['checkPeriods'] ?? $data['workerCheckPeriods'] ?? null;
+        if (is_array($rawCheckPeriods)) {
+            foreach ($rawCheckPeriods as $workerId => $period) {
+                if (is_numeric((string) $workerId)) {
+                    $checkPeriods[(int) $workerId] = trim((string) $period);
+                }
+            }
+        }
+
+        $rawRows = $data['rows'] ?? $data['workerRows'] ?? null;
+        if (is_array($rawRows)) {
+            foreach ($rawRows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $workerId = $row['workerId'] ?? null;
+                if (! is_numeric((string) $workerId)) {
+                    continue;
+                }
+                $period = trim((string) ($row['checkPeriod'] ?? $row['period'] ?? ''));
+                $checkPeriods[(int) $workerId] = $period;
+            }
+        }
 
         $custom = $data['replacements'] ?? $data['custom'] ?? [];
         if (! is_array($custom)) {
             $custom = [];
-        }
-
-        $name = isset($data['name']) ? trim((string) $data['name']) : null;
-        if ($name === '') {
-            $name = null;
         }
 
         $user = $this->getUser();
@@ -74,9 +90,9 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             $outputPath = $this->certificateService->createDocument(
                 (int) $companyId,
                 $templatePath,
-                $profileId,
+                $checkPeriods,
                 $userContext,
-                $name,
+                null,
                 $custom
             );
         } catch (\InvalidArgumentException $e) {
@@ -105,45 +121,4 @@ final class WorkplaceFactorsCertificateController extends AbstractController
 
         return $response;
     }
-
-    /**
-     * POST /api/workplace-factors-certificate/createCertificate
-     * Body:
-     * {
-     *   "companyId": 1,
-     *   "workers": [
-     *      {"workerId": 3, "checkPeriod": "Tikrintis kas 2 metus"},
-     *      {"workerId": 5, "checkPeriod": "Tikrintis kas 1 metus"}
-     *   ]
-     * }
-     */
-    #[Route('/createCertificate', name: 'api_workplace_factors_certificate_data', methods: ['POST'])]
-    public function createCertificate(Request $request): JsonResponse
-    {
-        $data = json_decode($request->getContent(), true);
-        if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
-        }
-
-        $companyId = $data['companyId'] ?? null;
-        if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
-            return new JsonResponse(['error' => 'companyId is required'], 400);
-        }
-
-        $workers = $data['workers'] ?? [];
-        if (! is_array($workers)) {
-            $workers = [];
-        }
-
-        try {
-            $payload = $this->certificateService->buildCertificateData((int) $companyId, $workers);
-        } catch (\InvalidArgumentException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 404);
-        } catch (\Throwable $e) {
-            return new JsonResponse(['error' => 'Nepavyko surinkti pažymos duomenų: ' . $e->getMessage()], 500);
-        }
-
-        return new JsonResponse($payload);
-    }
 }
-
