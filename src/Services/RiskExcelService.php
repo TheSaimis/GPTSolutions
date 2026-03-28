@@ -13,7 +13,8 @@ use App\Entity\RiskList;
 use App\Entity\RiskSubcategory;
 use App\Entity\Worker;
 use Doctrine\ORM\EntityManagerInterface;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
@@ -22,6 +23,18 @@ final class RiskExcelService
 {
     private const BORDER_THIN = 'thin';
     private const GRAY_FILL   = 'F2F2F2';
+    private const TEMPLATE_ABSOLUTE_PATH = 'C:\\Users\\memeh\\Downloads\\AAP lentele nauja.xls';
+    private const TEMPLATE_BLOCK_HEIGHT = 26;
+    private const TEMPLATE_GAP_ROWS = 1;
+    private const TEMPLATE_MAX_COL = 34;
+    /** @var array<int, float> */
+    private const SOURCE_WIDTHS = [
+        1 => 9.29, 2 => 14.71, 3 => 3.29, 4 => 3.29, 5 => 3.29, 6 => 2.86, 7 => 3.43, 8 => 3.29, 9 => 2.71,
+        10 => 2.86, 11 => 4.29, 12 => 4.29, 13 => 3.71, 14 => 3.29, 15 => 3.86, 16 => 4.57, 17 => 2.86,
+        18 => 2.57, 19 => 3.86, 20 => 3.86, 21 => 3.86, 22 => 3.00, 23 => 3.57, 24 => 4.29, 25 => 4.14,
+        26 => 4.14, 27 => 4.14, 28 => 4.29, 29 => 3.29, 30 => 2.57, 31 => 3.71, 32 => 3.43, 33 => 3.43,
+        34 => 3.57,
+    ];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -45,32 +58,39 @@ final class RiskExcelService
             throw new \InvalidArgumentException("Įmonei \"{$companyName}\" nepriskirta darbuotojų");
         }
 
-        $bodyPartCategories = $this->getBodyPartCategories();
-        $riskGroups         = $this->getRiskGroups();
-        $columns            = $this->buildColumns($riskGroups);
+        $bodyParts  = $this->getOrderedBodyParts();
 
-        $spreadsheet = new Spreadsheet();
-        $spreadsheet->getDefaultStyle()->getFont()->setName('Times New Roman');
-        $sheet = $spreadsheet->getActiveSheet();
+        $templatePath = $this->resolveTemplatePath();
+        $spreadsheet  = IOFactory::load($templatePath);
+        $sheet        = $spreadsheet->getSheet(0);
         $sheet->setTitle('Rizikos vertinimas');
 
-        $currentRow = 1;
+        $highestRow = $sheet->getHighestRow();
+        if ($highestRow > self::TEMPLATE_BLOCK_HEIGHT) {
+            $sheet->removeRow(self::TEMPLATE_BLOCK_HEIGHT + 1, $highestRow - self::TEMPLATE_BLOCK_HEIGHT);
+        }
 
-        foreach ($workers as $worker) {
-            $riskMap    = $this->buildRiskMap($worker);
-            $currentRow = $this->renderWorkerTable(
+        $templateMerges = $this->collectTemplateBlockMerges($sheet);
+        $bodyRowByPart  = $this->buildBodyRowMap($bodyParts);
+
+        foreach ($workers as $index => $worker) {
+            $blockStart = 1 + ($index * (self::TEMPLATE_BLOCK_HEIGHT + self::TEMPLATE_GAP_ROWS));
+            if ($index > 0) {
+                $this->copyTemplateBlock($sheet, 1, $blockStart, $templateMerges);
+            }
+
+            $riskPoints = $this->buildRiskPoints($worker, $bodyRowByPart);
+            $this->fillWorkerBlock(
                 $sheet,
-                $currentRow,
+                $blockStart,
                 $company,
                 $companyName,
                 $worker,
-                $bodyPartCategories,
-                $riskGroups,
-                $columns,
-                $riskMap
+                $riskPoints
             );
-            $currentRow += 2;
         }
+
+        $this->removeYellowFill($sheet);
 
         $outputDir = $this->projectDir . '/var/risk_export';
         if (! is_dir($outputDir)) {
@@ -97,6 +117,10 @@ final class RiskExcelService
         foreach ($company->getCompanyWorkers() as $cw) {
             $workers[] = $cw->getWorker();
         }
+        usort(
+            $workers,
+            static fn(Worker $a, Worker $b): int => ((int) $a->getId()) <=> ((int) $b->getId())
+        );
         return $workers;
     }
 
@@ -182,24 +206,24 @@ final class RiskExcelService
     {
         $columns = [];
         foreach ($riskGroups as $group) {
-            $categories = $this->getCategoriesForGroup($group);
-
-            if ($categories === []) {
-                foreach ($this->getDirectSubcategoriesForGroup($group) as $sub) {
-                    $columns[] = ['subcategory' => $sub, 'category' => null, 'group' => $group];
-                }
-                continue;
-            }
-
-            foreach ($categories as $cat) {
-                $subs = $this->getSubcategoriesForCategory($cat);
-                foreach ($subs as $sub) {
-                    $columns[] = ['subcategory' => $sub, 'category' => $cat, 'group' => $group];
+            $groupColumns = [];
+            foreach ($this->getCategoriesForGroup($group) as $cat) {
+                foreach ($this->getSubcategoriesForCategory($cat) as $sub) {
+                    $groupColumns[] = ['subcategory' => $sub, 'category' => $cat, 'group' => $group];
                 }
             }
-
             foreach ($this->getDirectSubcategoriesForGroup($group) as $sub) {
-                $columns[] = ['subcategory' => $sub, 'category' => null, 'group' => $group];
+                $groupColumns[] = ['subcategory' => $sub, 'category' => null, 'group' => $group];
+            }
+
+            usort(
+                $groupColumns,
+                static fn(array $a, array $b): int =>
+                    $a['subcategory']->getLineNumber() <=> $b['subcategory']->getLineNumber()
+            );
+
+            foreach ($groupColumns as $item) {
+                $columns[] = $item;
             }
         }
         return $columns;
@@ -226,6 +250,459 @@ final class RiskExcelService
         return $map;
     }
 
+    /**
+     * @param array<int, int> $bodyRowByPart
+     * @return array<int, array{row:int, col:int}>
+     */
+    private function buildRiskPoints(Worker $worker, array $bodyRowByPart): array
+    {
+        $lists = $this->em->getRepository(RiskList::class)
+            ->createQueryBuilder('rl')
+            ->where('rl.worker = :w')
+            ->setParameter('w', $worker)
+            ->getQuery()
+            ->getResult();
+
+        $points = [];
+        /** @var RiskList $rl */
+        foreach ($lists as $rl) {
+            $bodyPart = $rl->getBodyPart();
+            $sub      = $rl->getRiskSubcategory();
+            if ($bodyPart === null || $sub === null) {
+                continue;
+            }
+
+            $partId = (int) $bodyPart->getId();
+            if (! isset($bodyRowByPart[$partId])) {
+                continue;
+            }
+            $line = (int) $sub->getLineNumber();
+            if ($line < 3 || $line > self::TEMPLATE_MAX_COL) {
+                continue;
+            }
+
+            $points[] = [
+                'row' => $bodyRowByPart[$partId],
+                'col' => $line,
+            ];
+        }
+
+        return $points;
+    }
+
+    /** @return BodyPart[] */
+    private function getOrderedBodyParts(): array
+    {
+        $ordered = [];
+        foreach ($this->getBodyPartCategories() as $category) {
+            foreach ($this->getBodyPartsForCategory($category) as $part) {
+                $ordered[] = $part;
+            }
+        }
+        return $ordered;
+    }
+
+    private function resolveTemplatePath(): string
+    {
+        if (is_file(self::TEMPLATE_ABSOLUTE_PATH)) {
+            return self::TEMPLATE_ABSOLUTE_PATH;
+        }
+
+        $fallback = $this->projectDir . '/templates/AAP lentele nauja.xls';
+        if (is_file($fallback)) {
+            return $fallback;
+        }
+
+        throw new \RuntimeException('AAP template file not found.');
+    }
+
+    /**
+     * @param array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}[] $columns
+     * @return array<int, RiskSubcategory>
+     */
+    private function buildSubcategoryLineMap(array $columns): array
+    {
+        $map = [];
+        foreach ($columns as $column) {
+            $line = $column['subcategory']->getLineNumber();
+            if ($line < 3 || $line > self::TEMPLATE_MAX_COL) {
+                continue;
+            }
+            $map[$line] = $column['subcategory'];
+        }
+        return $map;
+    }
+
+    /**
+     * @param BodyPart[] $bodyParts
+     * @return array<int, int>
+     */
+    private function buildBodyRowMap(array $bodyParts): array
+    {
+        $map = [];
+        foreach ($bodyParts as $part) {
+            $line = $part->getLineNumber();
+            if ($line < 1 || $line > 15) {
+                continue;
+            }
+            $map[(int) $part->getId()] = $line;
+        }
+        return $map;
+    }
+
+    /**
+     * Order columns exactly by subcategory lineNumber inside each group.
+     * This preserves template-like gaps in category row (direct columns stay empty).
+     *
+     * @param RiskGroup[] $riskGroups
+     * @return array<int, array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}>
+     */
+    private function buildWebsiteColumns(array $riskGroups): array
+    {
+        $columns = [];
+        foreach ($riskGroups as $group) {
+            $groupColumns = [];
+
+            foreach ($this->getCategoriesForGroup($group) as $category) {
+                foreach ($this->getSubcategoriesForCategory($category) as $subcategory) {
+                    $groupColumns[] = [
+                        'subcategory' => $subcategory,
+                        'category'    => $category,
+                        'group'       => $group,
+                    ];
+                }
+            }
+            foreach ($this->getDirectSubcategoriesForGroup($group) as $subcategory) {
+                $groupColumns[] = [
+                    'subcategory' => $subcategory,
+                    'category'    => null,
+                    'group'       => $group,
+                ];
+            }
+
+            usort(
+                $groupColumns,
+                static fn(array $a, array $b): int =>
+                    $a['subcategory']->getLineNumber() <=> $b['subcategory']->getLineNumber()
+            );
+
+            foreach ($groupColumns as $item) {
+                $columns[] = $item;
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function collectTemplateBlockMerges(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet): array
+    {
+        $ranges = [];
+        foreach ($sheet->getMergeCells() as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            if ($start[1] >= 1 && $end[1] <= self::TEMPLATE_BLOCK_HEIGHT) {
+                $ranges[] = $range;
+            }
+        }
+        return $ranges;
+    }
+
+    /**
+     * @param string[] $templateMerges
+     */
+    private function copyTemplateBlock(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $sourceStartRow,
+        int $targetStartRow,
+        array $templateMerges
+    ): void {
+        for ($r = 0; $r < self::TEMPLATE_BLOCK_HEIGHT; $r++) {
+            $srcRow = $sourceStartRow + $r;
+            $dstRow = $targetStartRow + $r;
+            $sheet->getRowDimension($dstRow)->setRowHeight($sheet->getRowDimension($srcRow)->getRowHeight());
+
+            for ($c = 1; $c <= self::TEMPLATE_MAX_COL; $c++) {
+                $srcCell = $this->colLetter($c) . $srcRow;
+                $dstCell = $this->colLetter($c) . $dstRow;
+                $sheet->setCellValue($dstCell, $sheet->getCell($srcCell)->getValue());
+                $sheet->duplicateStyle($sheet->getStyle($srcCell), $dstCell);
+            }
+        }
+
+        foreach ($templateMerges as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            $shift = $targetStartRow - $sourceStartRow;
+            $newRange = $this->colLetter($start[0]) . ($start[1] + $shift)
+                . ':'
+                . $this->colLetter($end[0]) . ($end[1] + $shift);
+            $sheet->mergeCells($newRange);
+        }
+    }
+
+    /**
+     * @param array<int, array{row:int, col:int}> $riskPoints
+     */
+    private function fillWorkerBlock(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart,
+        CompanyRequisite $company,
+        string $companyName,
+        Worker $worker,
+        array $riskPoints
+    ): void {
+        $companyRow = $blockStart + 2;
+        $dataStartRow = $blockStart + 7;
+        $dataEndRow = $blockStart + 21;
+        $dateRow = $blockStart + 23;
+        $filledByRow = $blockStart + 24;
+
+        $companyLabel = trim((string) ($company->getCompanyType() ?? ''));
+        $companyText = trim($companyLabel . ' ' . $companyName);
+        // Match original template anchors: B3, K3 and AD3 in each worker block.
+        $sheet->setCellValue('B' . $companyRow, $companyText);
+        $sheet->setCellValue('K' . $companyRow, $worker->getName());
+        $sheet->setCellValue('AD' . $companyRow, 'darbo vietoje,');
+        $sheet->getStyle('K' . $companyRow)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Keep template header/styling untouched; only fill dynamic values.
+        $this->unmergeRiskDataArea($sheet, $dataStartRow, $dataEndRow);
+
+        for ($r = $dataStartRow; $r <= $dataEndRow; $r++) {
+            for ($c = 3; $c <= self::TEMPLATE_MAX_COL; $c++) {
+                $sheet->setCellValue($this->colLetter($c) . $r, '');
+            }
+        }
+
+        foreach ($riskPoints as $point) {
+            $row = $dataStartRow + ($point['row'] - 1);
+            $sheet->setCellValue($this->colLetter($point['col']) . $row, '+');
+        }
+
+        $sheet->setCellValue('B' . $dateRow, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
+        $sheet->setCellValue('B' . $filledByRow, 'Lentelę užpildė:');
+    }
+
+    private function unmergeRiskDataArea(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $dataStartRow,
+        int $dataEndRow
+    ): void {
+        foreach (array_keys($sheet->getMergeCells()) as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            $intersectsRows = ! ($end[1] < $dataStartRow || $start[1] > $dataEndRow);
+            $intersectsCols = ! ($end[0] < 3 || $start[0] > self::TEMPLATE_MAX_COL);
+            if ($intersectsRows && $intersectsCols) {
+                $sheet->unmergeCells($range);
+            }
+        }
+    }
+
+    private function removeYellowFill(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet): void
+    {
+        $highestRow = $sheet->getHighestRow();
+        for ($r = 1; $r <= $highestRow; $r++) {
+            for ($c = 1; $c <= self::TEMPLATE_MAX_COL; $c++) {
+                $cell = $this->colLetter($c) . $r;
+                $fill = $sheet->getStyle($cell)->getFill();
+                if ($fill->getFillType() === Fill::FILL_NONE) {
+                    continue;
+                }
+                $rgb = strtoupper((string) $fill->getStartColor()->getRGB());
+                $argb = strtoupper((string) $fill->getStartColor()->getARGB());
+                if ($rgb === 'FFFF00' || $argb === 'FFFFFF00') {
+                    $fill->setFillType(Fill::FILL_NONE);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array<int, array{subcategory: RiskSubcategory, category: ?RiskCategory, group: RiskGroup}> $websiteColumns
+     */
+    private function applyWebsiteHeaderLayout(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart,
+        array $websiteColumns
+    ): void {
+        $groupRow    = $blockStart + 4;
+        $categoryRow = $blockStart + 5;
+        $subRow      = $blockStart + 6;
+
+        // Remove existing merges in risk header area before creating new spans.
+        foreach (array_keys($sheet->getMergeCells()) as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            $intersectsRows = ! ($end[1] < $groupRow || $start[1] > $subRow);
+            $intersectsCols = ! ($end[0] < 3 || $start[0] > self::TEMPLATE_MAX_COL);
+            if ($intersectsRows && $intersectsCols) {
+                $sheet->unmergeCells($range);
+            }
+        }
+
+        // Clear values in risk header area.
+        for ($c = 3; $c <= self::TEMPLATE_MAX_COL; $c++) {
+            $letter = $this->colLetter($c);
+            $sheet->setCellValue($letter . $groupRow, '');
+            $sheet->setCellValue($letter . $categoryRow, '');
+            $sheet->setCellValue($letter . $subRow, '');
+        }
+
+        // Group labels with contiguous spans.
+        $runStart = 3;
+        $currentGroup = null;
+        foreach ($websiteColumns as $index => $colDef) {
+            $name = $colDef['group']->getName();
+            $col  = 3 + $index;
+            if ($currentGroup === null) {
+                $currentGroup = $name;
+                $runStart = $col;
+                continue;
+            }
+            if ($name !== $currentGroup) {
+                $startCell = $this->colLetter($runStart) . $groupRow;
+                $endCell   = $this->colLetter($col - 1) . $groupRow;
+                $sheet->setCellValue($startCell, $currentGroup);
+                if ($startCell !== $endCell) {
+                    $sheet->mergeCells($startCell . ':' . $endCell);
+                }
+                $currentGroup = $name;
+                $runStart = $col;
+            }
+        }
+        if ($websiteColumns !== []) {
+            $startCell = $this->colLetter($runStart) . $groupRow;
+            $endCell   = $this->colLetter(2 + count($websiteColumns)) . $groupRow;
+            $sheet->setCellValue($startCell, (string) $currentGroup);
+            if ($startCell !== $endCell) {
+                $sheet->mergeCells($startCell . ':' . $endCell);
+            }
+        }
+
+        // Category labels (direct subcategory columns stay empty on this row).
+        $runStart = null;
+        $currentCategoryId = null;
+        $currentCategoryName = '';
+        foreach ($websiteColumns as $index => $colDef) {
+            $col      = 3 + $index;
+            $category = $colDef['category'];
+
+            if ($category === null) {
+                if ($runStart !== null) {
+                    $startCell = $this->colLetter((int) $runStart) . $categoryRow;
+                    $endCell   = $this->colLetter($col - 1) . $categoryRow;
+                    $sheet->setCellValue($startCell, $currentCategoryName);
+                    if ($startCell !== $endCell) {
+                        $sheet->mergeCells($startCell . ':' . $endCell);
+                    }
+                    $runStart = null;
+                    $currentCategoryId = null;
+                    $currentCategoryName = '';
+                }
+                continue;
+            }
+
+            $categoryId = (int) $category->getId();
+            if ($currentCategoryId === null) {
+                $runStart = $col;
+                $currentCategoryId = $categoryId;
+                $currentCategoryName = $category->getName();
+                continue;
+            }
+
+            if ($categoryId !== $currentCategoryId) {
+                $startCell = $this->colLetter((int) $runStart) . $categoryRow;
+                $endCell   = $this->colLetter($col - 1) . $categoryRow;
+                $sheet->setCellValue($startCell, $currentCategoryName);
+                if ($startCell !== $endCell) {
+                    $sheet->mergeCells($startCell . ':' . $endCell);
+                }
+                $runStart = $col;
+                $currentCategoryId = $categoryId;
+                $currentCategoryName = $category->getName();
+            }
+        }
+        if ($runStart !== null) {
+            $startCell = $this->colLetter((int) $runStart) . $categoryRow;
+            $endCell   = $this->colLetter(2 + count($websiteColumns)) . $categoryRow;
+            $sheet->setCellValue($startCell, $currentCategoryName);
+            if ($startCell !== $endCell) {
+                $sheet->mergeCells($startCell . ':' . $endCell);
+            }
+        }
+
+        // Subcategory names in website order.
+        foreach ($websiteColumns as $index => $colDef) {
+            $col = 3 + $index;
+            $sheet->setCellValue($this->colLetter($col) . $subRow, $colDef['subcategory']->getName());
+        }
+    }
+
+    private function normalizeHeaderTextStyles(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart
+    ): void {
+        $groupRow    = $blockStart + 4;
+        $categoryRow = $blockStart + 5;
+        $subRow      = $blockStart + 6;
+
+        // Group row: horizontal centered.
+        $sheet->getStyle('C' . $groupRow . ':' . $this->colLetter(self::TEMPLATE_MAX_COL) . $groupRow)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(false)
+            ->setTextRotation(0);
+
+        // Category row: horizontal centered.
+        $sheet->getStyle('C' . $categoryRow . ':' . $this->colLetter(self::TEMPLATE_MAX_COL) . $categoryRow)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(false)
+            ->setTextRotation(0);
+
+        // Subcategory row: vertical labels everywhere (as in source template).
+        $sheet->getStyle('C' . $subRow . ':' . $this->colLetter(self::TEMPLATE_MAX_COL) . $subRow)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_BOTTOM)
+            ->setWrapText(false)
+            ->setTextRotation(90);
+    }
+
+    private function applyRiskColumnStriping(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart,
+        int $dataEndRow
+    ): void {
+        $stripeStartRow = $blockStart + 6; // subcategory header row
+        $lastColLetter  = $this->colLetter(self::TEMPLATE_MAX_COL);
+
+        for ($c = 3; $c <= self::TEMPLATE_MAX_COL; $c++) {
+            $letter = $this->colLetter($c);
+            $range  = $letter . $stripeStartRow . ':' . $letter . $dataEndRow;
+            $fill   = $sheet->getStyle($range)->getFill();
+
+            if ((($c - 3) % 2) === 1) {
+                $fill->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB(self::GRAY_FILL);
+            } else {
+                $fill->setFillType(Fill::FILL_NONE);
+            }
+        }
+
+        // Keep left side (A:B) unchanged and ensure no accidental fill overrides.
+        $sheet->getStyle('A' . $stripeStartRow . ':B' . $dataEndRow)
+            ->getFill()
+            ->setFillType(Fill::FILL_NONE);
+        $sheet->getStyle('A' . $blockStart . ':' . $lastColLetter . ($blockStart + 5))
+            ->getFill()
+            ->setFillType(Fill::FILL_NONE);
+    }
+
     // ─── Rendering ───────────────────────────────────
 
     /**
@@ -247,22 +724,19 @@ final class RiskExcelService
         $dataStartCol  = 3;
         $totalCols     = $dataStartCol + count($columns) - 1;
         $lastColLetter = $this->colLetter($totalCols);
-        $midColLetter  = $this->colLetter((int) floor(($dataStartCol + $totalCols) / 2));
 
         $row = $startRow;
-
-        // ── Above-table labels: (pareigos) (parašas) (vardo raidė, pavardė)
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
-        $sheet->setCellValue($midColLetter . $row, '(parašas)');
-        $sheet->setCellValue($lastColLetter . $row, '(vardo raidė, pavardė)');
-        $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
-        $row++;
 
         // ── Title: "Profesinės rizikos veiksnių įvertinimo..."
         $sheet->setCellValue('A' . $row, 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones');
         $sheet->mergeCells('A' . $row . ':' . $lastColLetter . $row);
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
+        $sheet->getRowDimension($row)->setRowHeight(14);
+        $row++;
+
+        // Spacer row to match original template proportions
+        $sheet->getRowDimension($row)->setRowHeight(9.75);
         $row++;
 
         // ── Company | Position | "darbo vietoje."
@@ -274,11 +748,22 @@ final class RiskExcelService
             $sheet->mergeCells(
                 $this->colLetter($dataStartCol) . $row . ':' . $this->colLetter($totalCols - 1) . $row
             );
+            $sheet->getStyle($this->colLetter($dataStartCol) . $row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                ->setVertical(Alignment::VERTICAL_CENTER)
+                ->setShrinkToFit(false)
+                ->setWrapText(false);
             $sheet->setCellValue($lastColLetter . $row, 'darbo vietoje');
         } else {
             $sheet->setCellValue($this->colLetter($dataStartCol) . $row, $worker->getName() . ' darbo vietoje');
         }
         $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
+        if ($totalCols > $dataStartCol) {
+            $sheet->getStyle($this->colLetter($dataStartCol) . $row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
+        $sheet->getRowDimension($row)->setRowHeight(18.75);
         $row++;
 
         // ══════════════ TABLE START ══════════════
@@ -288,6 +773,7 @@ final class RiskExcelService
         $sheet->setCellValue($this->colLetter($dataStartCol) . $row, 'Darbo aplinkos kenksmingi ir pavojingi veiksniai');
         $sheet->mergeCells($this->colLetter($dataStartCol) . $row . ':' . $lastColLetter . $row);
         $this->centerRange($sheet, 'A' . $row, $lastColLetter . $row);
+        $sheet->getRowDimension($row)->setRowHeight(12.75);
         $row++;
 
         // ── Group header row (Fiziniai, Fizikiniai, ...)
@@ -299,63 +785,103 @@ final class RiskExcelService
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER);
 
-        $col = $dataStartCol;
-        foreach ($riskGroups as $group) {
-            $groupColCount = $this->countColumnsForGroup($group, $columns);
-            if ($groupColCount === 0) {
+        $groupRunStartCol = $dataStartCol;
+        $currentGroupId   = null;
+        $currentGroupName = '';
+        foreach ($columns as $index => $colDef) {
+            $groupId = (int) $colDef['group']->getId();
+            if ($currentGroupId === null) {
+                $currentGroupId   = $groupId;
+                $currentGroupName = $colDef['group']->getName();
                 continue;
             }
-            $startColLetter = $this->colLetter($col);
-            $endColLetter   = $this->colLetter($col + $groupColCount - 1);
-            $sheet->setCellValue($startColLetter . $row, $group->getName());
-            if ($groupColCount > 1) {
+            if ($groupId !== $currentGroupId) {
+                $startColLetter = $this->colLetter($groupRunStartCol);
+                $endColLetter   = $this->colLetter($dataStartCol + $index - 1);
+                $sheet->setCellValue($startColLetter . $row, $currentGroupName);
+                if ($startColLetter !== $endColLetter) {
+                    $sheet->mergeCells($startColLetter . $row . ':' . $endColLetter . $row);
+                }
+                $groupRunStartCol = $dataStartCol + $index;
+                $currentGroupId   = $groupId;
+                $currentGroupName = $colDef['group']->getName();
+            }
+        }
+        if ($columns !== []) {
+            $startColLetter = $this->colLetter($groupRunStartCol);
+            $endColLetter   = $this->colLetter($totalCols);
+            $sheet->setCellValue($startColLetter . $row, $currentGroupName);
+            if ($startColLetter !== $endColLetter) {
                 $sheet->mergeCells($startColLetter . $row . ':' . $endColLetter . $row);
             }
-            $col += $groupColCount;
         }
         $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
+        $sheet->getRowDimension($row)->setRowHeight(12.75);
         $row++;
 
         // ── Category header row (Mechaniniai, Skysčiai, ...)
         $categoryRow = $row;
         $directSubcategoryIds = [];
-        $col = $dataStartCol;
-        foreach ($riskGroups as $group) {
-            $categories = $this->getCategoriesForGroup($group);
-            $directSubs = $this->getDirectSubcategoriesForGroup($group);
+        $categoryRunStartCol = null;
+        $categoryRunId       = null;
+        $categoryRunName     = '';
 
-            foreach ($categories as $cat) {
-                $catSubCount = $this->countColumnsForCategory($cat, $columns);
-                if ($catSubCount === 0) {
-                    continue;
+        foreach ($columns as $index => $sc) {
+            $colNumber = $dataStartCol + $index;
+            $letter    = $this->colLetter($colNumber);
+            $category  = $sc['category'];
+
+            if ($category === null) {
+                if ($categoryRunId !== null && $categoryRunStartCol !== null) {
+                    $startColLetter = $this->colLetter($categoryRunStartCol);
+                    $endColLetter   = $this->colLetter($colNumber - 1);
+                    $sheet->setCellValue($startColLetter . $categoryRow, $categoryRunName);
+                    if ($startColLetter !== $endColLetter) {
+                        $sheet->mergeCells($startColLetter . $categoryRow . ':' . $endColLetter . $categoryRow);
+                    }
+                    $categoryRunStartCol = null;
+                    $categoryRunId       = null;
+                    $categoryRunName     = '';
                 }
-                $startColLetter = $this->colLetter($col);
-                $endColLetter   = $this->colLetter($col + $catSubCount - 1);
-                $sheet->setCellValue($startColLetter . $row, $cat->getName());
-                if ($catSubCount > 1) {
-                    $sheet->mergeCells($startColLetter . $row . ':' . $endColLetter . $row);
-                }
-                $col += $catSubCount;
+
+                $sheet->setCellValue($letter . $categoryRow, $sc['subcategory']->getName());
+                $sheet->mergeCells($letter . $categoryRow . ':' . $letter . ($categoryRow + 1));
+                $sheet->getStyle($letter . $categoryRow)->getAlignment()
+                    ->setTextRotation(90)
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_BOTTOM)
+                    ->setWrapText(false);
+                $directSubcategoryIds[(int) $sc['subcategory']->getId()] = true;
+                continue;
             }
 
-            foreach ($directSubs as $sub) {
-                foreach ($columns as $c) {
-                    if ($c['subcategory']->getId() === $sub->getId()) {
-                        $letter = $this->colLetter($col);
-                        $sheet->setCellValue($letter . $categoryRow, $sub->getName());
-                        $sheet->mergeCells($letter . $categoryRow . ':' . $letter . ($categoryRow + 1));
-                        $sheet->getStyle($letter . $categoryRow)->getAlignment()
-                            ->setTextRotation(90)
-                            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-                            ->setVertical(Alignment::VERTICAL_CENTER)
-                            ->setWrapText(true);
-                        $sheet->getColumnDimension($letter)->setAutoSize(false);
-                        $sheet->getColumnDimension($letter)->setWidth(4.2);
-                        $directSubcategoryIds[(int) $sub->getId()] = true;
-                        $col++;
-                        break;
-                    }
+            $catId = (int) $category->getId();
+            if ($categoryRunId === null) {
+                $categoryRunStartCol = $colNumber;
+                $categoryRunId       = $catId;
+                $categoryRunName     = $category->getName();
+                continue;
+            }
+
+            if ($categoryRunId !== $catId) {
+                $startColLetter = $this->colLetter((int) $categoryRunStartCol);
+                $endColLetter   = $this->colLetter($colNumber - 1);
+                $sheet->setCellValue($startColLetter . $categoryRow, $categoryRunName);
+                if ($startColLetter !== $endColLetter) {
+                    $sheet->mergeCells($startColLetter . $categoryRow . ':' . $endColLetter . $categoryRow);
                 }
+                $categoryRunStartCol = $colNumber;
+                $categoryRunId       = $catId;
+                $categoryRunName     = $category->getName();
+            }
+        }
+
+        if ($categoryRunId !== null && $categoryRunStartCol !== null) {
+            $startColLetter = $this->colLetter($categoryRunStartCol);
+            $endColLetter   = $this->colLetter($totalCols);
+            $sheet->setCellValue($startColLetter . $categoryRow, $categoryRunName);
+            if ($startColLetter !== $endColLetter) {
+                $sheet->mergeCells($startColLetter . $categoryRow . ':' . $endColLetter . $categoryRow);
             }
         }
         $this->boldCenter($sheet, $this->colLetter($dataStartCol) . $row, $lastColLetter . $row);
@@ -373,14 +899,13 @@ final class RiskExcelService
                     ->setTextRotation(90)
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                     ->setVertical(Alignment::VERTICAL_BOTTOM)
-                    ->setIndent(1)
-                    ->setWrapText(true);
+                    ->setWrapText(false);
             }
             $col++;
         }
         // Keep subcategory header cells left-aligned/wrapped; only align frozen left labels.
         $this->centerRange($sheet, 'A' . $row, 'B' . $row);
-        $sheet->getRowDimension($row)->setRowHeight(120);
+        $sheet->getRowDimension($row)->setRowHeight(183);
         $row++;
 
         // ── Data rows
@@ -410,6 +935,7 @@ final class RiskExcelService
                     $col++;
                 }
 
+                $sheet->getRowDimension($row)->setRowHeight(15.75);
                 $row++;
             }
 
@@ -445,41 +971,60 @@ final class RiskExcelService
         );
 
         // ── Column widths
-        $sheet->getColumnDimension('A')->setWidth(12);
-        $sheet->getColumnDimension('B')->setWidth(20);
+        for ($c = 1; $c <= $totalCols; $c++) {
+            $width = self::SOURCE_WIDTHS[$c] ?? 3.3;
+            $sheet->getColumnDimension($this->colLetter($c))->setWidth($width);
+        }
 
         // ── Footer
         $row++;
         $sheet->setCellValue('A' . $row, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
         $row += 2;
         $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
-        $sheet->setCellValue($this->colLetter($dataStartCol) . $row, '(pareigos)');
-        $sheet->setCellValue($midColLetter . $row, '(parašas)');
-        $sheet->setCellValue($lastColLetter . $row, '(vardo raidė, pavardė)');
 
-        return $row;
-    }
+        $signatureLineRow  = $row + 1;
+        $signatureLabelRow = $row + 2;
 
-    private function countColumnsForGroup(RiskGroup $group, array $columns): int
-    {
-        $count = 0;
-        foreach ($columns as $c) {
-            if ($c['group']->getId() === $group->getId()) {
-                $count++;
-            }
-        }
-        return $count;
-    }
+        $leftStartCol  = $dataStartCol;
+        $leftEndCol    = min($dataStartCol + 8, $totalCols);
+        $midStartCol   = min($leftEndCol + 1, $totalCols);
+        $midEndCol     = min($midStartCol + 5, $totalCols);
+        $rightStartCol = min($midEndCol + 1, $totalCols);
+        $rightEndCol   = $totalCols;
 
-    private function countColumnsForCategory(RiskCategory $cat, array $columns): int
-    {
-        $count = 0;
-        foreach ($columns as $c) {
-            if ($c['category'] !== null && $c['category']->getId() === $cat->getId()) {
-                $count++;
-            }
-        }
-        return $count;
+        $leftStartLetter  = $this->colLetter($leftStartCol);
+        $leftEndLetter    = $this->colLetter($leftEndCol);
+        $midStartLetter   = $this->colLetter($midStartCol);
+        $midEndLetter     = $this->colLetter($midEndCol);
+        $rightStartLetter = $this->colLetter($rightStartCol);
+        $rightEndLetter   = $this->colLetter($rightEndCol);
+
+        $leftLineRange  = $leftStartLetter . $signatureLineRow . ':' . $leftEndLetter . $signatureLineRow;
+        $midLineRange   = $midStartLetter . $signatureLineRow . ':' . $midEndLetter . $signatureLineRow;
+        $rightLineRange = $rightStartLetter . $signatureLineRow . ':' . $rightEndLetter . $signatureLineRow;
+
+        $sheet->mergeCells($leftLineRange);
+        $sheet->mergeCells($midLineRange);
+        $sheet->mergeCells($rightLineRange);
+
+        $sheet->getStyle($leftLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
+        $sheet->getStyle($midLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
+        $sheet->getStyle($rightLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
+
+        $leftLabelRange  = $leftStartLetter . $signatureLabelRow . ':' . $leftEndLetter . $signatureLabelRow;
+        $midLabelRange   = $midStartLetter . $signatureLabelRow . ':' . $midEndLetter . $signatureLabelRow;
+        $rightLabelRange = $rightStartLetter . $signatureLabelRow . ':' . $rightEndLetter . $signatureLabelRow;
+
+        $sheet->mergeCells($leftLabelRange);
+        $sheet->mergeCells($midLabelRange);
+        $sheet->mergeCells($rightLabelRange);
+
+        $sheet->setCellValue($leftStartLetter . $signatureLabelRow, '(pareigos)');
+        $sheet->setCellValue($midStartLetter . $signatureLabelRow, '(parašas)');
+        $sheet->setCellValue($rightStartLetter . $signatureLabelRow, '(vardo raidė, pavardė)');
+        $this->centerRange($sheet, $leftStartLetter . $signatureLabelRow, $rightEndLetter . $signatureLabelRow);
+
+        return $signatureLabelRow;
     }
 
     private function boldCenter(
