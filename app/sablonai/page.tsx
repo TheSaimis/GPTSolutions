@@ -80,7 +80,7 @@ export default function TemplatePage() {
       <div className={styles.templateNav}>
           <Link href="/sablonai/kiti/AAP">AAP</Link>
           |
-          <Link href="/sablonai/">Sveikatos tikrinimo pažymos</Link>
+          <Link href="/sablonai/kiti/pazyma">Sveikatos tikrinimo pažymos</Link>
           |
           <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>
           |
