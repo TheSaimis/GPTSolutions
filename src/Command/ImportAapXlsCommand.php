@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Command;
 
@@ -47,61 +47,35 @@ final class ImportAapXlsCommand extends Command
     {
         $io   = new SymfonyStyle($input, $output);
         $path = (string) $input->getArgument('path');
-
         if (! is_file($path)) {
             $io->error(sprintf('File not found: %s', $path));
             return Command::FAILURE;
         }
-
-        if ((bool) $input->getOption('reset')) {
-            $this->resetImportTables();
-            $io->writeln('Import tables reset completed.');
+        if (! (bool) $input->getOption('reset')) {
+            $io->warning('Use --reset for full replacement import.');
+            return Command::FAILURE;
         }
-
+        $this->resetImportTables();
+        $io->writeln('Old AAP structure deleted.');
         $spreadsheet = IOFactory::load($path);
         $sheet       = $spreadsheet->getSheet(0);
-
         $riskColumns = $this->extractRiskColumns($sheet);
         $bodyRows    = $this->extractBodyRows($sheet);
-
         if ($riskColumns === [] || $bodyRows === []) {
             $io->error('Could not parse XLS structure (risk columns or body rows are empty).');
             return Command::FAILURE;
         }
-
         $taxonomy = $this->importTaxonomy($riskColumns, $bodyRows);
-        $blocks   = $this->extractWorkerBlocks($sheet, count($bodyRows), $riskColumns);
-        $stats    = $this->importWorkerData($blocks, $bodyRows, $taxonomy['subByCol'], $taxonomy['bodyPartByName']);
-
         $this->em->flush();
-
         $io->success(sprintf(
-            'Import done: groups=%d, categories=%d, subcategories=%d, bodyPartCategories=%d, bodyParts=%d, companies=%d, workers=%d, assignments=%d',
+            'AAP structure replaced: groups=%d, categories=%d, subcategories=%d, bodyPartCategories=%d, bodyParts=%d',
             $taxonomy['createdGroups'],
             $taxonomy['createdCategories'],
             $taxonomy['createdSubcategories'],
             $taxonomy['createdBodyPartCategories'],
-            $taxonomy['createdBodyParts'],
-            $stats['companies'],
-            $stats['workers'],
-            $stats['riskLists']
+            $taxonomy['createdBodyParts']
         ));
-
         return Command::SUCCESS;
-    }
-
-    private function resetImportTables(): void
-    {
-        $conn = $this->em->getConnection();
-
-        $conn->executeStatement('DELETE FROM risk_list');
-        $conn->executeStatement('DELETE FROM company_worker');
-        $conn->executeStatement('DELETE FROM worker');
-        $conn->executeStatement('DELETE FROM body_part');
-        $conn->executeStatement('DELETE FROM body_part_category');
-        $conn->executeStatement('DELETE FROM risk_subcategories');
-        $conn->executeStatement('DELETE FROM risk_categories');
-        $conn->executeStatement('DELETE FROM risk_groups');
     }
 
     /**
@@ -132,13 +106,13 @@ final class ImportAapXlsCommand extends Command
             }
 
             // If row 7 is empty, this column is a direct subcategory under group.
-            $isDirect = $subcategoryVal === '';
+            $isDirect     = $subcategoryVal === '';
             $result[$col] = [
-                'col'        => $col,
-                'group'      => $groupCarry,
-                'category'   => $isDirect ? null : $categoryCarry,
-                'subcategory'=> $isDirect ? $categoryCarry : $subcategoryVal,
-                'lineNumber' => $col,
+                'col'         => $col,
+                'group'       => $groupCarry,
+                'category'    => $isDirect ? null : $categoryCarry,
+                'subcategory' => $isDirect ? $categoryCarry : $subcategoryVal,
+                'lineNumber'  => $col,
             ];
         }
 
@@ -183,7 +157,7 @@ final class ImportAapXlsCommand extends Command
                     && $rows[$i - 1]['category'] !== ''
                     && mb_strtolower($rows[$i - 1]['category'], 'UTF-8') !== $rows[$i - 1]['category']
                 ) {
-                    $category = $rows[$i - 1]['category'] . ' ' . $category;
+                    $category                 = $rows[$i - 1]['category'] . ' ' . $category;
                     $rows[$i - 1]['category'] = $category;
                 }
                 $lastCategory = $category;
@@ -216,24 +190,24 @@ final class ImportAapXlsCommand extends Command
      */
     private function importTaxonomy(array $riskColumns, array $bodyRows): array
     {
-        $groupRepo          = $this->em->getRepository(RiskGroup::class);
-        $categoryRepo       = $this->em->getRepository(RiskCategory::class);
-        $subRepo            = $this->em->getRepository(RiskSubcategory::class);
-        $bodyCategoryRepo   = $this->em->getRepository(BodyPartCategory::class);
-        $bodyPartRepo       = $this->em->getRepository(BodyPart::class);
+        $groupRepo        = $this->em->getRepository(RiskGroup::class);
+        $categoryRepo     = $this->em->getRepository(RiskCategory::class);
+        $subRepo          = $this->em->getRepository(RiskSubcategory::class);
+        $bodyCategoryRepo = $this->em->getRepository(BodyPartCategory::class);
+        $bodyPartRepo     = $this->em->getRepository(BodyPart::class);
 
-        $subByCol        = [];
-        $bodyPartByName  = [];
-        $groupCache      = [];
-        $categoryCache   = [];
-        $subCache        = [];
-        $bodyCatCache    = [];
+        $subByCol       = [];
+        $bodyPartByName = [];
+        $groupCache     = [];
+        $categoryCache  = [];
+        $subCache       = [];
+        $bodyCatCache   = [];
 
-        $createdGroups = 0;
-        $createdCategories = 0;
-        $createdSubcategories = 0;
+        $createdGroups             = 0;
+        $createdCategories         = 0;
+        $createdSubcategories      = 0;
         $createdBodyPartCategories = 0;
-        $createdBodyParts = 0;
+        $createdBodyParts          = 0;
 
         foreach ($riskColumns as $col => $def) {
             $groupKey = mb_strtolower($def['group'], 'UTF-8');
@@ -347,13 +321,13 @@ final class ImportAapXlsCommand extends Command
         $this->em->flush();
 
         return [
-            'subByCol'                   => $subByCol,
-            'bodyPartByName'             => $bodyPartByName,
-            'createdGroups'              => $createdGroups,
-            'createdCategories'          => $createdCategories,
-            'createdSubcategories'       => $createdSubcategories,
-            'createdBodyPartCategories'  => $createdBodyPartCategories,
-            'createdBodyParts'           => $createdBodyParts,
+            'subByCol'                  => $subByCol,
+            'bodyPartByName'            => $bodyPartByName,
+            'createdGroups'             => $createdGroups,
+            'createdCategories'         => $createdCategories,
+            'createdSubcategories'      => $createdSubcategories,
+            'createdBodyPartCategories' => $createdBodyPartCategories,
+            'createdBodyParts'          => $createdBodyParts,
         ];
     }
 
@@ -417,10 +391,10 @@ final class ImportAapXlsCommand extends Command
      */
     private function importWorkerData(array $blocks, array $bodyRows, array $subByCol, array $bodyPartByName): array
     {
-        $companyRepo     = $this->em->getRepository(CompanyRequisite::class);
-        $workerRepo      = $this->em->getRepository(Worker::class);
+        $companyRepo       = $this->em->getRepository(CompanyRequisite::class);
+        $workerRepo        = $this->em->getRepository(Worker::class);
         $companyWorkerRepo = $this->em->getRepository(CompanyWorker::class);
-        $riskListRepo    = $this->em->getRepository(RiskList::class);
+        $riskListRepo      = $this->em->getRepository(RiskList::class);
 
         $createdCompanies = 0;
         $createdWorkers   = 0;
@@ -510,6 +484,24 @@ final class ImportAapXlsCommand extends Command
         return $best;
     }
 
+    private function resetImportTables(): void
+    {
+        $conn = $this->em->getConnection();
+        $conn->beginTransaction();
+        try {
+            $conn->executeStatement('DELETE FROM risk_list');
+            $conn->executeStatement('DELETE FROM body_part');
+            $conn->executeStatement('DELETE FROM body_part_category');
+            $conn->executeStatement('DELETE FROM risk_subcategories');
+            $conn->executeStatement('DELETE FROM risk_categories');
+            $conn->executeStatement('DELETE FROM risk_groups');
+            $conn->commit();
+        } catch (\Throwable $e) {
+            $conn->rollBack();
+            throw $e;
+        }
+    }
+
     private function cell(Worksheet $sheet, int $row, int $col): string
     {
         $raw = $sheet->getCell(Coordinate::stringFromColumnIndex($col) . $row)->getFormattedValue();
@@ -517,4 +509,3 @@ final class ImportAapXlsCommand extends Command
         return preg_replace('/\s+/u', ' ', $v) ?? '';
     }
 }
-

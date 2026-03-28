@@ -8,6 +8,7 @@ use App\Services\AuditLogger;
 use App\Services\WorkplaceFactorsCertificateService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
@@ -16,6 +17,8 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/workplace-factors-certificate')]
 final class WorkplaceFactorsCertificateController extends AbstractController
 {
+    private const TEMPLATE_PATH = 'otherTemplates/pazyma/pazyma.docx';
+
     public function __construct(
         private readonly WorkplaceFactorsCertificateService $certificateService,
         private readonly AuditLogger $auditLogger,
@@ -26,7 +29,6 @@ final class WorkplaceFactorsCertificateController extends AbstractController
      * Body:
      * {
      *   "companyId": 1,
-     *   "template": "1 Sveikatos tikrinimo pazyma + knyga.docx",
      *   "checkPeriods": { "1": "1 metai", "2": "2 metai" },
      *   "replacements": { ... papildomi custom laukai ... }
      * }
@@ -44,9 +46,12 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             return new JsonResponse(['error' => 'companyId is required'], 400);
         }
 
-        $templatePath = trim((string) ($data['template'] ?? ''));
-        if ($templatePath === '') {
-            return new JsonResponse(['error' => 'template is required'], 400);
+        $templatePath = self::TEMPLATE_PATH;
+        $absoluteTemplatePath = (string) $this->getParameter('kernel.project_dir') . '/templates/' . $templatePath;
+        if (! is_file($absoluteTemplatePath)) {
+            return new JsonResponse([
+                'error' => 'Nerastas pažymos šablonas. Įkelkite jį per /api/workplace-factors-certificate/template/upload',
+            ], 400);
         }
 
         $checkPeriods = [];
@@ -120,5 +125,44 @@ final class WorkplaceFactorsCertificateController extends AbstractController
         );
 
         return $response;
+    }
+
+    /**
+     * POST /api/workplace-factors-certificate/template/upload
+     * Form-data: template=<docx file>
+     * Uploads/overwrites templates/otherTemplates/pazyma/pazyma.docx
+     */
+    #[Route('/template/upload', name: 'api_workplace_factors_certificate_template_upload', methods: ['POST'])]
+    public function uploadTemplate(Request $request): JsonResponse
+    {
+        $file = $request->files->get('template') ?? $request->files->get('file');
+        if (! $file instanceof UploadedFile) {
+            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
+        }
+
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        if ($extension !== 'docx') {
+            return new JsonResponse(['error' => 'Leidžiamas tik .docx failas'], 400);
+        }
+
+        $projectDir = (string) $this->getParameter('kernel.project_dir');
+        $targetDirectory = $projectDir . '/templates/otherTemplates/pazyma';
+
+        if (! is_dir($targetDirectory) && ! @mkdir($targetDirectory, 0775, true) && ! is_dir($targetDirectory)) {
+            return new JsonResponse(['error' => 'Nepavyko sukurti šablonų katalogo'], 500);
+        }
+
+        try {
+            $file->move($targetDirectory, 'pazyma.docx');
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'Nepavyko įkelti šablono: ' . $e->getMessage()], 500);
+        }
+
+        $this->auditLogger->log('Atnaujintas pažymos šablonas: templates/' . self::TEMPLATE_PATH);
+
+        return new JsonResponse([
+            'status' => 'SUCCESS',
+            'template' => self::TEMPLATE_PATH,
+        ]);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Controller;
 
@@ -29,7 +29,7 @@ final class RiskController extends AbstractController
      * Sugeneruoja .xlsx failą su rizikos vertinimo lentelėmis kiekvienam įmonės darbuotojui.
      */
     #[Route('/export/{companyId}', name: 'api_risk_export', methods: ['GET'], requirements: ['companyId' => '\d+'])]
-    public function export(int $companyId): JsonResponse|BinaryFileResponse
+    public function export(int $companyId): JsonResponse | BinaryFileResponse
     {
         try {
             $path = $this->riskExcelService->generate($companyId);
@@ -69,38 +69,68 @@ final class RiskController extends AbstractController
             return new JsonResponse(['error' => 'Leidžiami tik .xls ir .xlsx failai.'], 400);
         }
 
-        // Use Symfony upload temporary file directly to avoid filesystem permission issues in project/var.
-        $tmpPath = $uploaded->getPathname();
-        if (! is_file($tmpPath) || ! is_readable($tmpPath)) {
-            return new JsonResponse(['error' => 'Nepavyko nuskaityti įkelto failo.'], 500);
+        $projectDir = $kernel->getProjectDir();
+        $targetDir  = $projectDir . '/otherTemplates/AAP';
+
+        if (! is_dir($targetDir)) {
+            mkdir($targetDir, 0775, true);
+        }
+
+        $targetPath = $targetDir . '/AAP.xlsx';
+
+        try {
+            // Optional: delete old file (Windows safety)
+            if (file_exists($targetPath)) {
+                unlink($targetPath);
+            }
+            $uploaded->move($targetDir, 'AAP.xlsx');
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'error' => 'Nepavyko išsaugoti failo: ' . $e->getMessage(),
+            ], 500);
         }
 
         $application = new Application($kernel);
         $application->setAutoExit(false);
+        $application->setCatchExceptions(false);
 
         $input = new ArrayInput([
             'command' => 'app:aap:import-xls',
-            'path'    => $tmpPath,
+            'path'    => $targetPath,
+            '--reset' => true,
         ]);
-        if ($request->request->getBoolean('reset', false)) {
-            $input->setOption('reset', true);
-        }
 
         $buffer = new BufferedOutput();
-        $exitCode = $application->run($input, $buffer);
-        $output   = trim($buffer->fetch());
 
-        if ($exitCode !== 0) {
+        try {
+            $exitCode = $application->run($input, $buffer);
+            $output   = trim($buffer->fetch());
+
+            if ($exitCode !== 0) {
+                return new JsonResponse([
+                    'error'  => 'Import komanda nepavyko.',
+                    'output' => $output,
+                    'path'   => $tmpPath,
+                ], 500);
+            }
+
             return new JsonResponse([
-                'error'  => 'Import komanda nepavyko.',
-                'output' => $output,
+                'status'  => 'ok',
+                'message' => 'AAP Excel importas į DB sėkmingas.',
+                'output'  => $output,
+            ]);
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'error' => $e->getMessage(),
+                'class' => $e::class,
+                'file'  => $e->getFile(),
+                'line'  => $e->getLine(),
+                'path'  => $tmpPath,
             ], 500);
+        } finally {
+            if (isset($tmpPath) && is_file($tmpPath)) {
+                @unlink($tmpPath);
+            }
         }
-
-        return new JsonResponse([
-            'status'  => 'ok',
-            'message' => 'AAP Excel importas į DB sėkmingas.',
-            'output'  => $output,
-        ]);
     }
 }
