@@ -14,8 +14,8 @@ use App\Entity\RiskList;
 use App\Entity\RiskSubcategory;
 use App\Entity\Worker;
 use Doctrine\ORM\EntityManagerInterface;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -512,8 +512,7 @@ final class ImportAapXlsCommand extends Command
 
     private function cell(Worksheet $sheet, int $row, int $col): string
     {
-        $cellAddress = Coordinate::stringFromColumnIndex($col) . (string) $row;
-        $raw = $sheet->getCell($cellAddress)->getFormattedValue();
+        $raw = $sheet->getCell(Coordinate::stringFromColumnIndex($col) . $row)->getFormattedValue();
         $v   = is_string($raw) ? trim($raw) : trim((string) $raw);
         return preg_replace('/\s+/u', ' ', $v) ?? '';
     }
