@@ -20,6 +20,8 @@ export default function BodyParts() {
     risks,
     selectedWorkerId,
     setRisks,
+    beginRiskUpdate,
+    endRiskUpdate,
   } = useAAPTable();
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
 
@@ -56,6 +58,7 @@ export default function BodyParts() {
     const existing = selectedWorkerRiskMap.get(key);
 
     setPendingKeys((prev) => new Set(prev).add(key));
+    beginRiskUpdate();
     try {
       if (existing?.id) {
         await RiskApi.deleteRiskList(existing.id);
@@ -69,6 +72,7 @@ export default function BodyParts() {
         setRisks((prev) => [...prev, created]);
       }
     } finally {
+      endRiskUpdate();
       setPendingKeys((prev) => {
         const next = new Set(prev);
         next.delete(key);

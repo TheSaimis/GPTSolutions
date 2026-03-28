@@ -14,7 +14,15 @@ import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
 import styles from "./page.module.scss";
 
 export default function WorkerTypes() {
-  const { workers, loading, selectedWorkerId, setSelectedWorkerId, setWorkers } = useAAPTable();
+  const {
+    workers,
+    loading,
+    selectedWorkerId,
+    setSelectedWorkerId,
+    setWorkers,
+    refresh,
+    pendingRiskUpdates,
+  } = useAAPTable();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [creatingDocument, setCreatingDocument] = useState(false);
@@ -60,8 +68,17 @@ export default function WorkerTypes() {
 
   async function createAAPDocument() {
     if (!selectedCompanyId) return;
+    if (pendingRiskUpdates > 0) {
+      MessageStore.push({
+        title: "Palaukite",
+        message: "Dar išsaugomi rizikų pakeitimai. Palaukite kelias sekundes ir bandykite dar kartą.",
+        backgroundColor: "#F59E0B",
+      });
+      return;
+    }
     setCreatingDocument(true);
     try {
+      await refresh();
       const { blob, filename } = await TemplateApi.createAPPDocument(selectedCompanyId);
       downloadBlob({ blob, filename });
       MessageStore.push({
@@ -135,7 +152,7 @@ export default function WorkerTypes() {
         <button
           type="button"
           className={styles.createDocumentButton}
-          disabled={creatingDocument || selectedCompanyId === null}
+          disabled={creatingDocument || selectedCompanyId === null || pendingRiskUpdates > 0}
           onClick={createAAPDocument}
         >
           {creatingDocument ? "Kuriama..." : "Generuoti AAP Excel"}

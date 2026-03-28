@@ -13,6 +13,10 @@ export default function Risks() {
     [riskGroups, riskCategories, riskSubCategories]
   );
   const columns = useMemo(() => flattenColumns(header), [header]);
+  const columnIndexById = useMemo(
+    () => new Map(columns.map((column, index) => [column.id, index])),
+    [columns]
+  );
 
   return (
     <thead>
@@ -39,45 +43,68 @@ export default function Risks() {
 
       <tr>
         {header.flatMap((group) => {
-          const rows = group.categories.map((category) => {
-            if (category.subcategories.length === 0) return null;
-            return (
+          const cells = [];
+          let i = 0;
+          while (i < group.columns.length) {
+            const current = group.columns[i];
+            if (current.category === null) {
+              cells.push(
+                <th
+                  key={`d-${group.group.id}-${current.subcategory.id}`}
+                  className={`${styles.th} ${styles.riskCategoryHeader}`}
+                  rowSpan={2}
+                >
+                  {current.subcategory.name}
+                </th>
+              );
+              i++;
+              continue;
+            }
+
+            const categoryId = current.category.id;
+            let span = 1;
+            while (
+              i + span < group.columns.length &&
+              group.columns[i + span].category?.id === categoryId
+            ) {
+              span++;
+            }
+
+            cells.push(
               <th
-                key={`c-${category.category.id}`}
+                key={`c-${categoryId}-${i}`}
                 className={`${styles.th} ${styles.riskCategoryHeader}`}
-                colSpan={category.subcategories.length}
+                colSpan={span}
               >
-                {category.category.name}
+                {current.category.name}
               </th>
             );
-          });
-
-          // Keep structure aligned; direct subcategories are rendered in row 3.
-          if (group.directSubcategories.length > 0) {
-            rows.push(
-              <th
-                key={`gd-${group.group.id}`}
-                className={styles.th}
-                colSpan={group.directSubcategories.length}
-              />
-            );
+            i += span;
           }
 
-          return rows;
+          return cells;
         })}
       </tr>
 
       <tr>
-        {columns.map((subcategory, index) => (
-          <th
-            key={`s-${subcategory.id}`}
-            className={`${styles.th} ${styles.rotate} ${styles.riskSubcategoryHeader} ${
-              index % 2 === 1 ? styles.altColumn : ""
-            }`}
-          >
-            {subcategory.name}
-          </th>
-        ))}
+        {header.flatMap((group) =>
+          group.columns.map((column) => {
+            if (column.category === null) {
+              return null;
+            }
+            const globalIndex = columnIndexById.get(column.subcategory.id) ?? 0;
+            return (
+              <th
+                key={`s-${column.subcategory.id}`}
+                className={`${styles.th} ${styles.rotate} ${styles.riskSubcategoryHeader} ${
+                  globalIndex % 2 === 1 ? styles.altColumn : ""
+                }`}
+              >
+                {column.subcategory.name}
+              </th>
+            );
+          })
+        )}
       </tr>
     </thead>
   );

@@ -1,28 +1,14 @@
 import { api } from "../api";
 import type { BodyPart, BodyPartCategory } from "@/lib/types/AAP/BodyPart";
-import { getAAPCache, setAAPCache, clearAAPCache } from "@/lib/cache/AAP/cache";
+import { clearAAPCache } from "@/lib/cache/AAP/cache";
 
 export const bodyPartApi = {
   async getAllCategories(): Promise<BodyPartCategory[]> {
-    const cacheKey = "body-part-categories";
-    const cached = getAAPCache<BodyPartCategory[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    const data = await api.get<BodyPartCategory[]>("/api/body-part-categories");
-    setAAPCache(cacheKey, data);
-    return data;
+    return api.get<BodyPartCategory[]>("/api/body-part-categories");
   },
 
   async getAllParts(): Promise<BodyPart[]> {
-    const cacheKey = "body-parts";
-    const cached = getAAPCache<BodyPart[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    const data = await api.get<BodyPart[]>("/api/body-parts");
-    setAAPCache(cacheKey, data);
-    return data;
+    return api.get<BodyPart[]>("/api/body-parts");
   },
 
   async createCategory(input: Pick<BodyPartCategory, "name" | "lineNumber">): Promise<BodyPartCategory> {

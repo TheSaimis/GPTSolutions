@@ -2,10 +2,11 @@
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { useLoadingStore } from "../globalVariables/isLoading";
 
-const BASE = process.env.NEXT_PUBLIC_BACKEND_API_URL!;
-if (!BASE) {
+const rawBase = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+if (!rawBase) {
   throw new Error("NEXT_PUBLIC_BACKEND_API_URL is not defined");
 }
+const BASE = rawBase.replace(/\/+$/, "");
 
 export type Json =
   | null
@@ -120,6 +121,7 @@ async function request<T>({
   errorTitle,
   fallbackFilename = "download",
 }: RequestConfig): Promise<T | DownloadResult> {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const headers: HeadersInit = {};
   let finalBody: BodyInit | undefined;
 
@@ -133,7 +135,7 @@ async function request<T>({
     headers["Content-Type"] = "application/json";
     finalBody = JSON.stringify(body);
   }
-  const skipAuth = path === "/api/login" && method === "POST";
+  const skipAuth = normalizedPath === "/api/login" && method === "POST";
   if (!skipAuth && typeof window !== "undefined") {
     const token = localStorage.getItem("token");
     if (token) {
@@ -144,7 +146,7 @@ async function request<T>({
   useLoadingStore.getState().setLoading(true, loadingMessage ?? "Kraunama...");
 
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${BASE}${normalizedPath}`, {
       method,
       headers,
       body: finalBody,
@@ -169,7 +171,7 @@ async function request<T>({
       const redirectToLogin =
         (res.status === 401 || res.status === 403) &&
         typeof window !== "undefined" &&
-        path !== "/api/login";
+        normalizedPath !== "/api/login";
     
       if (!redirectToLogin) {
         MessageStore.push({

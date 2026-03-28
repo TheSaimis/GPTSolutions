@@ -49,6 +49,9 @@ type AAPTableContextType = {
 
     loading: boolean;
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    pendingRiskUpdates: number;
+    beginRiskUpdate: () => void;
+    endRiskUpdate: () => void;
 
     reset: () => void;
     refresh: () => Promise<void>;
@@ -70,6 +73,7 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const [pendingRiskUpdates, setPendingRiskUpdates] = useState<number>(0);
 
     const reset = useCallback(() => {
         setBodyPartCategories([]);
@@ -81,6 +85,15 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
         setWorkers([]);
         setSelectedWorkerId(null);
         setLoading(false);
+        setPendingRiskUpdates(0);
+    }, []);
+
+    const beginRiskUpdate = useCallback(() => {
+        setPendingRiskUpdates((prev) => prev + 1);
+    }, []);
+
+    const endRiskUpdate = useCallback(() => {
+        setPendingRiskUpdates((prev) => Math.max(0, prev - 1));
     }, []);
 
     const refresh = useCallback(async () => {
@@ -150,6 +163,9 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
 
             loading,
             setLoading,
+            pendingRiskUpdates,
+            beginRiskUpdate,
+            endRiskUpdate,
 
             reset,
             refresh,
@@ -164,6 +180,9 @@ export function AAPTableProvider({ children }: AAPTableProviderProps) {
             workers,
             selectedWorkerId,
             loading,
+            pendingRiskUpdates,
+            beginRiskUpdate,
+            endRiskUpdate,
             reset,
             refresh,
         ]

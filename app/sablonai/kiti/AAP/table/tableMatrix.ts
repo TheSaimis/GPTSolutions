@@ -8,6 +8,10 @@ export type RiskHeaderGroup = {
     subcategories: RiskSubcategory[];
   }>;
   directSubcategories: RiskSubcategory[];
+  columns: Array<{
+    subcategory: RiskSubcategory;
+    category: RiskCategory | null;
+  }>;
 };
 
 export type BodyRow = {
@@ -43,10 +47,23 @@ export function buildRiskHeader(
       )
     );
 
+    const columns = [
+      ...categories.flatMap(({ category, subcategories }) =>
+        subcategories.map((subcategory) => ({ subcategory, category }))
+      ),
+      ...directSubcategories.map((subcategory) => ({ subcategory, category: null })),
+    ].sort((a, b) => {
+      if (a.subcategory.lineNumber !== b.subcategory.lineNumber) {
+        return a.subcategory.lineNumber - b.subcategory.lineNumber;
+      }
+      return a.subcategory.id - b.subcategory.id;
+    });
+
     return {
       group,
       categories,
       directSubcategories,
+      columns,
     };
   });
 }
@@ -54,10 +71,7 @@ export function buildRiskHeader(
 export function flattenColumns(header: RiskHeaderGroup[]): RiskSubcategory[] {
   const cols: RiskSubcategory[] = [];
   header.forEach((group) => {
-    group.categories.forEach((category) => {
-      cols.push(...category.subcategories);
-    });
-    cols.push(...group.directSubcategories);
+    cols.push(...group.columns.map((column) => column.subcategory));
   });
   return cols;
 }
