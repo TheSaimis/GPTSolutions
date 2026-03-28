@@ -1,0 +1,289 @@
+.controller {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.subtitle {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.error {
+  color: #d42225;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+
+.button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  background: #cbd5e1 !important;
+  cursor: not-allowed;
+  color: #ffffff;
+  transform: none;
+}
+
+.buttonPrimary {
+  background: #d42225;
+  color: #ffffff;
+}
+
+.buttonPrimary:hover {
+  background: #b61e20;
+}
+
+.buttonSecondary {
+  background: #ffffff;
+  color: #d42225;
+  border: 1px solid #d42225;
+}
+
+.buttonSecondary:hover {
+  background: #fff1f2;
+}
+
+.buttonDanger {
+  background: #ffffff;
+  color: #d42225;
+  border: 1px solid #fecaca;
+}
+
+.buttonDanger:hover {
+  background: #fee2e2;
+}
+
+.rowCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.rowHeader {
+  font-weight: 700;
+  color: #1e293b;
+  padding-right: 44px;
+}
+
+.metaText {
+  color: #475569;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.iconDangerButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #fecaca;
+  background: #ffffff;
+  color: #d42225;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.iconDangerButton:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.iconDangerButton:disabled {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.workerLayout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.workerMenu {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.workerList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.workerListButton {
+  text-align: left;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 10px;
+  padding: 9px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.workerListButton:hover {
+  border-color: #d42225;
+  background: #fff1f2;
+  color: #7f1d1d;
+}
+
+.workerListButtonActive {
+  background: #d42225;
+  border-color: #d42225;
+  color: #ffffff;
+}
+
+.documentRows {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.documentRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(260px, 1.2fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid #f1f5f9;
+  background: #ffffff;
+  align-items: start;
+}
+
+.documentRow:first-child {
+  border-top: none;
+}
+
+.documentHeaderRow {
+  background: #fff1f2;
+}
+
+.documentCell {
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.documentListCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.documentHeaderCell {
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.documentPeriodCell {
+  min-width: 0;
+}
+
+.periodLabel {
+  display: block;
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.periodTextarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  outline: none;
+}
+
+.periodTextarea:focus {
+  border-color: #d42225;
+  box-shadow: 0 0 0 3px rgba(212, 34, 37, 0.12);
+  background: #ffffff;
+}
+
+@media (max-width: 1100px) {
+  .workerLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .documentRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}

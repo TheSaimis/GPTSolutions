@@ -25,7 +25,7 @@ export const WorkersApi = {
   async getById(id: number): Promise<Worker> {
     const cached = getWorkerByIdFromCache(id);
     if (cached) {
-      return cached;
+      return cached as Worker;
     }
 
     const data = await api.get<Worker>(`/api/workers/${id}`);
@@ -55,4 +55,3 @@ export const WorkersApi = {
     clearWorkerCache(key);
   },
 };
-

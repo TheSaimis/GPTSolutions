@@ -5,6 +5,91 @@
   align-items: start;
 }
 
+.topPanel {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.tabButton {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tabButton:hover {
+  border-color: #d42225;
+  color: #d42225;
+  background: #fff1f2;
+}
+
+.tabButtonActive {
+  background: #d42225;
+  border-color: #d42225;
+  color: #ffffff;
+}
+
+.documentPanel {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.documentTitle {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.documentForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.documentButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #d42225;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.documentButton:hover {
+  background: #b61e20;
+  transform: translateY(-1px);
+}
+
+.documentButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.documentError {
+  margin: 8px 0 0;
+  color: #d42225;
+  font-weight: 600;
+}
+
 .panel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -122,6 +207,12 @@
 
 @media (max-width: 1100px) {
   .page {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .documentForm {
     grid-template-columns: 1fr;
   }
 }

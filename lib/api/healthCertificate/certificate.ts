@@ -8,4 +8,14 @@ export const HealthCertificateApi = {
       fallbackFilename: "sveikatos-tikrinimo-pazyma.docx",
     });
   },
+
+  uploadTemplate(file: File) {
+    const form = new FormData();
+    form.append("template", file);
+    return api.post<{ status: string; template: string }>(
+      "/api/workplace-factors-certificate/template/upload",
+      form,
+      { loadingMessage: "Įkeliamas pažymos šablonas..." }
+    );
+  },
 };
