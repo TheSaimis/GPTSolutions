@@ -5,38 +5,22 @@
   align-items: start;
 }
 
-.topPanel {
+.pageShell {
+  flex: 1;
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+  box-sizing: border-box;
+  min-height: 0;
 }
 
-.tabButton {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.tabButton:hover {
-  border-color: #d42225;
-  color: #d42225;
-  background: #fff1f2;
-}
-
-.tabButtonActive {
-  background: #d42225;
-  border-color: #d42225;
-  color: #ffffff;
+.pageContent {
+  flex: 1;
+  min-width: 0;
 }
 
 .documentPanel {

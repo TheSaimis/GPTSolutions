@@ -1,46 +1,32 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import DocumentController from "./documentController/DocumentController";
-import { PazymaProvider } from "./pazymaContext"
-import RiskController from "./riskController/RiskController"
-import WorkerController from "./workerController/workerController"
+import { PazymaProvider } from "./pazymaContext";
+import RiskController from "./riskController/RiskController";
+import WorkerController from "./workerController/workerController";
 import styles from "./page.module.scss";
-
-type ControllerTab = "document" | "worker" | "risk";
-
+import PazymaWorkflowTopNav, {
+  type PazymaWorkflowTab,
+} from "@/components/pazyma/PazymaWorkflowTopNav";
 
 export default function RiskControllerPage() {
-  const [activeController, setActiveController] = useState<ControllerTab>("document");
+  const [activeController, setActiveController] =
+    useState<PazymaWorkflowTab>("document");
 
   return (
     <PazymaProvider>
-      <div className={styles.topPanel}>
-        <button
-          type="button"
-          className={`${styles.tabButton} ${activeController === "document" ? styles.tabButtonActive : ""}`}
-          onClick={() => setActiveController("document")}
-        >
-          Dokumentų kūrimas
-        </button>
-        <button
-          type="button"
-          className={`${styles.tabButton} ${activeController === "worker" ? styles.tabButtonActive : ""}`}
-          onClick={() => setActiveController("worker")}
-        >
-          Darbuotojų valdymas
-        </button>
-        <button
-          type="button"
-          className={`${styles.tabButton} ${activeController === "risk" ? styles.tabButtonActive : ""}`}
-          onClick={() => setActiveController("risk")}
-        >
-          Rizikų valdymas
-        </button>
+      <div className={styles.pageShell}>
+        <PazymaWorkflowTopNav
+          active={activeController}
+          onChange={setActiveController}
+        />
+        <div className={styles.pageContent}>
+          {activeController === "document" ? <DocumentController /> : null}
+          {activeController === "worker" ? <WorkerController /> : null}
+          {activeController === "risk" ? <RiskController /> : null}
+        </div>
       </div>
-      {activeController === "document" ? <DocumentController /> : null}
-      {activeController === "worker" ? <WorkerController /> : null}
-      {activeController === "risk" ? <RiskController /> : null}
     </PazymaProvider>
-  )
+  );
 }

@@ -25,7 +25,9 @@ export default function DocumentController() {
   const [workerRisks, setWorkerRisks] = useState<HealthCertificateWorkerRisk[]>([]);
   const [companyWorkers, setCompanyWorkers] = useState<CompanyWorker[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
-  const [selectedWorkerToAddId, setSelectedWorkerToAddId] = useState<number | null>(null);
+  const [selectedWorkerIdsToAdd, setSelectedWorkerIdsToAdd] = useState<number[]>(
+    []
+  );
   const [checkPeriods, setCheckPeriods] = useState<Record<number, string>>({});
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
@@ -76,7 +78,7 @@ export default function DocumentController() {
   }, [selectedCompanyId]);
 
   useEffect(() => {
-    setSelectedWorkerToAddId(null);
+    setSelectedWorkerIdsToAdd([]);
   }, [selectedCompanyId]);
 
   const companyOptions = useMemo(
@@ -110,11 +112,6 @@ export default function DocumentController() {
         })),
     [workers, assignedWorkerIds]
   );
-
-  const selectedWorkerToAddLabel =
-    selectedWorkerToAddId === null
-      ? ""
-      : workerOptions.find((option) => Number(option.value) === selectedWorkerToAddId)?.label ?? "";
 
   const rows = useMemo<WorkerCertificateRow[]>(() => {
     const map = new Map<number, WorkerCertificateRow>(
@@ -163,19 +160,29 @@ export default function DocumentController() {
   const allCheckPeriodsFilled =
     rows.length > 0 && rows.every((row) => (checkPeriods[row.workerId] ?? "").trim() !== "");
 
-  async function addWorkerToCompany() {
-    if (!selectedCompanyId || !selectedWorkerToAddId) return;
+  function toggleWorkerSelectForAdd(workerId: number) {
+    setSelectedWorkerIdsToAdd((prev) =>
+      prev.includes(workerId)
+        ? prev.filter((id) => id !== workerId)
+        : [...prev, workerId]
+    );
+  }
+
+  async function addWorkersToCompany() {
+    if (!selectedCompanyId || selectedWorkerIdsToAdd.length === 0) return;
 
     setAddingWorker(true);
     setError(null);
     try {
-      await CompanyWorkersApi.create({
-        companyId: selectedCompanyId,
-        workerId: selectedWorkerToAddId,
-      });
+      for (const workerId of selectedWorkerIdsToAdd) {
+        await CompanyWorkersApi.create({
+          companyId: selectedCompanyId,
+          workerId,
+        });
+      }
       const refreshed = await CompanyWorkersApi.getByCompanyId(selectedCompanyId);
       setCompanyWorkers(refreshed);
-      setSelectedWorkerToAddId(null);
+      setSelectedWorkerIdsToAdd([]);
     } catch {
       setError("Nepavyko pridėti darbuotojo tipo į įmonę.");
     } finally {
@@ -248,9 +255,11 @@ export default function DocumentController() {
       </div>
       <div className={`${styles.panel} ${styles.formRow}`}>
         <InputFieldSelect
+          label="Įmonė"
           options={companyOptions}
           selected={selectedCompanyLabel}
           placeholder="Pasirinkite įmonę"
+          emptyMessage="Šiuo metu nėra įmonių"
           onChange={(value) => setSelectedCompanyId(Number(value) || null)}
         />
         <button
@@ -262,21 +271,65 @@ export default function DocumentController() {
           {creatingDocument ? "Kuriama..." : "Generuoti pažymą"}
         </button>
       </div>
-      <div className={`${styles.panel} ${styles.formRow}`}>
-        <InputFieldSelect
-          options={workerOptions}
-          selected={selectedWorkerToAddLabel}
-          placeholder="Pridėti darbuotojo tipą į pasirinktą įmonę"
-          onChange={(value) => setSelectedWorkerToAddId(Number(value) || null)}
-        />
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonSecondary}`}
-          onClick={addWorkerToCompany}
-          disabled={selectedCompanyId === null || selectedWorkerToAddId === null || addingWorker}
-        >
-          {addingWorker ? "Pridedama..." : "Pridėti darbuotojo tipą"}
-        </button>
+      <div className={`${styles.panel} ${styles.workerAddPanel}`}>
+        <p className={styles.workerAddTitle}>
+          Pridėti darbuotojų tipus į įmonę
+          <span className={styles.workerAddHint}>
+            (galite pažymėti kelis vienu metu)
+          </span>
+        </p>
+        {selectedCompanyId === null ? (
+          <p className={styles.subtitle}>Pirmiausia pasirinkite įmonę.</p>
+        ) : workerOptions.length === 0 ? (
+          <p className={styles.subtitle}>
+            Nėra laisvų darbuotojų tipų pridėjimui (visi jau priskirti).
+          </p>
+        ) : (
+          <>
+            <div className={styles.workerCheckboxList} role="group" aria-label="Darbuotojų tipai pridėjimui">
+              {workerOptions.map((option) => {
+                const id = Number(option.value);
+                const checked = selectedWorkerIdsToAdd.includes(id);
+                return (
+                  <label key={option.value} className={styles.workerCheckboxRow}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleWorkerSelectForAdd(id)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className={styles.workerAddActions}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.buttonGhost}`}
+                onClick={() => setSelectedWorkerIdsToAdd([])}
+                disabled={
+                  selectedWorkerIdsToAdd.length === 0 || addingWorker
+                }
+              >
+                Nuimti pasirinkimą
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={addWorkersToCompany}
+                disabled={
+                  selectedCompanyId === null ||
+                  selectedWorkerIdsToAdd.length === 0 ||
+                  addingWorker
+                }
+              >
+                {addingWorker
+                  ? "Pridedama..."
+                  : `Pridėti pažymėtus (${selectedWorkerIdsToAdd.length})`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {loading ? <p className={styles.subtitle}>Kraunama...</p> : null}
