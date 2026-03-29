@@ -209,9 +209,9 @@ final class CompanyController extends AbstractController
 
         $this->auditLogger->log("Atnaujinta įmonė \"{$company->getCompanyName()}\" (ID: {$id})");
 
-        return $this->json([
+        return new JsonResponse([
             'status' => 'SUCCESS',
-            'data'   => $company,
+            'data'   => $this->toArray($company),
         ], Response::HTTP_OK);
     }
 
