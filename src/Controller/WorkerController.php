@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/workers')]
 final class WorkerController extends AbstractController
@@ -95,6 +96,7 @@ final class WorkerController extends AbstractController
         return $this->json(self::serializeWorker($item));
     }
 
+    #[IsGranted('ROLE_ADMIN')]
     #[Route('/{id}', name: 'worker_delete', methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {
