@@ -56,6 +56,6 @@ RUN mkdir -p /tmp/libreoffice-profile \
 CMD sh -c '\
     if [ ! -f /var/www/html/config/jwt/private.pem ]; then \
     echo "Generating JWT keys..."; \
-    php bin/console lexik:jwt:generate-keypair --skip-if-exists; \
+    php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction; \
     fi && \
     exec apache2-foreground'
