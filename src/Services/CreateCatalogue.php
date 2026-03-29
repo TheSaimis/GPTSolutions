@@ -53,8 +53,14 @@ final class CreateCatalogue
 
     private function resolveBase(string $baseDir): ?string
     {
-        $baseDir  = trim(str_replace('\\', '/', $baseDir), '/');
+        $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
+        if (! in_array($baseDir, ['templates', 'generated', 'deleted'], true)) {
+            return null;
+        }
         $fullPath = $this->projectDir . '/' . $baseDir;
+        if (! is_dir($fullPath) && ! @mkdir($fullPath, 0775, true) && ! is_dir($fullPath)) {
+            return null;
+        }
         $resolved = realpath($fullPath);
         return ($resolved !== false && is_dir($resolved)) ? $resolved : null;
     }

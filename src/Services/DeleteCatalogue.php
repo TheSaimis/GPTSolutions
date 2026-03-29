@@ -119,8 +119,11 @@ final class DeleteCatalogue
             return null;
         }
 
-        // deleted might not exist yet
-        if ($baseDir === 'deleted' && !is_dir($fullPath)) {
+        if ($baseDir === 'deleted') {
+            if (! is_dir($fullPath)) {
+                return null;
+            }
+        } elseif (! is_dir($fullPath) && ! @mkdir($fullPath, 0775, true) && ! is_dir($fullPath)) {
             return null;
         }
 

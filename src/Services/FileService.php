@@ -391,6 +391,9 @@ final class FileService
             return null;
         }
         $fullPath = $this->projectDir . '/' . $mapped;
+        if (! is_dir($fullPath) && ! @mkdir($fullPath, 0775, true) && ! is_dir($fullPath)) {
+            return null;
+        }
         $resolved = realpath($fullPath);
         return ($resolved !== false && is_dir($resolved)) ? $resolved : null;
     }
