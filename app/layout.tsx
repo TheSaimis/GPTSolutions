@@ -42,7 +42,7 @@ export default function RootLayout({
             <PdfViewer />
             <MessagePanel />
             <Header />
-            {children}
+            <main>{children}</main>
             <Footer />
           </ContextMenuProvider>
         </ConfirmActionProvider>

@@ -3,6 +3,9 @@
     color: rgba(255, 255, 255, 0.6);
     padding: 18px 32px;
     flex-shrink: 0;
+    margin-top: auto;
+    width: 100%;
+    box-sizing: border-box;
 
     .footerContent {
         display: flex;
