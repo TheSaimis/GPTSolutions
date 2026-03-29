@@ -6,6 +6,7 @@
 .table {
   --category-col-width: 180px;
   --part-col-width: 220px;
+  --risk-col-width: 40px;
   border-collapse: collapse;
   table-layout: fixed;
   width: max-content;
@@ -43,23 +44,60 @@
   overflow-wrap: anywhere;
 }
 
-.rotate {
+.riskSubcategoryVertical {
   writing-mode: vertical-rl;
+  text-orientation: mixed;
   transform: rotate(180deg);
   white-space: normal;
-  min-height: 120px;
-  height: auto;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  vertical-align: bottom;
   text-align: left;
+  line-height: 1.25;
+  font-size: 11px;
+  padding: 6px 4px;
 }
 
-.riskSubcategoryHeader {
-  text-align: left;
+.riskHeaderLeaf {
+  min-height: 12rem;
+}
+
+.riskCol {
+  width: var(--risk-col-width);
+  min-width: var(--risk-col-width);
+  max-width: var(--risk-col-width);
 }
 
 .cell {
-  width: 36px;
-  min-width: 36px;
+  width: var(--risk-col-width);
+  min-width: var(--risk-col-width);
+  max-width: var(--risk-col-width);
   text-align: center;
+}
+
+.stickyCorner {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  background: #fff;
+  box-shadow: 1px 0 0 #d1d5db, 0 1px 0 #d1d5db;
+}
+
+.stickyLeft {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 1px 0 0 #d1d5db;
+}
+
+.stickyLeftSecond {
+  position: sticky;
+  left: var(--category-col-width);
+  z-index: 2;
+  background: #fff;
+  box-shadow: 1px 0 0 #d1d5db;
 }
 
 .altColumn {

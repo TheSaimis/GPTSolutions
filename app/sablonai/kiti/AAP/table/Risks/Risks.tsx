@@ -51,7 +51,7 @@ export default function Risks() {
               cells.push(
                 <th
                   key={`d-${group.group.id}-${current.subcategory.id}`}
-                  className={`${styles.th} ${styles.riskCategoryHeader}`}
+                  className={`${styles.th} ${styles.riskSubcategoryVertical} ${styles.riskHeaderLeaf} ${styles.riskCol}`}
                   rowSpan={2}
                 >
                   {current.subcategory.name}
@@ -71,11 +71,7 @@ export default function Risks() {
             }
 
             cells.push(
-              <th
-                key={`c-${categoryId}-${i}`}
-                className={`${styles.th} ${styles.riskCategoryHeader}`}
-                colSpan={span}
-              >
+              <th key={`c-${categoryId}-${i}`} className={styles.th} colSpan={span}>
                 {current.category.name}
               </th>
             );
@@ -96,7 +92,7 @@ export default function Risks() {
             return (
               <th
                 key={`s-${column.subcategory.id}`}
-                className={`${styles.th} ${styles.rotate} ${styles.riskSubcategoryHeader} ${
+                className={`${styles.th} ${styles.riskSubcategoryVertical} ${styles.riskHeaderLeaf} ${styles.riskCol} ${
                   globalIndex % 2 === 1 ? styles.altColumn : ""
                 }`}
               >

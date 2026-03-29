@@ -1,8 +1,31 @@
 .page {
-  display: block;
-  position: relative;
   width: 100%;
   min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 1580px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+.tableCard {
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
 .tableSection {
@@ -11,25 +34,103 @@
 }
 
 .workerPanel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: min(320px, calc(100vw - 20px));
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-  z-index: 20;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.08);
+  padding: 18px 20px 20px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.selectionSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 100%);
+  border: 1px solid #fecaca;
+}
+
+.selectionSummaryLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #b91c1c;
+}
+
+.selectionSummaryValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+}
+
+.selectionHint {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.menuGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.menuSection {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fafbfc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.menuGrid > .menuSection {
+  overflow: hidden;
+}
+
+.menuGrid .workerDropdownToggle {
+  flex-shrink: 0;
 }
 
 .workerTitle {
   margin: 0 0 8px;
   font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .workerMuted {
   margin: 0;
   color: #64748b;
+}
+
+.workerListScroll {
+  max-height: 13.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-right: -4px;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
 }
 
 .workerList {
@@ -46,24 +147,39 @@
   align-items: center;
 }
 
+.workerItemAdmin {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .workerButton {
   width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
   cursor: pointer;
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.35;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workerButton:hover {
+  border-color: #fecaca;
+  background: #fff1f2;
 }
 
 .workerButtonActive {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: #d42225;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
   font-weight: 700;
+  color: #7f1d1d;
+  box-shadow: 0 0 0 1px rgba(212, 34, 37, 0.15);
 }
 
 .workerAssignButton {
@@ -98,6 +214,28 @@
   cursor: not-allowed;
 }
 
+.workerDeleteTypeButton {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.75rem;
+  min-width: 4.5rem;
+  background: #94a3b8;
+  transition: background 0.15s ease;
+}
+
+.workerDeleteTypeButton:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.workerDeleteTypeButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
 .documentSection {
   display: flex;
   flex-direction: column;
@@ -117,10 +255,16 @@
 }
 
 .importDropZone {
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 8px;
-  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fafafa;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.importDropZone:hover {
+  border-color: #d42225;
+  background: #fff5f5;
 }
 
 .importDropZoneInner {
@@ -135,11 +279,13 @@
   font-size: 13px;
 }
 
-@media (max-width: 1200px) {
-  .workerPanel {
-    top: 8px;
-    right: 8px;
-    width: min(320px, calc(100vw - 16px));
+@media (max-width: 640px) {
+  .layout {
+    padding: 16px 12px 32px;
+  }
+
+  .menuGrid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -150,21 +296,31 @@
 .createDocumentButton {
   width: 100%;
   border: none;
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: #16a34a;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
   color: #ffffff;
   cursor: pointer;
   font-weight: 700;
+  font-size: 0.9375rem;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
 }
 
-.createDocumentButton:hover {
-  background: #15803d;
+.createDocumentButton:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(22, 163, 74, 0.4);
 }
 
 .createDocumentButton:disabled {
   background: #cbd5e1;
+  box-shadow: none;
   cursor: not-allowed;
+  transform: none;
 }
 
 .workerDivider {
@@ -175,17 +331,25 @@
 
 .workerDropdownToggle {
   width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   color: #0f172a;
-  padding: 10px 12px;
+  padding: 12px 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 15px;
   font-weight: 700;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workerDropdownToggle:hover {
+  border-color: #fecaca;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
 }
 
 .workerDropdownArrow {
@@ -197,13 +361,22 @@
   margin-top: 8px;
   display: none;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 8px;
+  border-radius: 12px;
+  background: #fafbfc;
+  padding: 12px;
 }
 
 .workerDropdownOpen {
   display: block;
+}
+
+.menuGrid .workerDropdownContent.workerDropdownOpen {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .workerCreateSection {

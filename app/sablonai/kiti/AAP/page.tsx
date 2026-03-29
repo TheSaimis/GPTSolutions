@@ -9,10 +9,14 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <AAPTableProvider>
-        <div className={styles.tableSection}>
-          <AAPTable />
+        <div className={styles.layout}>
+          <WorkerTypes />
+          <div className={styles.tableCard}>
+            <div className={styles.tableSection}>
+              <AAPTable />
+            </div>
+          </div>
         </div>
-        <WorkerTypes />
       </AAPTableProvider>
     </div>
   );
