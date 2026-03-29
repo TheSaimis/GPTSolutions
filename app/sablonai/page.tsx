@@ -78,13 +78,24 @@ export default function TemplatePage() {
       </div>
 
       <div className={styles.templateNav}>
-          <Link href="/sablonai/kiti/AAP">AAP</Link>
-          |
-          <Link href="/sablonai/kiti/pazyma">Sveikatos tikrinimo pažymos</Link>
-          |
-          <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>
-          |
-          <Link href="/sablonai/sukurtiDokumentai">nemokamai išduodamų asmeninių apsaugos priemonių sarašas</Link>
+        <Link className={styles.templateNavLink} href="/sablonai/kiti/AAP">
+          AAP
+        </Link>
+        <Link className={styles.templateNavLink} href="/sablonai/kiti/pazyma">
+          Sveikatos tikrinimo pažymos
+        </Link>
+        <Link
+          className={styles.templateNavLink}
+          href="/sablonai/patvirtinimai"
+        >
+          Kenksmingų faktorių nustatymo pažyma
+        </Link>
+        <Link
+          className={styles.templateNavLink}
+          href="/sablonai/sukurtiDokumentai"
+        >
+          Nemokamai išduodamų AP sąrašas
+        </Link>
       </div>
 
       <CatalogueTreeProvider fileType={fileType} initialTree={templateList}>
