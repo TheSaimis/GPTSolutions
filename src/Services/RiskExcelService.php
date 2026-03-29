@@ -88,6 +88,8 @@ final class RiskExcelService
                 $worker,
                 $riskPoints
             );
+            // Šablone gali būti horizontalus tekstas – priverskime paskutinės antraštės eilutės stulpelius 90° (Excel economija).
+            $this->normalizeHeaderTextStyles($sheet, $blockStart);
         }
 
         $this->removeYellowFill($sheet);
@@ -664,13 +666,16 @@ final class RiskExcelService
             ->setWrapText(false)
             ->setTextRotation(0);
 
-        // Subcategory row: vertical labels everywhere (as in source template).
-        $sheet->getStyle('C' . $subRow . ':' . $this->colLetter(self::TEMPLATE_MAX_COL) . $subRow)
+        // Subcategory row: visi rizikų stulpelių pavadinimai 90° (siauri stulpeliai Excel'yje).
+        $subLast = $this->colLetter(self::TEMPLATE_MAX_COL);
+        $sheet->getStyle('C' . $subRow . ':' . $subLast . $subRow)
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_BOTTOM)
             ->setWrapText(false)
             ->setTextRotation(90);
+        // Pakankamas aukštis ilgiems vertikaliems antraštės tekstams (kaip AAP šablonuose)
+        $sheet->getRowDimension($subRow)->setRowHeight(183);
     }
 
     private function applyRiskColumnStriping(
