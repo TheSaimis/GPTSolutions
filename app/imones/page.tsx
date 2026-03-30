@@ -67,7 +67,7 @@ export default function ImonesPage() {
 
                 <div className={styles.form}>
                     <div className={styles.row}>
-                        <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                        <InputFieldSelect label="Įmonės tipas" options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
                         <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                     </div>
 

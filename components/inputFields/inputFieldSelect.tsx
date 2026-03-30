@@ -34,6 +34,7 @@ export default function InputFieldSelect({
   icon: Icon,
 }: Props) {
   const [visible, setVisible] = useState(false);
+  const [internalSelectedLabel, setInternalSelectedLabel] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const normalizedOptions = useMemo(
@@ -48,13 +49,15 @@ export default function InputFieldSelect({
 
   const isEmpty = normalizedOptions.length === 0;
   const effectivelyDisabled = disabled || isEmpty;
+  const selectedText = selected.trim();
+  const shownSelection = selectedText || internalSelectedLabel;
 
   const displayValue = isEmpty
     ? emptyMessage
-    : selected.trim() || placeholder || "—";
+    : shownSelection || placeholder || "—";
 
   const showMuted =
-    !isEmpty && !selected.trim() && Boolean(placeholder?.trim());
+    !isEmpty && !shownSelection && Boolean(placeholder?.trim());
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -74,6 +77,12 @@ export default function InputFieldSelect({
       setVisible(false);
     }
   }, [effectivelyDisabled]);
+
+  useEffect(() => {
+    if (selectedText) {
+      setInternalSelectedLabel(selectedText);
+    }
+  }, [selectedText]);
 
   return (
     <div
@@ -131,6 +140,7 @@ export default function InputFieldSelect({
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange(v.value || v.label);
+                  setInternalSelectedLabel(v.label);
                   setVisible(false);
                 }}
               >
