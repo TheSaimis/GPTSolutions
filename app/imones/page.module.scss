@@ -17,7 +17,7 @@ $border: #E2E8F0;
 
 .topBar {
     width: 100%;
-    max-width: 560px;
+  max-width: 980px;
     margin-bottom: 20px;
 
     .backLink {
@@ -46,6 +46,15 @@ $border: #E2E8F0;
     padding: 32px;
     width: 100%;
     max-width: 560px;
+}
+
+.layout {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  align-items: start;
 }
 
 .cardHeader {
@@ -128,6 +137,84 @@ $border: #E2E8F0;
     }
 }
 
+.categoryPanel {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.categoryTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: $text-dark;
+}
+
+.categorySearch {
+  width: 100%;
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.categorySearch:focus {
+  border-color: $primary;
+  box-shadow: 0 0 0 3px rgba(239, 38, 41, 0.12);
+}
+
+.categoryList {
+  border: 1px solid $border;
+  border-radius: 12px;
+  max-height: 420px;
+  overflow: auto;
+  background: #fff;
+}
+
+.categoryRow {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-top: 1px solid $border;
+  background: #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: $text-dark;
+}
+
+.categoryRow:first-child {
+  border-top: none;
+}
+
+.categoryRow:hover {
+  background: #f8fafc;
+}
+
+.categoryRowActive {
+  background: $primary-light;
+  color: $primary;
+  font-weight: 600;
+}
+
+.addCategoryButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: $primary;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addCategoryButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
 @media (max-width: 480px) {
     .page {
         padding: 20px 12px 32px;
@@ -147,4 +234,15 @@ $border: #E2E8F0;
             font-size: 1.1rem;
         }
     }
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .topBar,
+  .layout {
+    max-width: 560px;
+  }
 }
