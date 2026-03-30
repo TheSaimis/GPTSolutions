@@ -108,7 +108,11 @@ final class CreateFile
 
         $companySlug = $this->sanitizeForFilename($companyName) ?: ($code !== '' ? $code : 'be_kodo');
         $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
-        $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        $outputDirectory = trim((string) ($data['outputDirectory'] ?? ''));
+        $outputDirectory = trim(str_replace('\\', '/', $outputDirectory), '/');
+        $outputDir = $outputDirectory !== ''
+            ? $this->getGeneratedDir() . '/' . $outputDirectory
+            : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }
@@ -328,7 +332,11 @@ final class CreateFile
 
         $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
         $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
-        $outputDir   = $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        $outputDirectory = trim((string) ($data['outputDirectory'] ?? ''));
+        $outputDirectory = trim(str_replace('\\', '/', $outputDirectory), '/');
+        $outputDir = $outputDirectory !== ''
+            ? $this->getGeneratedDir() . '/' . $outputDirectory
+            : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }

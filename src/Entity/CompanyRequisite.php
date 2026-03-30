@@ -33,6 +33,10 @@ class CompanyRequisite
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $category = null;
 
+    #[ORM\ManyToOne(targetEntity: Category::class, inversedBy: 'companies')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Category $companyCategory = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $address = null;
 
@@ -143,6 +147,17 @@ class CompanyRequisite
     public function setCategory(?string $v): static
     {
         $this->category = $v;
+        return $this;
+    }
+
+    public function getCompanyCategory(): ?Category
+    {
+        return $this->companyCategory;
+    }
+
+    public function setCompanyCategory(?Category $category): static
+    {
+        $this->companyCategory = $category;
         return $this;
     }
 

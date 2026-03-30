@@ -306,6 +306,7 @@ final class WorkplaceFactorsCertificateService
             'tipas'       => (string) ($company->getCompanyType() ?? ''),
             'tipasPilnas' => (string) ($company->getCategory() ?? ''),
             'adresas'     => (string) ($company->getAddress() ?? ''),
+            'outputDirectory' => (string) ($company->getDirectory() ?? ''),
             'managerType' => (string) ($company->getManagerType() ?? ''),
             'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
             'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
