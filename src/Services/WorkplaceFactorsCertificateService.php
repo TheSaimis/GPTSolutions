@@ -520,5 +520,4 @@ final class WorkplaceFactorsCertificateService
             static fn (mixed $value): bool => $value !== null && $value !== ''
         );
     }
-
 }

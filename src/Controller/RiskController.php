@@ -110,7 +110,7 @@ final class RiskController extends AbstractController
                 return new JsonResponse([
                     'error'  => 'Import komanda nepavyko.',
                     'output' => $output,
-                    'path'   => $tmpPath,
+                    // 'path'   => $tmpPath,
                 ], 500);
             }
 
