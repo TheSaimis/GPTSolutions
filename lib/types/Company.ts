@@ -5,6 +5,8 @@ export type Company = {
     companyType?: string;
     companyName?: string;
     code?: string;
+    categoryId?: number | null;
+    categoryName?: string | null;
     address?: string;
     cityOrDistrict?: string;
     managerType?: string;
@@ -24,6 +26,8 @@ export const companyLabels: Record<keyof Company, string> = {
     companyType: "Įmonės tipas",
     companyName: "Įmonės pavadinimas",
     code: "Įmonės kodas",
+    categoryId: "Kategorijos ID",
+    categoryName: "Kategorija",
     address: "Adresas",
     cityOrDistrict: "Miestas / rajonas",
     managerType: "Vadovo tipas",
@@ -105,6 +109,11 @@ export interface CompanyWorker {
     company: Company | null;
     worker: Worker | null;
 }
+
+export type CompanyCategory = {
+    id: number;
+    name: string;
+};
 
 // this is not exactly related to companies but its used everywhere where companies are involved
 export type CustomVariable = Record<string, string>;

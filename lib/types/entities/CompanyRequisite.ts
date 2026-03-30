@@ -7,6 +7,8 @@ export interface CompanyRequisite {
   code: string | null;
   modifiedAt: string | null;
   category: string | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
   address: string | null;
   cityOrDistrict: string | null;
   managerType: string | null;
