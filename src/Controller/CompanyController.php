@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Entity\Category;
 use App\Entity\CompanyRequisite;
 use App\Repository\CompanyRequisiteRepository;
 use App\Services\AuditLogger;
@@ -46,10 +47,24 @@ final class CompanyController extends AbstractController
         $company->setManagerLastName($data['managerLastName'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
+        $categoryId = (int) ($data['categoryId'] ?? $data['catagoryId'] ?? 0);
+        if ($categoryId > 0) {
+            $category = $this->em->getRepository(Category::class)->find($categoryId);
+            if (! $category instanceof Category) {
+                return new JsonResponse([
+                    'status' => 'FAIL',
+                    'errors' => ['categoryId' => ['Kategorija nerasta.']],
+                ], 400);
+            }
+            $company->setCompanyCategory($category);
+        } else {
+            $company->setCompanyCategory(null);
+        }
         $company->setDirectory(
             trim((string) ($data['directory'] ?? '')) !== ''
                 ? trim((string) $data['directory'])
                 : $this->buildCompanyDirectory(
+                $company->getCompanyCategory()?->getName() ?? '',
                 $company->getCompanyType() ?? $data['companyType'] ?? '',
                 $company->getCompanyName() ?? '',
                 $company->getCode() ?? ''
@@ -186,10 +201,32 @@ final class CompanyController extends AbstractController
             $company->setRole($data['role']);
         }
 
+        if (array_key_exists('categoryId', $data) || array_key_exists('catagoryId', $data)) {
+            $categoryId = (int) ($data['categoryId'] ?? $data['catagoryId'] ?? 0);
+            if ($categoryId > 0) {
+                $category = $this->em->getRepository(Category::class)->find($categoryId);
+                if (! $category instanceof Category) {
+                    return new JsonResponse([
+                        'status' => 'FAIL',
+                        'errors' => ['categoryId' => ['Kategorija nerasta.']],
+                    ], 400);
+                }
+                $company->setCompanyCategory($category);
+            } else {
+                $company->setCompanyCategory(null);
+            }
+        }
+
         if (array_key_exists('directory', $data)) {
             $company->setDirectory(trim((string) $data['directory']) !== '' ? $data['directory'] : null);
-        } elseif (isset($data['companyName']) || array_key_exists('companyType', $data)) {
+        } elseif (
+            isset($data['companyName'])
+            || array_key_exists('companyType', $data)
+            || array_key_exists('categoryId', $data)
+            || array_key_exists('catagoryId', $data)
+        ) {
             $company->setDirectory($this->buildCompanyDirectory(
+                $company->getCompanyCategory()?->getName() ?? '',
                 $company->getCompanyType() ?? '',
                 $company->getCompanyName() ?? '',
                 $company->getCode() ?? ''
@@ -266,12 +303,13 @@ final class CompanyController extends AbstractController
         return $s !== '' ? $s : '';
     }
 
-    /** Grąžina kelią: {tipas}/{pavadinimas} (pvz. UAB/UAB_Test_Company) */
-    private function buildCompanyDirectory(string $tipas, string $companyName, string $code): string
+    /** Grąžina kelią: {kategorija}/{tipas}/{pavadinimas}. */
+    private function buildCompanyDirectory(string $categoryName, string $tipas, string $companyName, string $code): string
     {
+        $categorySlug = $this->sanitizeForFilename($categoryName) ?: 'be_kategorijos';
         $tipasSlug   = $this->sanitizeForFilename($tipas) ?: 'Kita';
         $companySlug = $this->sanitizeForFilename($companyName) ?: $code;
-        return $tipasSlug . '/' . $companySlug;
+        return $categorySlug . '/' . $tipasSlug . '/' . $companySlug;
     }
 
     private function toArray(CompanyRequisite $c): array
@@ -289,6 +327,8 @@ final class CompanyController extends AbstractController
             'managerLastName'  => $c->getManagerLastName(),
             'documentDate'     => $c->getDocumentDate(),
             'role'             => $c->getRole(),
+            'categoryId'       => $c->getCompanyCategory()?->getId(),
+            'categoryName'     => $c->getCompanyCategory()?->getName(),
             'directory'        => $c->getDirectory(),
             'createdAt'        => $c->getCreatedAt()?->format('Y-m-d H:i:s'),
             'modifiedAt'       => $c->getModifiedAt()?->format('Y-m-d H:i:s'),
