@@ -276,6 +276,65 @@ $border: #E2E8F0;
     width: 36px;
 }
 
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin-top: 20px;
+    padding: 14px 18px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid $border;
+}
+
+.paginationInfo {
+    margin: 0;
+    font-size: 0.88rem;
+    color: $text-muted;
+    font-weight: 500;
+}
+
+.paginationButtons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.paginationBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #d7dee8;
+    background: #fff;
+    color: $text-dark;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+
+    &:hover:not(:disabled) {
+        background: #f8fafc;
+        border-color: #a3b8d1;
+    }
+
+    &:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+    }
+}
+
+.paginationPages {
+    min-width: 4.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $text-dark;
+}
+
 @media (max-width: 900px) {
     .filtersRow {
         grid-template-columns: 1fr;
