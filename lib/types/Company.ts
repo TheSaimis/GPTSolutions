@@ -1,8 +1,20 @@
 import type { Worker } from "./Worker";
 
+export type CompanyTypeRow = {
+    id: number;
+    typeShort: string;
+    typeShortEn?: string | null;
+    typeShortRu?: string | null;
+    type: string;
+    typeEn?: string | null;
+    typeRu?: string | null;
+};
+
 export type Company = {
     id?: number;
     companyType?: string;
+    companyTypeId?: number | null;
+    companyTypeRow?: CompanyTypeRow | null;
     companyName?: string;
     code?: string;
     categoryId?: number | null;
@@ -11,6 +23,8 @@ export type Company = {
     cityOrDistrict?: string;
     managerType?: string;
     managerFirstName?: string;
+    managerFirstNameEn?: string | null;
+    managerFirstNameRu?: string | null;
     managerLastName?: string;
     managerGender?: string;
     documentDate?: string;
@@ -19,11 +33,15 @@ export type Company = {
     deleted?: boolean;
     deletedDate?: string;
     role?: string;
+    roleEn?: string | null;
+    roleRu?: string | null;
 };
 
 export const companyLabels: Record<keyof Company, string> = {
     id: "ID",
     companyType: "Įmonės tipas",
+    companyTypeId: "Įmonės tipo ID",
+    companyTypeRow: "Įmonės tipas (eilutė)",
     companyName: "Įmonės pavadinimas",
     code: "Įmonės kodas",
     categoryId: "Kategorijos ID",
@@ -32,12 +50,16 @@ export const companyLabels: Record<keyof Company, string> = {
     cityOrDistrict: "Miestas / rajonas",
     managerType: "Vadovo tipas",
     managerFirstName: "Vadovo vardas",
+    managerFirstNameEn: "Vadovo vardas (EN)",
+    managerFirstNameRu: "Vadovo vardas (RU)",
     managerLastName: "Vadovo pavardė",
     managerGender: "Vadovo lytis",
     documentDate: "Dokumento data",
     modifiedAt: "Redaguota",
     createdAt: "Sukurta",
     role: "Pareigos",
+    roleEn: "Pareigos (EN)",
+    roleRu: "Pareigos (RU)",
     deleted: "Ištrinta",
     deletedDate: "Ištrinimo data",
 };

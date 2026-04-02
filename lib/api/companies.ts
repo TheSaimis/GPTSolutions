@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { CompanyStore, useCompanyStore } from "../globalVariables/companies";
-import type { Company, CompanyCategory } from "../types/Company";
+import type { Company, CompanyCategory, CompanyTypeRow } from "../types/Company";
 import type { ApiStatus } from "@/lib/types/Api";
 
 export const CompanyApi = {
@@ -63,6 +63,10 @@ export const CompanyApi = {
 
     getCategories: async () => {
         return api.get<CompanyCategory[]>("/api/categories");
+    },
+
+    getCompanyTypes: async () => {
+        return api.get<CompanyTypeRow[]>("/api/company-types");
     },
 
     createCategory: async (name: string) => {
