@@ -10,7 +10,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * Ištrina katalogą {baseDir}/{directory}.
  *
  * Elgsena:
- * - templates/generated -> soft delete į /deleted/{baseDir}/{directory}
+ * - templates/generated/archive -> soft delete į /deleted/{baseDir}/{directory}
  * - deleted -> jei vartotojas turi ROLE_ADMIN, ištrina visam laikui
  */
 final class DeleteCatalogue
@@ -25,7 +25,7 @@ final class DeleteCatalogue
 
     /**
      * @param string $directory Kelias po baseDir
-     * @param string $baseDir   "templates" | "generated" | "deleted"
+     * @param string $baseDir   "templates" | "generated" | "archive" | "deleted"
      * @return string
      */
     public function delete(string $directory, string $baseDir): string
@@ -71,7 +71,7 @@ final class DeleteCatalogue
                 return self::SUCCESS;
             }
 
-            // SOFT DELETE for templates/generated
+            // SOFT DELETE for templates/generated/archive
             $deletedBase = $this->projectDir . '/deleted/' . $baseDir . '/' . $directory;
             $parentDir = dirname($deletedBase);
 
@@ -111,6 +111,7 @@ final class DeleteCatalogue
         $fullPath = match ($baseDir) {
             'templates' => $this->projectDir . '/templates',
             'generated' => $this->projectDir . '/generated',
+            'archive' => $this->projectDir . '/archive',
             'deleted' => $this->projectDir . '/deleted',
             default => null,
         };

@@ -1,12 +1,12 @@
-<?php
+﻿<?php
 
 declare (strict_types = 1);
 
 namespace App\Services;
 
 /**
- * Bendras failų servisas – operuoja su bet kuriuo katalogu.
- * BaseDir perduodamas per kiekvieną metodą ir tikrinamas.
+ * Bendras failÅ³ servisas â€“ operuoja su bet kuriuo katalogu.
+ * BaseDir perduodamas per kiekvienÄ… metodÄ… ir tikrinamas.
  *
  * @param string $baseDir Katalogas nuo projectDir (pvz. "templates", "generated")
  */
@@ -20,7 +20,7 @@ final class FileService
     ) {}
 
     /**
-     * Grąžina pilną kelį ir tikrina, kad jis būtų baseDir ribose.
+     * GrÄ…Å¾ina pilnÄ… kelÄ¯ ir tikrina, kad jis bÅ«tÅ³ baseDir ribose.
      */
     public function resolvePath(string $baseDir, string $path): ?string
     {
@@ -44,7 +44,7 @@ final class FileService
     }
 
     /**
-     * Soft-delete: perkelia failą į /deleted/{baseDir}/{path} struktūrą.
+     * Soft-delete: perkelia failÄ… Ä¯ /deleted/{baseDir}/{path} struktÅ«rÄ….
      *
      * @return 'SUCCESS'|'FAIL'
      */
@@ -109,7 +109,7 @@ final class FileService
     }
 
     /**
-     * Perkelia failą į kitą direktoriją tame pačiame baseDir.
+     * Perkelia failÄ… Ä¯ kitÄ… direktorijÄ… tame paÄiame baseDir.
      *
      * @return 'SUCCESS'|'FAIL'
      */
@@ -153,7 +153,7 @@ final class FileService
     }
 
     /**
-     * Grąžina katalogo turinį (katalogai ir failai).
+     * GrÄ…Å¾ina katalogo turinÄ¯ (katalogai ir failai).
      *
      * @return array{name: string, type: 'directory'|'file', path: string, children?: array}[]
      */
@@ -209,7 +209,7 @@ final class FileService
     }
 
     /**
-     * Grąžina dokumento metaduomenis (core + custom). Tik .docx ir .xlsx failams.
+     * GrÄ…Å¾ina dokumento metaduomenis (core + custom). Tik .docx ir .xlsx failams.
      *
      * @return array{path: string, filename: string, metadata: array{core: array, custom: array}}|null
      */
@@ -235,9 +235,9 @@ final class FileService
     }
 
     /**
-     * Grąžina ištrintų dokumentų katalogo turinį. Struktūra: deleted/{baseDir}/{path}.
+     * GrÄ…Å¾ina iÅ¡trintÅ³ dokumentÅ³ katalogo turinÄ¯. StruktÅ«ra: deleted/{baseDir}/{path}.
      *
-     * @param string $baseDir templates|generated arba tuščia (tada grąžina abu)
+     * @param string $baseDir templates|generated arba tuÅ¡Äia (tada grÄ…Å¾ina abu)
      * @return array{baseDir: string, path: string, name: string, type: string, size?: int, children?: array}[]
      */
     public function listDeleted(string $baseDir = ''): array
@@ -248,10 +248,10 @@ final class FileService
         }
 
         $result = [];
-        $dirs   = $baseDir !== '' ? [$baseDir] : ['templates', 'generated'];
+        $dirs   = $baseDir !== '' ? [$baseDir] : ['templates', 'generated', 'archive'];
 
         foreach ($dirs as $dir) {
-            if (! in_array($dir, ['templates', 'generated'], true)) {
+            if (! in_array($dir, ['templates', 'generated', 'archive'], true)) {
                 continue;
             }
             $fullDir = $deletedRoot . '/' . $dir;
@@ -322,7 +322,7 @@ final class FileService
     }
 
     /**
-     * Atkuria failą iš /deleted/{baseDir}/{path} atgal į {baseDir}/{path}.
+     * Atkuria failÄ… iÅ¡ /deleted/{baseDir}/{path} atgal Ä¯ {baseDir}/{path}.
      *
      * @return 'SUCCESS'|'FAIL'
      */
@@ -338,7 +338,7 @@ final class FileService
         if (
             $baseDir === null ||
             $relativePath === null ||
-            !in_array($baseDir, ['templates', 'generated'], true)
+            !in_array($baseDir, ['templates', 'generated', 'archive'], true)
         ) {
             return self::FAIL;
         }
@@ -376,7 +376,7 @@ final class FileService
     }
 
     /**
-     * @return string|null Pilnas kelias į baseDir arba null jei neegzistuoja
+     * @return string|null Pilnas kelias Ä¯ baseDir arba null jei neegzistuoja
      */
     public function getBaseFullPath(string $baseDir): ?string
     {
@@ -384,6 +384,7 @@ final class FileService
         $mapped  = match ($baseDir) {
             'templates' => 'templates',
             'generated' => 'generated',
+            'archive' => 'archive',
             'deleted'   => 'deleted',
             default     => null,
         };
@@ -507,3 +508,4 @@ final class FileService
         return $value !== '' ? $value : null;
     }
 }
+

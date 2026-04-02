@@ -297,6 +297,8 @@ final class CreateFile
             'companyId'  => $companyId,
             'language'   => $lang,
         ]);
+        $this->archiveCopyOfGenerated($outputPath, $parsedDocumentDate);
+
         return $outputPath;
     }
 
@@ -543,6 +545,8 @@ final class CreateFile
             ]);
         }
 
+        $this->archiveCopyOfGenerated($outputPath, $parsedDocumentDate);
+
         return $outputPath;
     }
 
@@ -568,6 +572,67 @@ final class CreateFile
     private function getGeneratedDir(): string
     {
         return $this->projectDir . '/generated';
+    }
+
+    private function getArchiveDir(): string
+    {
+        return $this->projectDir . '/archive';
+    }
+
+    /**
+     * Kopijuoja sugeneruotą failą į archive/: ta pati santykinė kelio struktūra kaip po generated/,
+     * failo vardo bazė papildoma data ir laiku (Y-m-d_His — val., min., sek.) prieš plėtinį.
+     * Jei toks archyvo failas jau yra — pridedamos mikrosekundės (…_His_u).
+     */
+    private function archiveCopyOfGenerated(string $outputPath, ?\DateTimeImmutable $parsedDocumentDate): void
+    {
+        if (! is_readable($outputPath)) {
+            return;
+        }
+
+        $genRoot = str_replace('\\', '/', rtrim($this->getGeneratedDir(), '/\\'));
+        $abs     = str_replace('\\', '/', $outputPath);
+
+        if ($abs === $genRoot || ! str_starts_with($abs, $genRoot . '/')) {
+            return;
+        }
+
+        $relative = substr($abs, strlen($genRoot) + 1);
+        if ($relative === '') {
+            return;
+        }
+
+        $archiveRoot   = str_replace('\\', '/', rtrim($this->getArchiveDir(), '/\\'));
+        $dirRel        = dirname($relative);
+        $archiveParent = ($dirRel === '.' || $dirRel === '')
+            ? $archiveRoot
+            : $archiveRoot . '/' . $dirRel;
+
+        if (! is_dir($archiveParent) && ! mkdir($archiveParent, 0775, true) && ! is_dir($archiveParent)) {
+            return;
+        }
+
+        $ext  = pathinfo($relative, \PATHINFO_EXTENSION);
+        $stem = pathinfo($relative, \PATHINFO_FILENAME);
+
+        $timezone = new \DateTimeZone('Europe/Vilnius');
+        $now      = new \DateTimeImmutable('now', $timezone);
+        // Archyvo žyma: dokumento data (jei yra) + faktinis archyvo laikas su min. ir sek.
+        $docDatePart = ($parsedDocumentDate ?? $now)->format('Y-m-d');
+        $timePart    = $now->format('His');
+        $dateStr     = $docDatePart . '_' . $timePart;
+
+        $archiveFileName = $stem . $dateStr . ($ext !== '' ? '.' . $ext : '');
+        $destPath        = $archiveParent . '/' . $archiveFileName;
+
+        if (file_exists($destPath)) {
+            $nowCollision    = new \DateTimeImmutable('now', $timezone);
+            $dateStr         = $docDatePart . '_' . $nowCollision->format('His') . '_' . $nowCollision->format('u');
+            $archiveFileName = $stem . $dateStr . ($ext !== '' ? '.' . $ext : '');
+            $destPath        = $archiveParent . '/' . $archiveFileName;
+        }
+
+        @copy($outputPath, $destPath);
     }
 
     /**

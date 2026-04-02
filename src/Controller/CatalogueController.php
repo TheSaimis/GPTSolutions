@@ -16,14 +16,15 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Katalogų valdymas: create, update, delete.
- * Veikia su templates ir generated.
- * Body laukas "baseDir": "templates" (default) arba "generated".
+ * Veikia su templates, generated ir archive.
+ * Body laukas "baseDir": "templates" (default), "generated" arba "archive".
  */
 final class CatalogueController extends AbstractController
 {
     private const BASE_DIR_MAP = [
         'templates' => 'templates',
         'generated' => 'generated',
+        'archive'   => 'archive',
         'deleted'   => 'deleted',
     ];
 
@@ -128,6 +129,9 @@ final class CatalogueController extends AbstractController
     {
         if (! in_array($root, self::BASE_DIR_MAP, true)) {
             return new JsonResponse(['error' => 'Katalogas nerastas: ' . $root], 404);
+        }
+        if ($root === 'archive' && ! $this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['error' => 'Archive katalogas pasiekiamas tik ADMIN'], 403);
         }
 
         $resolved = $this->fileService->resolvePath($root, $directory);

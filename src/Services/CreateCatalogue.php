@@ -20,7 +20,7 @@ final class CreateCatalogue
     /**
      * @param string $directory  Kelias po baseDir (pvz. "4 Tvarkos" arba "")
      * @param string $folderName Naujo katalogo pavadinimas
-     * @param string $baseDir    "templates" arba "var/generated"
+     * @param string $baseDir    "templates" | "generated" | "archive" | "deleted"
      * @return 'SUCCESS'|'FAIL'
      */
     public function create(string $directory, string $folderName, string $baseDir): string
@@ -54,7 +54,7 @@ final class CreateCatalogue
     private function resolveBase(string $baseDir): ?string
     {
         $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
-        if (! in_array($baseDir, ['templates', 'generated', 'deleted'], true)) {
+        if (! in_array($baseDir, ['templates', 'generated', 'archive', 'deleted'], true)) {
             return null;
         }
         $fullPath = $this->projectDir . '/' . $baseDir;

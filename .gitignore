@@ -9,6 +9,7 @@
 /vendor/
 /templates/
 /generated/
+/archive/
 /deleted/
 ###< symfony/framework-bundle ###
 

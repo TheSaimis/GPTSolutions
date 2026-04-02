@@ -22,7 +22,7 @@ final class UpdateCatalogue
             return "No old directory or new name provided";
         }
 
-        if ($baseDir !== 'templates' && $baseDir !== 'generated') {
+        if ($baseDir !== 'templates' && $baseDir !== 'generated' && $baseDir !== 'archive') {
             return "Invalid base directory";
         }
 
@@ -40,6 +40,7 @@ final class UpdateCatalogue
         $rootBase = match ($baseDir) {
             'templates' => $this->projectDir . '/templates',
             'generated' => $this->projectDir . '/generated',
+            'archive' => $this->projectDir . '/archive',
         };
 
         $oldPath = $rootBase . '/' . $oldDirectory;
