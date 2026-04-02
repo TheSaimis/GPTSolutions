@@ -20,8 +20,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - role – pareigos
  *   - vardas / managerFirstName – vadovo vardas
  *   - pavarde / managerLastName – vadovo pavardė
- *   - tipas / companyType – įmonės tipas (UAB, AB, MB, ĮI, IND V, VŠĮ)
- *   - tipasPilnas / category – pilna kategorija
+ *   - tipas / companyType – įmonės tipas (trumpas kodas, pvz. UAB)
+ *   - tipasPilnas / category – pilnas pavadinimas; jei tuščia, CreateFile pildo iš mapTipasPilnas(tipas)
  *   - adresas / address – adresas
  *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *

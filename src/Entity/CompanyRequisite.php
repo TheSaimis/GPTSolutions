@@ -135,6 +135,21 @@ class CompanyRequisite
         return $this;
     }
 
+    /**
+     * Pilnas teisinės formos tekstas dokumentams (${tipasPilnas}): company_types.type, kitaip senasis category laukas.
+     */
+    public function resolveTipasPilnasForDocuments(): string
+    {
+        $fromType = $this->companyTypeRef?->getType();
+        if (is_string($fromType) && trim($fromType) !== '') {
+            return trim($fromType);
+        }
+
+        $legacy = $this->category;
+
+        return (is_string($legacy) && trim($legacy) !== '') ? trim($legacy) : '';
+    }
+
     public function getCompanyName(): ?string
     {
         return $this->companyName;

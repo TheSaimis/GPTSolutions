@@ -188,7 +188,7 @@ final class TemplateController extends AbstractController
                 'data'        => (string) $documentDate,
                 'role'        => (string) ($company->getRole() ?? ''),
                 'tipas'       => (string) ($company->getCompanyType() ?? ''),
-                'tipasPilnas' => (string) ($company->getCategory() ?? ''),
+                'tipasPilnas' => (string) $company->resolveTipasPilnasForDocuments(),
                 'adresas'     => (string) ($company->getAddress() ?? ''),
                 'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
                 'outputDirectory' => (string) ($company->getDirectory() ?? ''),
