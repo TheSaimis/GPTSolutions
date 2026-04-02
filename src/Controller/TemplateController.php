@@ -138,9 +138,11 @@ final class TemplateController extends AbstractController
 
     /**
      * POST /api/template/fillFileBulk
-     * Masinis šablonų įkėlimas į templates/{directory}/.
-     * Form data: directory (string), templates[] (multiple .doc/.docx files)
-     * Return: { "status": "SUCCESS"|"FAIL", "results": [{ "file": "x.docx", "status": "SUCCESS" }, ...] }
+     * Body JSON: templates[] (būtina), companyId (nebūtina – jei nėra, naudojami laukai iš body arba numatytos reikšmės).
+     * Be įmonės galima nurodyti: companyName/kompanija, code/kodas, documentDate/data, role, companyType/tipas,
+     * category/tipasPilnas, address/adresas, cityOrDistrict/miestas, outputDirectory, managerType,
+     * managerFirstName/vardas, managerLastName/pavarde.
+     * Return: vienas .docx arba .zip, arba JSON su results.
      */
     #[Route('/api/template/fillFileBulk', name: 'api_template_fill_file_bulk', methods: ['POST'])]
     public function fillFileBulk(
@@ -155,47 +157,89 @@ final class TemplateController extends AbstractController
 
         $user = $this->getUser();
 
-        $companyId = $data['companyId'] ?? null;
         $templates = $data['templates'] ?? null;
         $name      = isset($data['name']) ? trim((string) $data['name']) : null;
-
-        if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
-            return new JsonResponse(['error' => 'companyId is required'], 400);
-        }
-        $companyId = (int) $companyId;
 
         if (! is_array($templates) || count($templates) === 0) {
             return new JsonResponse(['error' => 'templates[] is required'], 400);
         }
 
-        /** @var CompanyRequisite|null $company */
-        $company = $em->getRepository(CompanyRequisite::class)->find($companyId);
-        if (! $company) {
-            return new JsonResponse(['error' => 'Company not found'], 404);
+        $rawCompanyId = $data['companyId'] ?? null;
+        $hasCompanyId = $rawCompanyId !== null && $rawCompanyId !== ''
+            && (is_int($rawCompanyId) || ctype_digit((string) $rawCompanyId));
+        if ($hasCompanyId) {
+            $hasCompanyId = ((int) $rawCompanyId) > 0;
         }
 
-        $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
+        if ($hasCompanyId) {
+            $companyId = (int) $rawCompanyId;
+            /** @var CompanyRequisite|null $company */
+            $company = $em->getRepository(CompanyRequisite::class)->find($companyId);
+            if (! $company) {
+                return new JsonResponse(['error' => 'Company not found'], 404);
+            }
 
-        $code        = (string) $company->getCode();
-        $companyData = [
-            'kompanija'   => (string) $company->getCompanyName(),
-            'kodas'       => $code,
-            'data'        => (string) $documentDate,
-            'role'        => (string) ($company->getRole() ?? ''),
-            'tipas'       => (string) ($company->getCompanyType() ?? ''),
-            'tipasPilnas' => (string) ($company->getCategory() ?? ''),
-            'adresas'     => (string) ($company->getAddress() ?? ''),
-            'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
-            'outputDirectory' => (string) ($company->getDirectory() ?? ''),
-            'managerType' => (string) ($company->getManagerType() ?? ''),
-            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
-            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+            $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
 
-            'userId'      => (string) ($user->getId() ?? ''),
-            'userName'    => (string) ($user->getFirstName() ?? ''),
-            'userSurname' => (string) ($user->getLastName() ?? ''),
-            'companyId'   => (string) $company->getId(),
-        ];
+            $code        = (string) $company->getCode();
+            $companyData = [
+                'kompanija'   => (string) $company->getCompanyName(),
+                'kodas'       => $code,
+                'data'        => (string) $documentDate,
+                'role'        => (string) ($company->getRole() ?? ''),
+                'tipas'       => (string) ($company->getCompanyType() ?? ''),
+                'tipasPilnas' => (string) ($company->getCategory() ?? ''),
+                'adresas'     => (string) ($company->getAddress() ?? ''),
+                'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
+                'outputDirectory' => (string) ($company->getDirectory() ?? ''),
+                'managerType' => (string) ($company->getManagerType() ?? ''),
+                'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
+                'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+
+                'userId'      => (string) ($user->getId() ?? ''),
+                'userName'    => (string) ($user->getFirstName() ?? ''),
+                'userSurname' => (string) ($user->getLastName() ?? ''),
+                'companyId'   => (string) $company->getId(),
+            ];
+        } else {
+            $company   = null;
+            $companyId = 0;
+
+            $documentDate = isset($data['documentDate']) ? trim((string) $data['documentDate']) : '';
+            if ($documentDate === '' && isset($data['data'])) {
+                $documentDate = trim((string) $data['data']);
+            }
+            if ($documentDate === '') {
+                $documentDate = (new \DateTimeImmutable())->format('Y-m-d');
+            }
+
+            $kompanija = trim((string) ($data['companyName'] ?? $data['kompanija'] ?? ''));
+            if ($kompanija === '') {
+                $kompanija = 'Nenurodyta įmonė';
+            }
+
+            $code = trim((string) ($data['code'] ?? $data['kodas'] ?? ''));
+
+            $companyData = [
+                'kompanija'       => $kompanija,
+                'kodas'           => $code,
+                'data'            => $documentDate,
+                'role'            => (string) ($data['role'] ?? ''),
+                'tipas'           => (string) ($data['companyType'] ?? $data['tipas'] ?? ''),
+                'tipasPilnas'     => (string) ($data['category'] ?? $data['tipasPilnas'] ?? ''),
+                'adresas'         => (string) ($data['address'] ?? $data['adresas'] ?? ''),
+                'miestas'         => (string) ($data['cityOrDistrict'] ?? $data['miestas'] ?? ''),
+                'outputDirectory' => trim(str_replace('\\', '/', (string) ($data['outputDirectory'] ?? '')), '/'),
+                'managerType'     => (string) ($data['managerType'] ?? ''),
+                'vardas'          => (string) ($data['managerFirstName'] ?? $data['vardas'] ?? ''),
+                'pavarde'         => (string) ($data['managerLastName'] ?? $data['pavarde'] ?? ''),
+
+                'userId'      => (string) ($user->getId() ?? ''),
+                'userName'    => (string) ($user->getFirstName() ?? ''),
+                'userSurname' => (string) ($user->getLastName() ?? ''),
+                'companyId'   => '0',
+            ];
+        }
 
         $replacements = $data['replacements'] ?? $data['custom'] ?? [];
         if (is_array($replacements)) {
@@ -254,7 +298,11 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['status' => 'FAIL', 'results' => $results], 500);
         }
 
-        $this->auditLogger->log("Sugeneruoti dokumentai (" . count($generatedFiles) . " vnt.) įmonei \"{$company->getCompanyName()}\" (ID: {$companyId})");
+        if ($company !== null) {
+            $this->auditLogger->log("Sugeneruoti dokumentai (" . count($generatedFiles) . " vnt.) įmonei \"{$company->getCompanyName()}\" (ID: {$companyId})");
+        } else {
+            $this->auditLogger->log('Sugeneruoti dokumentai (' . count($generatedFiles) . ' vnt.) be įmonės (fillFileBulk)');
+        }
 
         if (count($generatedFiles) === 1) {
             $docxPath = $generatedFiles[0];
@@ -275,8 +323,13 @@ final class TemplateController extends AbstractController
             return $response;
         }
 
+        $zipSlug = trim((string) ($companyData['kodas'] ?? ''));
+        if ($zipSlug === '') {
+            $zipSlug = 'bulk';
+        }
+
         try {
-            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $code);
+            $zipPath = $this->zipFiles->zipFiles($generatedFiles, 'generated_' . $zipSlug);
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'status'  => 'FAIL',
@@ -289,7 +342,7 @@ final class TemplateController extends AbstractController
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'generated_' . $code . '.zip'
+            'generated_' . $zipSlug . '.zip'
         );
         $response->deleteFileAfterSend(true);
 

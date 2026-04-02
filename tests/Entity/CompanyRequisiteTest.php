@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Entity;
 
 use App\Entity\CompanyRequisite;
+use App\Entity\CompanyType;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\Validation;
 
@@ -29,7 +30,10 @@ final class CompanyRequisiteTest extends TestCase
     public function testGettersAndSetters(): void
     {
         $e = new CompanyRequisite();
-        $e->setCompanyType('UAB');
+        $ct = new CompanyType();
+        $ct->setTypeShort('UAB');
+        $ct->setType('Uždaroji akcinė bendrovė');
+        $e->setCompanyTypeRef($ct);
         $e->setCompanyName('Test UAB');
         $e->setCode('123456789');
         $e->setCategory('Category');

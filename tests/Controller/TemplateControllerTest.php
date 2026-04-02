@@ -88,7 +88,7 @@ final class TemplateControllerTest extends ApiWebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
-    public function testFillFileBulkMissingCompanyId(): void
+    public function testFillFileBulkWithoutCompanyIdNoLonger400(): void
     {
         $client = $this->createAuthenticatedClient();
 
@@ -98,9 +98,13 @@ final class TemplateControllerTest extends ApiWebTestCase
             'templates' => ['test/file.docx'],
         ]));
 
-        self::assertResponseStatusCodeSame(400);
         $data = json_decode($client->getResponse()->getContent(), true);
-        self::assertArrayHasKey('error', $data);
+        self::assertIsArray($data);
+        self::assertNotSame(
+            'companyId is required',
+            $data['error'] ?? null,
+            'fillFileBulk must work without companyId when templates are provided'
+        );
     }
 
     public function testFillFileBulkMissingTemplates(): void

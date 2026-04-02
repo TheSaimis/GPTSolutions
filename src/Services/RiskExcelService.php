@@ -88,7 +88,7 @@ final class RiskExcelService
                 $worker,
                 $riskPoints
             );
-            // Šablone gali būti horizontalus tekstas – priverskime paskutinės antraštės eilutės stulpelius 90° (Excel economija).
+            // Paskutinė antraštės eilutė kaip šablone: 90° (ne siaurų stulpelių „raidėmis žemyn“).
             $this->normalizeHeaderTextStyles($sheet, $blockStart);
         }
 
@@ -666,7 +666,7 @@ final class RiskExcelService
             ->setWrapText(false)
             ->setTextRotation(0);
 
-        // Subcategory row: visi rizikų stulpelių pavadinimai 90° (siauri stulpeliai Excel'yje).
+        // Subcategory row: vertikalus tekstas (90°), kaip „AAP lentele nauja.xls“.
         $subLast = $this->colLetter(self::TEMPLATE_MAX_COL);
         $sheet->getStyle('C' . $subRow . ':' . $subLast . $subRow)
             ->getAlignment()
@@ -674,7 +674,6 @@ final class RiskExcelService
             ->setVertical(Alignment::VERTICAL_BOTTOM)
             ->setWrapText(false)
             ->setTextRotation(90);
-        // Pakankamas aukštis ilgiems vertikaliems antraštės tekstams (kaip AAP šablonuose)
         $sheet->getRowDimension($subRow)->setRowHeight(183);
     }
 
