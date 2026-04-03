@@ -52,7 +52,61 @@ final class TemplateController extends AbstractController
     #[Route('/api/templates/id/{id}', name: 'api_templates_id', methods: ['GET'])]
     public function byId(string $id): JsonResponse
     {
-        return new JsonResponse($this->findTemplate->findByTemplateId($id));
+        $path = $this->findTemplate->findByTemplateId(trim($id));
+        if ($path === null) {
+            return new JsonResponse(['error' => 'Šablonas nerastas'], 404);
+        }
+
+        return new JsonResponse([
+            [
+                'id' => trim($id),
+                'path' => $path,
+            ],
+        ]);
+    }
+
+    #[Route('/api/templates/id', name: 'api_templates_ids', methods: ['POST'])]
+    public function byIds(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['error' => 'Neteisingas JSON užklausos turinys'], 400);
+        }
+
+        $rawIds = $data['ids'] ?? $data['id'] ?? null;
+        if ($rawIds === null) {
+            return new JsonResponse(['error' => 'Privaloma pateikti ids arba id'], 400);
+        }
+
+        $ids = is_array($rawIds) ? $rawIds : [$rawIds];
+        $normalizedIds = [];
+        foreach ($ids as $candidate) {
+            if (! is_scalar($candidate)) {
+                continue;
+            }
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                $normalizedIds[] = $value;
+            }
+        }
+        $normalizedIds = array_values(array_unique($normalizedIds));
+
+        if (count($normalizedIds) === 0) {
+            return new JsonResponse(['error' => 'Nepateiktas nė vienas tinkamas ID'], 400);
+        }
+
+        $result = [];
+        foreach ($normalizedIds as $templateId) {
+            $path = $this->findTemplate->findByTemplateId($templateId);
+            if ($path !== null) {
+                $result[] = [
+                    'id' => $templateId,
+                    'path' => $path,
+                ];
+            }
+        }
+
+        return new JsonResponse($result);
     }
 
     // ───── GET  /api/templates/{category} ─────

@@ -38,6 +38,61 @@ final class CatalogueController extends AbstractController
     ) {}
 
     /**
+     * GET /api/catalogue/roots
+     * Grąžina tik paprašytų root katalogų medžių struktūrą (pagal BASE_DIR_MAP).
+     * Query pavyzdžiai:
+     * - /api/catalogue/roots?root=templates
+     * - /api/catalogue/roots?root=templates,generated
+     * - /api/catalogue/roots?root[]=templates&root[]=generated
+     */
+    #[Route('/api/catalogue/roots', name: 'api_catalogue_roots', methods: ['GET'])]
+    public function roots(Request $request): JsonResponse
+    {
+        $rootParam = $request->query->get('root');
+        $rawRoot = [];
+
+        if (is_array($rootParam)) {
+            $rawRoot = $rootParam;
+        } elseif (is_scalar($rootParam)) {
+            $singleRoot = trim((string) $rootParam);
+            if ($singleRoot !== '') {
+                $rawRoot = str_contains($singleRoot, ',')
+                    ? array_map('trim', explode(',', $singleRoot))
+                    : [$singleRoot];
+            }
+        }
+
+        if ($rawRoot === []) {
+            return new JsonResponse(['error' => 'Privaloma pateikti bent vieną root parametrą'], 400);
+        }
+
+        $requestedRoots = array_values(array_unique(array_filter(
+            array_map(static fn ($value) => trim((string) $value), $rawRoot),
+            static fn (string $value) => $value !== ''
+        )));
+
+        $allowedRoots = array_keys(self::BASE_DIR_MAP);
+        $validRoots   = array_values(array_intersect($requestedRoots, $allowedRoots));
+
+        if ($validRoots === []) {
+            return new JsonResponse(['error' => 'Nerasta nei viena leidžiama root reikšmė'], 404);
+        }
+
+        $result = [];
+
+        foreach ($validRoots as $root) {
+            // Archive ir deleted katalogai matomi tik ADMIN vartotojui.
+            if (in_array($root, ['archive', 'deleted'], true) && ! $this->isGranted('ROLE_ADMIN')) {
+                continue;
+            }
+
+            // Grąžiname tik root turinį (be paties root aplanko wrapper).
+            $result = array_merge($result, $this->fileService->listDirectory($root));
+        }
+
+        return new JsonResponse($result);
+    }
+    /**
      * POST /api/catalogue/create
      * Body: { "directory": "4 Tvarkos", "folderName": "Naujas", "baseDir": "templates" }
      */
@@ -124,19 +179,23 @@ final class CatalogueController extends AbstractController
         return new JsonResponse(['status' => $status], $status === 'SUCCESS' ? 200 : 500);
     }
 
+    #[Route('/api/catalogue/zip/{root}', name: 'api_catalogue_zip_root', methods: ['GET'])]
     #[Route('/api/catalogue/zip/{root}/{directory}', name: 'api_catalogue_zip', methods: ['GET'], requirements: ['directory' => '.+'])]
-    public function filterFilesByApp(string $root, string $directory): JsonResponse | BinaryFileResponse
+    public function filterFilesByApp(string $root, string $directory = ''): JsonResponse | BinaryFileResponse
     {
-        if (! in_array($root, self::BASE_DIR_MAP, true)) {
+        if (! array_key_exists($root, self::BASE_DIR_MAP)) {
             return new JsonResponse(['error' => 'Katalogas nerastas: ' . $root], 404);
         }
         if ($root === 'archive' && ! $this->isGranted('ROLE_ADMIN')) {
             return new JsonResponse(['error' => 'Archive katalogas pasiekiamas tik ADMIN'], 403);
         }
 
-        $resolved = $this->fileService->resolvePath($root, $directory);
+        $resolved = $directory === ''
+            ? $this->fileService->getBaseFullPath($root)
+            : $this->fileService->resolvePath($root, $directory);
         if ($resolved === null || ! is_dir($resolved)) {
-            return new JsonResponse(['error' => 'Katalogas nerastas: ' . $directory], 404);
+            $target = $directory === '' ? $root : $directory;
+            return new JsonResponse(['error' => 'Katalogas nerastas: ' . $target], 404);
         }
 
         try {
@@ -151,7 +210,7 @@ final class CatalogueController extends AbstractController
         $response->headers->set('Content-Type', 'application/zip');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            basename($directory) . '.zip'
+            ($directory === '' ? $root : basename($directory)) . '.zip'
         );
 
         return $response;
