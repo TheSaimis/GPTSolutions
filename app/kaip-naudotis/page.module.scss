@@ -146,6 +146,53 @@ $border: #E2E8F0;
     }
 }
 
+.navGuide {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    font-size: 0.875rem;
+    color: $text-muted;
+    line-height: 1.55;
+
+    h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 8px;
+    }
+
+    ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    li {
+        margin-bottom: 8px;
+    }
+
+    li:last-child {
+        margin-bottom: 0;
+    }
+
+    a {
+        color: $primary;
+        font-weight: 600;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    p {
+        margin: 0 0 8px;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+}
+
 // Search
 .searchWrapper {
     position: relative;

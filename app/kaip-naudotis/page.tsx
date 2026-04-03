@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { HelpCircle, Info, Copy, CheckCircle2, X, ZoomIn, Search, ChevronDown, Globe, BookOpen } from "lucide-react";
+import { HelpCircle, Info, Copy, CheckCircle2, X, ZoomIn, Search, ChevronDown, Globe, BookOpen, Layers, Shield } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./page.module.scss";
 
 import beforeImg from "./before.png";
@@ -185,15 +186,75 @@ export default function KaipNaudotiPage() {
                         <div className={styles.stepNumber}>3</div>
                         <div>
                             <h3>Įkelkite šabloną į sistemą</h3>
-                            <p>Eikite į <strong>Šablonai</strong> → dešiniu pelės mygtuku paspauskite ant aplanko → <strong>„Sukurti failą"</strong> ir pasirinkite savo Word dokumentą.</p>
+                            <p>
+                                Eikite į <Link href="/sablonai">Šablonų katalogą</Link> → dešiniu pelės mygtuku ant aplanko →{" "}
+                                <strong>„Sukurti failą“</strong> ir pasirinkite .docx arba .xlsx failą. Kelis šablonus galite pažymėti medyje ir viršuje spausti{" "}
+                                <strong>Kurti dokumentus</strong> — atsidarys masinio kūrimo vedimas.
+                            </p>
                         </div>
                     </div>
                     <div className={styles.step}>
                         <div className={styles.stepNumber}>4</div>
                         <div>
                             <h3>Generuokite dokumentus</h3>
-                            <p>Eikite į <strong>Dokumentai</strong>, pasirinkite šabloną ir įmonę — sistema automatiškai pakeis visus kintamuosius tikrais duomenimis.</p>
+                            <p>
+                                Atidarykite <Link href="/sablonai/sukurtiDokumentai">Dokumentų katalogą</Link>, pasirinkite šabloną ir užpildykite vedimą (įmonė, data ir kt.) — sistema pakeis kintamuosius tikrais duomenimis. Sukurtus failus rasite tame pačiame kataloge; senesnius galite peržiūrėti{" "}
+                                <Link href="/sablonai/archyvas">archyve</Link>.
+                            </p>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Kur kas yra sistemoje */}
+            <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                    <div className={styles.fileIcon}><Layers size={24} /></div>
+                    <div>
+                        <h2 className={styles.title}>Kur kas yra sistemoje</h2>
+                        <p className={styles.subtitle}>Šablonai, dokumentai, specialūs moduliai</p>
+                    </div>
+                </div>
+
+                <div className={styles.divider} />
+
+                <div className={styles.navGuide}>
+                    <div>
+                        <h3>Katalogai</h3>
+                        <ul>
+                            <li>
+                                <Link href="/sablonai">Šablonų katalogas</Link> — šablonai dokumentams kurti; viršuje galite atsisiųsti visą katalogą ZIP formatu.
+                            </li>
+                            <li>
+                                <Link href="/sablonai/sukurtiDokumentai">Dokumentų katalogas</Link> — sugeneruoti failai; galima atsisiųsti visą katalogą arba atidaryti{" "}
+                                <Link href="/sablonai/archyvas">Sukurtų dokumentų archyvą</Link>.
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Paieška ir filtrai</h3>
+                        <p>
+                            Šablonų ir dokumentų puslapiuose yra paieška. Filtrai (įmonė, tipas, kalba, data ir kt.) plačiame ekrane rodomi šone, o siaurame — atidaromi mygtuku{" "}
+                            <strong>Filtrai</strong>. Dokumentų kataloge datos filtras veikia pagal <strong>naujausią</strong> žinomą sukūrimo arba redagavimo datą.
+                        </p>
+                    </div>
+                    <div>
+                        <h3>Specialūs dokumentų moduliai</h3>
+                        <p>Tai atskiros formos ir vedliai (ne tik paprastas šablono pasirinkimas):</p>
+                        <ul>
+                            <li>
+                                <Link href="/sablonai/kiti/AAP">AAP</Link> — darbuotojų rizikų vertinimas.
+                            </li>
+                            <li>
+                                <Link href="/sablonai/kiti/pazyma">Sveikatos tikrinimo pažymos</Link>.
+                            </li>
+                            <li>
+                                <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>.
+                            </li>
+                            <li>
+                                <Link href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas">Nemokamai išduodamų asmeninių apsaugos priemonių sąrašas</Link>.
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -220,7 +281,33 @@ export default function KaipNaudotiPage() {
                             <li><strong>Rusų (RU)</strong> — failo pavadinime turi būti <code>RU</code>, pvz.: <code>Приказ RU.docx</code></li>
                         </ul>
                         <p>EN/RU šablonuose linksniai neveikia — vietoj jų naudojama pagrindinė forma, o pareigos, tipas ir lytis verčiami automatiškai.</p>
+                        <p>
+                            <strong>Įmonės forma:</strong> kuriant ar redaguojant įmonę (<Link href="/imones">Pridėti įmonę</Link>, sąraše — redagavimas) galite pasirinkti kalbos mygtukus{" "}
+                            <strong>LT</strong>, <strong>EN</strong> arba <strong>RU</strong>. LT rodo visus laukus (kaip anksčiau). EN ir RU palieka tik pagrindinius: pavadinimą, adresą, miestą/rajoną, vardą, pavardę ir pareigas; vardas ir pareigos įrašomi į atitinkamus anglų arba rusų kalbos laukus daugiakalbiams šablonams.
+                        </p>
                     </div>
+                </div>
+            </div>
+
+            {/* Administratoriams */}
+            <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                    <div className={styles.fileIcon}><Shield size={24} /></div>
+                    <div>
+                        <h2 className={styles.title}>Administratoriams</h2>
+                        <p className={styles.subtitle}>ROLE_ADMIN</p>
+                    </div>
+                </div>
+
+                <div className={styles.divider} />
+
+                <div className={styles.navGuide}>
+                    <p>
+                        Administratoriaus paskyroje prieinama <Link href="/admin">administravimo skydelis</Link>: ištrintų naudotojų ir įmonių peržiūra bei <strong>atkūrimas</strong> (kol duomenys dar saugomi), ištrintų failų katalogo peržiūra, audito įrašai. Ištrynimas dažniausiai yra „minkštas“ — įrašas pažymimas ištrintu ir po tam tikro laikotarpio gali būti galutinai pašalintas.
+                    </p>
+                    <p>
+                        Įmonių ir naudotojų <Link href="/imones/sarasas">sąrašuose</Link> bei <Link href="/naudotojai/sarasas">naudotojų sąraše</Link> galite filtruoti aktyvius ir ištrintus įrašus.
+                    </p>
                 </div>
             </div>
 

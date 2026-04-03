@@ -1,0 +1,38 @@
+$primary: #ef2629;
+$primary-light: rgba(239, 38, 41, 0.08);
+$text-dark: #0f172a;
+$text-muted: #64748b;
+$border: #e2e8f0;
+
+.toggleRow {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.toggleBtn {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid $border;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $text-muted;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+
+    &:hover {
+        border-color: #cbd5e1;
+        color: $text-dark;
+    }
+}
+
+.toggleBtnActive {
+    border-color: $primary;
+    background: $primary-light;
+    color: $primary;
+}

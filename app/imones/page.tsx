@@ -10,6 +10,7 @@ import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import CompanyFormLocaleToggle, { type CompanyFormLocale } from "@/components/companyForm/CompanyFormLocaleToggle";
 
 export default function ImonesPage() {
     const [companyType, setCompanyType] = useState("");
@@ -25,6 +26,11 @@ export default function ImonesPage() {
     const [categorySearch, setCategorySearch] = useState("");
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [addingCategory, setAddingCategory] = useState(false);
+    const [formLocale, setFormLocale] = useState<CompanyFormLocale>("lt");
+    const [managerFirstNameEn, setManagerFirstNameEn] = useState("");
+    const [managerFirstNameRu, setManagerFirstNameRu] = useState("");
+    const [roleEn, setRoleEn] = useState("");
+    const [roleRu, setRoleRu] = useState("");
 
     useEffect(() => {
         document.title = "Pridėti įmonę";
@@ -37,6 +43,17 @@ export default function ImonesPage() {
     const filteredCategories = categories.filter((item) =>
         item.name.toLowerCase().includes(categorySearch.toLowerCase())
     );
+
+    function handleFormLocaleChange(next: CompanyFormLocale) {
+        if (next === "en") {
+            setManagerFirstNameEn((p) => (p.trim() ? p : managerFirstName));
+            setRoleEn((p) => (p.trim() ? p : role));
+        } else if (next === "ru") {
+            setManagerFirstNameRu((p) => (p.trim() ? p : managerFirstName));
+            setRoleRu((p) => (p.trim() ? p : role));
+        }
+        setFormLocale(next);
+    }
 
     async function handleAddCategory() {
         const name = categorySearch;
@@ -60,18 +77,54 @@ export default function ImonesPage() {
 
     async function handleSubmit() {
         try {
-            await CompanyApi.companyCreate({
-                companyType,
-                companyName,
-                address,
-                cityOrDistrict,
-                code,
-                managerFirstName,
-                managerLastName,
-                managerGender,
-                role,
-                categoryId: selectedCategoryId,
-            });
+            if (formLocale === "lt") {
+                await CompanyApi.companyCreate({
+                    companyType,
+                    companyName,
+                    address,
+                    cityOrDistrict,
+                    code,
+                    managerFirstName,
+                    managerLastName,
+                    managerGender,
+                    role,
+                    categoryId: selectedCategoryId,
+                });
+            } else if (formLocale === "en") {
+                await CompanyApi.companyCreate({
+                    companyType: "",
+                    companyName,
+                    address,
+                    cityOrDistrict,
+                    code: "",
+                    managerFirstName: "",
+                    managerFirstNameEn,
+                    managerFirstNameRu: "",
+                    managerLastName,
+                    managerGender: "",
+                    role: "",
+                    roleEn,
+                    roleRu: "",
+                    categoryId: null,
+                });
+            } else {
+                await CompanyApi.companyCreate({
+                    companyType: "",
+                    companyName,
+                    address,
+                    cityOrDistrict,
+                    code: "",
+                    managerFirstName: "",
+                    managerFirstNameEn: "",
+                    managerFirstNameRu,
+                    managerLastName,
+                    managerGender: "",
+                    role: "",
+                    roleEn: "",
+                    roleRu,
+                    categoryId: null,
+                });
+            }
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
         } catch (e) {
             MessageStore.push({ title: "Klaida", message: (e as Error)?.message ?? "Nepavyko sukurti įmonės", backgroundColor: "#e53e3e" });
@@ -98,32 +151,73 @@ export default function ImonesPage() {
 
                     <div className={styles.divider} />
 
-                    <div className={styles.form}>
-                        <div className={styles.row}>
-                            <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
-                            <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
-                        </div>
+                    <CompanyFormLocaleToggle value={formLocale} onChange={handleFormLocaleChange} />
 
-                        <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis" />
+                    {formLocale === "lt" ? (
+                        <>
+                            <div className={styles.form}>
+                                <div className={styles.row}>
+                                    <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                                    <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
+                                </div>
 
-                        <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
-                        <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
-                        <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas" />
+                                <InputFieldSelect options={["Vyras", "Moteris"]} onChange={setManagerGender} placeholder="Vadovo lytis" />
 
-                        <div className={styles.row}>
-                            <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vardas" />
-                            <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
-                        </div>
+                                <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
+                                <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
+                                <InputFieldNumber regex={/^\d{0,9}$/} value={code} onChange={setCode} placeholder="Įmonės kodas" />
 
-                        <InputFieldText value={role} onChange={setRole} placeholder="Pareigos" />
-                    </div>
+                                <div className={styles.row}>
+                                    <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vardas" />
+                                    <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                                </div>
 
-                    <button className={styles.submitButton} onClick={handleSubmit}>
-                        <Save size={18} />
-                        Išsaugoti
-                    </button>
+                                <InputFieldText value={role} onChange={setRole} placeholder="Pareigos" />
+                            </div>
+
+                            <button className={styles.submitButton} onClick={handleSubmit}>
+                                <Save size={18} />
+                                Išsaugoti
+                            </button>
+                        </>
+                    ) : formLocale === "en" ? (
+                        <>
+                            <div className={styles.form}>
+                                <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
+                                <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
+                                <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
+                                <div className={styles.row}>
+                                    <InputFieldText value={managerFirstNameEn} onChange={setManagerFirstNameEn} placeholder="Vardas" />
+                                    <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                                </div>
+                                <InputFieldText value={roleEn} onChange={setRoleEn} placeholder="Pareigos" />
+                            </div>
+                            <button className={styles.submitButton} onClick={handleSubmit}>
+                                <Save size={18} />
+                                Išsaugoti
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className={styles.form}>
+                                <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
+                                <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
+                                <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
+                                <div className={styles.row}>
+                                    <InputFieldText value={managerFirstNameRu} onChange={setManagerFirstNameRu} placeholder="Vardas" />
+                                    <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                                </div>
+                                <InputFieldText value={roleRu} onChange={setRoleRu} placeholder="Pareigos" />
+                            </div>
+                            <button className={styles.submitButton} onClick={handleSubmit}>
+                                <Save size={18} />
+                                Išsaugoti
+                            </button>
+                        </>
+                    )}
                 </div>
 
+                {formLocale === "lt" && (
                 <aside className={styles.categoryPanel}>
                     <h2 className={styles.categoryTitle}>Kategorijos</h2>
                     <input
@@ -153,6 +247,7 @@ export default function ImonesPage() {
                         {addingCategory ? "Pridedama..." : "Pridėti"}
                     </button>
                 </aside>
+                )}
             </div>
         </div>
     );
