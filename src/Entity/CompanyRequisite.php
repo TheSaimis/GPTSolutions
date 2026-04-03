@@ -17,8 +17,9 @@ class CompanyRequisite
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $companyType = null;
+    #[ORM\ManyToOne(targetEntity: CompanyType::class, inversedBy: 'companyRequisites')]
+    #[ORM\JoinColumn(name: 'company_type_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?CompanyType $companyTypeRef = null;
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank(message: 'Įmonės pavadinimas yra privalomas.')]
@@ -58,8 +59,20 @@ class CompanyRequisite
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $documentDate = null;
 
-    #[ORM\Column(length: 100, nullable: true)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $role = null;
+
+    #[ORM\Column(name: 'manager_first_name_en', length: 255, nullable: true)]
+    private ?string $managerFirstNameEn = null;
+
+    #[ORM\Column(name: 'manager_first_name_ru', length: 255, nullable: true)]
+    private ?string $managerFirstNameRu = null;
+
+    #[ORM\Column(name: 'role_en', length: 255, nullable: true)]
+    private ?string $roleEn = null;
+
+    #[ORM\Column(name: 'role_ru', length: 255, nullable: true)]
+    private ?string $roleRu = null;
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $directory = null;
@@ -108,13 +121,33 @@ class CompanyRequisite
 
     public function getCompanyType(): ?string
     {
-        return $this->companyType;
+        return $this->companyTypeRef?->getTypeShort();
     }
 
-    public function setCompanyType(?string $v): static
+    public function getCompanyTypeRef(): ?CompanyType
     {
-        $this->companyType = $v;
+        return $this->companyTypeRef;
+    }
+
+    public function setCompanyTypeRef(?CompanyType $companyTypeRef): static
+    {
+        $this->companyTypeRef = $companyTypeRef;
         return $this;
+    }
+
+    /**
+     * Pilnas teisinės formos tekstas dokumentams (${tipasPilnas}): company_types.type, kitaip senasis category laukas.
+     */
+    public function resolveTipasPilnasForDocuments(): string
+    {
+        $fromType = $this->companyTypeRef?->getType();
+        if (is_string($fromType) && trim($fromType) !== '') {
+            return trim($fromType);
+        }
+
+        $legacy = $this->category;
+
+        return (is_string($legacy) && trim($legacy) !== '') ? trim($legacy) : '';
     }
 
     public function getCompanyName(): ?string
@@ -246,6 +279,50 @@ class CompanyRequisite
     public function setRole(?string $v): static
     {
         $this->role = $v;
+        return $this;
+    }
+
+    public function getManagerFirstNameEn(): ?string
+    {
+        return $this->managerFirstNameEn;
+    }
+
+    public function setManagerFirstNameEn(?string $v): static
+    {
+        $this->managerFirstNameEn = $v;
+        return $this;
+    }
+
+    public function getManagerFirstNameRu(): ?string
+    {
+        return $this->managerFirstNameRu;
+    }
+
+    public function setManagerFirstNameRu(?string $v): static
+    {
+        $this->managerFirstNameRu = $v;
+        return $this;
+    }
+
+    public function getRoleEn(): ?string
+    {
+        return $this->roleEn;
+    }
+
+    public function setRoleEn(?string $v): static
+    {
+        $this->roleEn = $v;
+        return $this;
+    }
+
+    public function getRoleRu(): ?string
+    {
+        return $this->roleRu;
+    }
+
+    public function setRoleRu(?string $v): static
+    {
+        $this->roleRu = $v;
         return $this;
     }
 

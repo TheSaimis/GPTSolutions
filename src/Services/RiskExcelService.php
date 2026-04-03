@@ -17,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet as SpreadsheetWorksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 final class RiskExcelService
@@ -24,9 +25,30 @@ final class RiskExcelService
     private const BORDER_THIN = 'thin';
     private const GRAY_FILL   = 'F2F2F2';
     private const TEMPLATE_ABSOLUTE_PATH = 'C:\\Users\\memeh\\Downloads\\AAP lentele nauja.xls';
+    /** Vienu darbuotoju užimama šablono aukštis (eil. 1–26 faile „AAP lentele nauja.xls“). */
     private const TEMPLATE_BLOCK_HEIGHT = 26;
-    private const TEMPLATE_GAP_ROWS = 1;
+    /**
+     * Eilučių skaičius nuo vienos lentelės pradžios iki kitos (1 → 30).
+     * Po pirmos lentelės šablone lieka 4 tuščios eilutės (26–29); kita lentelė nuo 30.
+     * Anksčiau buvo 26+1=27 — antra lentelė prasidėdavo 28 eilutėje ir vizualiai persidengdavo su tarpu.
+     */
+    private const TEMPLATE_BLOCK_STRIDE = 29;
     private const TEMPLATE_MAX_COL = 34;
+    /** Kiekvienos lentelės 1 eilutė — vienas sujungimas A:AH (šablonas dažnai praranda kopijuojant blokus). */
+    private const BLOCK_MAIN_TITLE = 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones';
+    private const COMPANY_ROW_MERGE_END_COL = 10;
+    private const WORKER_ROW_MERGE_END_COL   = 29;
+
+    /**
+     * Oficialaus AAP šablono parašų plotis: siauras (pareigos) D–G, vidurinis (parašas) H–Q,
+     * platus (vardas) R–AH — kitaip ilgas tekstas lieka viename siaurame stulpelyje ir „išteka“ į tinklelį.
+     */
+    private const SIGNATURE_AAP_PAREIGOS_START_COL = 4;
+    private const SIGNATURE_AAP_PAREIGOS_END_COL   = 7;
+    private const SIGNATURE_AAP_PARASAS_START_COL  = 8;
+    private const SIGNATURE_AAP_PARASAS_END_COL    = 17;
+    private const SIGNATURE_AAP_VARDAS_START_COL   = 18;
+
     /** @var array<int, float> */
     private const SOURCE_WIDTHS = [
         1 => 9.29, 2 => 14.71, 3 => 3.29, 4 => 3.29, 5 => 3.29, 6 => 2.86, 7 => 3.43, 8 => 3.29, 9 => 2.71,
@@ -74,7 +96,7 @@ final class RiskExcelService
         $bodyRowByPart  = $this->buildBodyRowMap($bodyParts);
 
         foreach ($workers as $index => $worker) {
-            $blockStart = 1 + ($index * (self::TEMPLATE_BLOCK_HEIGHT + self::TEMPLATE_GAP_ROWS));
+            $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
             if ($index > 0) {
                 $this->copyTemplateBlock($sheet, 1, $blockStart, $templateMerges);
             }
@@ -89,6 +111,8 @@ final class RiskExcelService
                 $riskPoints
             );
         }
+
+        $this->applyRiskExportPrintLayout($sheet, count($workers));
 
         $this->removeYellowFill($sheet);
 
@@ -452,19 +476,33 @@ final class RiskExcelService
         Worker $worker,
         array $riskPoints
     ): void {
-        $companyRow = $blockStart + 2;
+        $companyRow   = $blockStart + 2;
         $dataStartRow = $blockStart + 7;
-        $dataEndRow = $blockStart + 21;
-        $dateRow = $blockStart + 23;
-        $filledByRow = $blockStart + 24;
+        $dataEndRow   = $blockStart + 21;
+
+        $this->ensureMainTitleRowForBlock($sheet, $blockStart);
+
+        $this->unmergeCellsIntersectingRange($sheet, 1, self::TEMPLATE_MAX_COL, $companyRow, $companyRow);
 
         $companyLabel = trim((string) ($company->getCompanyType() ?? ''));
         $companyText = trim($companyLabel . ' ' . $companyName);
-        // Match original template anchors: B3, K3 and AD3 in each worker block.
         $sheet->setCellValue('B' . $companyRow, $companyText);
         $sheet->setCellValue('K' . $companyRow, $worker->getName());
         $sheet->setCellValue('AD' . $companyRow, 'darbo vietoje,');
-        $sheet->getStyle('K' . $companyRow)->getAlignment()
+
+        $bEnd = $this->colLetter(self::COMPANY_ROW_MERGE_END_COL);
+        $kEnd = $this->colLetter(self::WORKER_ROW_MERGE_END_COL);
+        $sheet->mergeCells('B' . $companyRow . ':' . $bEnd . $companyRow);
+        $sheet->mergeCells('K' . $companyRow . ':' . $kEnd . $companyRow);
+        $sheet->getStyle('B' . $companyRow . ':' . $bEnd . $companyRow)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $sheet->getStyle('K' . $companyRow . ':' . $kEnd . $companyRow)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $sheet->getStyle('AD' . $companyRow)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_LEFT)
             ->setVertical(Alignment::VERTICAL_CENTER);
 
@@ -482,8 +520,239 @@ final class RiskExcelService
             $sheet->setCellValue($this->colLetter($point['col']) . $row, '+');
         }
 
-        $sheet->setCellValue('B' . $dateRow, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
-        $sheet->setCellValue('B' . $filledByRow, 'Lentelę užpildė:');
+        $bBodyRange = 'B' . $dataStartRow . ':B' . $dataEndRow;
+        $sheet->getStyle($bBodyRange)->getAlignment()
+            ->setWrapText(true)
+            ->setShrinkToFit(true)
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        $this->applyBodyPartCategoryVerticalMerges($sheet, $blockStart);
+        $this->applyTemplateBlockFooterMerges($sheet, $blockStart);
+    }
+
+    /**
+     * Pašalina tik A stulpelio kategorijų sujungimus duomenų zonoje ir perkuria pagal DB
+     * (kaip šablone: „Galva“, „Įvairios“ ir kt. apjungtos vertikaliai).
+     */
+    private function applyBodyPartCategoryVerticalMerges(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart
+    ): void {
+        $dataStartRow = $blockStart + 7;
+        $dataEndRow   = $blockStart + 21;
+
+        $this->unmergeColumnAOnlyMergesInRowRange($sheet, $dataStartRow, $dataEndRow);
+
+        foreach ($this->getBodyPartCategories() as $bpCat) {
+            $lines = [];
+            foreach ($this->getBodyPartsForCategory($bpCat) as $bp) {
+                $ln = (int) $bp->getLineNumber();
+                if ($ln >= 1 && $ln <= 15) {
+                    $lines[] = $ln;
+                }
+            }
+            if ($lines === []) {
+                continue;
+            }
+            $lines = array_values(array_unique($lines));
+            sort($lines);
+
+            $runs   = [];
+            $runMin = $lines[0];
+            $runMax = $lines[0];
+            for ($i = 1, $n = count($lines); $i < $n; $i++) {
+                if ($lines[$i] === $runMax + 1) {
+                    $runMax = $lines[$i];
+                    continue;
+                }
+                $runs[] = [$runMin, $runMax];
+                $runMin = $lines[$i];
+                $runMax = $lines[$i];
+            }
+            $runs[] = [$runMin, $runMax];
+
+            foreach ($runs as [$lineFrom, $lineTo]) {
+                $r1 = $dataStartRow + ($lineFrom - 1);
+                $r2 = $dataStartRow + ($lineTo - 1);
+                if ($r1 < $dataStartRow || $r2 > $dataEndRow) {
+                    continue;
+                }
+                $sheet->setCellValue('A' . $r1, $bpCat->getName());
+                if ($r2 > $r1) {
+                    $sheet->mergeCells('A' . $r1 . ':A' . $r2);
+                }
+                $sheet->getStyle('A' . $r1)->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(true);
+            }
+        }
+    }
+
+    /**
+     * Nuima sujungimus, kurie yra tik A stulpelyje ir pilnai patenka į [minRow, maxRow].
+     */
+    private function unmergeColumnAOnlyMergesInRowRange(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $minRow,
+        int $maxRow
+    ): void {
+        $toRemove = [];
+        foreach (array_keys($sheet->getMergeCells()) as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            if ($start[0] !== 1 || $end[0] !== 1) {
+                continue;
+            }
+            if ($start[1] < $minRow || $end[1] > $maxRow) {
+                continue;
+            }
+            $toRemove[] = $range;
+        }
+        foreach ($toRemove as $range) {
+            $sheet->unmergeCells($range);
+        }
+    }
+
+    /**
+     * Data ir parašų blokas sujungtais langeliais (kaip „AAP lentele nauja.xls“ / tavo pavyzdyje).
+     */
+    private function applyTemplateBlockFooterMerges(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $blockStart
+    ): void {
+        $lastCol         = self::TEMPLATE_MAX_COL;
+        $lastLetter      = $this->colLetter($lastCol);
+        $dateRow         = $blockStart + 23;
+        $filledByRow     = $blockStart + 24;
+        $signatureLineRow  = $blockStart + 25;
+        $signatureLabelRow = $blockStart + 26;
+
+        $this->unmergeCellsIntersectingRange($sheet, 1, $lastCol, $dateRow, $signatureLabelRow);
+
+        $dateText = date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d';
+        $sheet->setCellValue('A' . $dateRow, $dateText);
+        $sheet->mergeCells('A' . $dateRow . ':' . $lastLetter . $dateRow);
+        $sheet->getStyle('A' . $dateRow . ':' . $lastLetter . $dateRow)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Tik viena eilutė — negalima sujungti iki parašų eilučių (būtų persidengiantys merge).
+        $filledByRange = 'A' . $filledByRow . ':B' . $filledByRow;
+        $sheet->mergeCells($filledByRange);
+        $sheet->setCellValue('A' . $filledByRow, 'Lentelę užpildė:');
+        $sheet->getStyle($filledByRange)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+
+        [
+            $leftStartCol,
+            $leftEndCol,
+            $midStartCol,
+            $midEndCol,
+            $rightStartCol,
+            $rightEndCol,
+        ] = $this->resolveAapSignatureColumnBounds($lastCol);
+
+        $leftStartLetter  = $this->colLetter($leftStartCol);
+        $leftEndLetter    = $this->colLetter($leftEndCol);
+        $midStartLetter   = $this->colLetter($midStartCol);
+        $midEndLetter     = $this->colLetter($midEndCol);
+        $rightStartLetter = $this->colLetter($rightStartCol);
+        $rightEndLetter   = $this->colLetter($rightEndCol);
+
+        // Kiekviena parašų zona — vienas sujungtas laukas (2 eilutės): viršuje linija, apačioje etiketė.
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $leftStartLetter,
+            $leftEndLetter,
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(pareigos)'
+        );
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $midStartLetter,
+            $midEndLetter,
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(parašas)'
+        );
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $rightStartLetter,
+            $rightEndLetter,
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(vardo raidė, pavardė)'
+        );
+    }
+
+    /**
+     * @return array{0:int,1:int,2:int,3:int,4:int,5:int} leftStart, leftEnd, midStart, midEnd, rightStart, rightEnd
+     */
+    private function resolveAapSignatureColumnBounds(int $totalCols): array
+    {
+        $last = min(max(1, $totalCols), self::TEMPLATE_MAX_COL);
+        $ls   = self::SIGNATURE_AAP_PAREIGOS_START_COL;
+        $le   = min(self::SIGNATURE_AAP_PAREIGOS_END_COL, $last);
+        if ($ls > $last) {
+            return [1, $last, 1, $last, 1, $last];
+        }
+        $ms = max($le + 1, min(self::SIGNATURE_AAP_PARASAS_START_COL, $last));
+        $me = min(self::SIGNATURE_AAP_PARASAS_END_COL, $last);
+        if ($ms > $me) {
+            $me = $ms;
+        }
+        $rs = max($me + 1, min(self::SIGNATURE_AAP_VARDAS_START_COL, $last));
+        $re = $last;
+        if ($rs > $re) {
+            $rs = $re;
+        }
+
+        return [$ls, $le, $ms, $me, $rs, $re];
+    }
+
+    /**
+     * Vienas sujungtas parašo laukas (horizontaliai per stulpelius + 2 eilutes): ne atskira linijos ir etiketės eilutės.
+     */
+    private function mergeSignatureFieldBlock(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        string $startColLetter,
+        string $endColLetter,
+        int $topRow,
+        int $bottomRow,
+        string $label
+    ): void {
+        $range = $startColLetter . $topRow . ':' . $endColLetter . $bottomRow;
+        $sheet->mergeCells($range);
+        $sheet->setCellValue($startColLetter . $topRow, $label);
+        $sheet->getStyle($range)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_BOTTOM)
+            ->setWrapText(true);
+        $sheet->getStyle($range)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
+    }
+
+    private function unmergeCellsIntersectingRange(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $minCol,
+        int $maxCol,
+        int $minRow,
+        int $maxRow
+    ): void {
+        $toRemove = [];
+        foreach (array_keys($sheet->getMergeCells()) as $range) {
+            [$start, $end] = Coordinate::rangeBoundaries($range);
+            if ($end[0] < $minCol || $start[0] > $maxCol || $end[1] < $minRow || $start[1] > $maxRow) {
+                continue;
+            }
+            $toRemove[] = $range;
+        }
+        foreach ($toRemove as $range) {
+            $sheet->unmergeCells($range);
+        }
     }
 
     private function unmergeRiskDataArea(
@@ -518,6 +787,45 @@ final class RiskExcelService
                 }
             }
         }
+    }
+
+    /**
+     * Spaudai: nuimti šablono lūžius; naują eilutės lūžį tik prieš kitą darbuotoją (ne mažinti mastelio / eilučių — lentelė lieka pilno dydžio).
+     */
+    private function applyRiskExportPrintLayout(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $workerCount): void
+    {
+        foreach (array_values($sheet->getRowBreaks()) as $break) {
+            $sheet->setBreak($break->getCoordinate(), SpreadsheetWorksheet::BREAK_NONE);
+        }
+        foreach (array_values($sheet->getColumnBreaks()) as $break) {
+            $sheet->setBreak($break->getCoordinate(), SpreadsheetWorksheet::BREAK_NONE);
+        }
+
+        for ($index = 1; $index < $workerCount; $index++) {
+            $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
+            $sheet->setBreak('A' . $blockStart, SpreadsheetWorksheet::BREAK_ROW);
+        }
+
+        $pageSetup = $sheet->getPageSetup();
+        $pageSetup->setFitToPage(false);
+        if ($pageSetup->getScale() !== null && $pageSetup->getScale() < 100) {
+            $pageSetup->setScale(100);
+        }
+    }
+
+    private function ensureMainTitleRowForBlock(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $blockStart): void
+    {
+        $r          = $blockStart;
+        $lastLetter = $this->colLetter(self::TEMPLATE_MAX_COL);
+        $this->unmergeCellsIntersectingRange($sheet, 1, self::TEMPLATE_MAX_COL, $r, $r);
+        $range = 'A' . $r . ':' . $lastLetter . $r;
+        $sheet->setCellValue('A' . $r, self::BLOCK_MAIN_TITLE);
+        $sheet->mergeCells($range);
+        $sheet->getStyle($range)->getFont()->setBold(true);
+        $sheet->getStyle($range)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
     }
 
     /**
@@ -953,6 +1261,14 @@ final class RiskExcelService
         }
         $dataEndRow = $row - 1;
 
+        if ($dataEndRow >= $subHeaderRow + 1) {
+            $sheet->getStyle('B' . ($subHeaderRow + 1) . ':B' . $dataEndRow)->getAlignment()
+                ->setWrapText(true)
+                ->setShrinkToFit(true)
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
+
         // ── Borders for entire table (from "Darbo aplinkos..." to last data row)
         if ($dataEndRow >= $tableStartRow) {
             $tableRange = 'A' . $tableStartRow . ':' . $lastColLetter . $dataEndRow;
@@ -976,53 +1292,59 @@ final class RiskExcelService
             $sheet->getColumnDimension($this->colLetter($c))->setWidth($width);
         }
 
-        // ── Footer
+        // ── Footer (tie patys AAP stulpelių plotiai kaip fillWorkerBlock: D–G, H–Q, R–AH)
         $row++;
-        $sheet->setCellValue('A' . $row, date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d');
+        $dateText = date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d';
+        $sheet->setCellValue('A' . $row, $dateText);
+        $sheet->mergeCells('A' . $row . ':' . $lastColLetter . $row);
+        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
         $row += 2;
+        $sheet->mergeCells('A' . $row . ':B' . $row);
         $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
+        $sheet->getStyle('A' . $row . ':B' . $row)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
 
         $signatureLineRow  = $row + 1;
         $signatureLabelRow = $row + 2;
 
-        $leftStartCol  = $dataStartCol;
-        $leftEndCol    = min($dataStartCol + 8, $totalCols);
-        $midStartCol   = min($leftEndCol + 1, $totalCols);
-        $midEndCol     = min($midStartCol + 5, $totalCols);
-        $rightStartCol = min($midEndCol + 1, $totalCols);
-        $rightEndCol   = $totalCols;
+        [
+            $leftStartCol,
+            $leftEndCol,
+            $midStartCol,
+            $midEndCol,
+            $rightStartCol,
+            $rightEndCol,
+        ] = $this->resolveAapSignatureColumnBounds($totalCols);
 
-        $leftStartLetter  = $this->colLetter($leftStartCol);
-        $leftEndLetter    = $this->colLetter($leftEndCol);
-        $midStartLetter   = $this->colLetter($midStartCol);
-        $midEndLetter     = $this->colLetter($midEndCol);
-        $rightStartLetter = $this->colLetter($rightStartCol);
-        $rightEndLetter   = $this->colLetter($rightEndCol);
-
-        $leftLineRange  = $leftStartLetter . $signatureLineRow . ':' . $leftEndLetter . $signatureLineRow;
-        $midLineRange   = $midStartLetter . $signatureLineRow . ':' . $midEndLetter . $signatureLineRow;
-        $rightLineRange = $rightStartLetter . $signatureLineRow . ':' . $rightEndLetter . $signatureLineRow;
-
-        $sheet->mergeCells($leftLineRange);
-        $sheet->mergeCells($midLineRange);
-        $sheet->mergeCells($rightLineRange);
-
-        $sheet->getStyle($leftLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
-        $sheet->getStyle($midLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
-        $sheet->getStyle($rightLineRange)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
-
-        $leftLabelRange  = $leftStartLetter . $signatureLabelRow . ':' . $leftEndLetter . $signatureLabelRow;
-        $midLabelRange   = $midStartLetter . $signatureLabelRow . ':' . $midEndLetter . $signatureLabelRow;
-        $rightLabelRange = $rightStartLetter . $signatureLabelRow . ':' . $rightEndLetter . $signatureLabelRow;
-
-        $sheet->mergeCells($leftLabelRange);
-        $sheet->mergeCells($midLabelRange);
-        $sheet->mergeCells($rightLabelRange);
-
-        $sheet->setCellValue($leftStartLetter . $signatureLabelRow, '(pareigos)');
-        $sheet->setCellValue($midStartLetter . $signatureLabelRow, '(parašas)');
-        $sheet->setCellValue($rightStartLetter . $signatureLabelRow, '(vardo raidė, pavardė)');
-        $this->centerRange($sheet, $leftStartLetter . $signatureLabelRow, $rightEndLetter . $signatureLabelRow);
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $this->colLetter($leftStartCol),
+            $this->colLetter($leftEndCol),
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(pareigos)'
+        );
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $this->colLetter($midStartCol),
+            $this->colLetter($midEndCol),
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(parašas)'
+        );
+        $this->mergeSignatureFieldBlock(
+            $sheet,
+            $this->colLetter($rightStartCol),
+            $this->colLetter($rightEndCol),
+            $signatureLineRow,
+            $signatureLabelRow,
+            '(vardo raidė, pavardė)'
+        );
 
         return $signatureLabelRow;
     }

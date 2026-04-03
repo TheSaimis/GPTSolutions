@@ -3,7 +3,9 @@ namespace App\Controller;
 
 use App\Entity\Category;
 use App\Entity\CompanyRequisite;
+use App\Entity\CompanyType;
 use App\Repository\CompanyRequisiteRepository;
+use App\Repository\CompanyTypeRepository;
 use App\Services\AuditLogger;
 use App\Services\ManagerGenderResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +24,7 @@ final class CompanyController extends AbstractController
         private ValidatorInterface $validator,
         private ManagerGenderResolver $genderResolver,
         private AuditLogger $auditLogger,
+        private CompanyTypeRepository $companyTypeRepository,
     ) {}
 
     #[Route('/create', name: 'api_company_create', methods: ['POST'])]
@@ -37,16 +40,20 @@ final class CompanyController extends AbstractController
         $company = new CompanyRequisite();
         $company->setCompanyName($data['companyName'] ?? '');
         $company->setCode($data['code'] ?? '');
-        $company->setCompanyType($data['companyType'] ?? null);
+        $company->setCompanyTypeRef($this->resolveCompanyTypeFromPayload($data));
         $company->setAddress($data['address'] ?? null);
         $company->setCityOrDistrict($data['cityOrDistrict'] ?? null);
         $managerType = $data['managerType'] ?? null;
         $company->setManagerType($managerType);
         $company->setManagerGender($data['managerGender'] ?? null);
         $company->setManagerFirstName($data['managerFirstName'] ?? null);
+        $company->setManagerFirstNameEn($data['managerFirstNameEn'] ?? null);
+        $company->setManagerFirstNameRu($data['managerFirstNameRu'] ?? null);
         $company->setManagerLastName($data['managerLastName'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
+        $company->setRoleEn($data['roleEn'] ?? null);
+        $company->setRoleRu($data['roleRu'] ?? null);
         $categoryId = (int) ($data['categoryId'] ?? $data['catagoryId'] ?? 0);
         if ($categoryId > 0) {
             $category = $this->em->getRepository(Category::class)->find($categoryId);
@@ -164,8 +171,23 @@ final class CompanyController extends AbstractController
             $company->setCode($data['code']);
         }
 
-        if (array_key_exists('companyType', $data)) {
-            $company->setCompanyType($data['companyType']);
+        if (array_key_exists('companyTypeId', $data) || array_key_exists('company_type_id', $data)) {
+            $tid = (int) ($data['companyTypeId'] ?? $data['company_type_id'] ?? 0);
+            if ($tid > 0) {
+                $t = $this->companyTypeRepository->find($tid);
+                $company->setCompanyTypeRef($t instanceof CompanyType ? $t : null);
+            } else {
+                $company->setCompanyTypeRef(null);
+            }
+        } elseif (array_key_exists('companyType', $data)) {
+            $short = $data['companyType'];
+            if ($short === null || trim((string) $short) === '') {
+                $company->setCompanyTypeRef(null);
+            } else {
+                $company->setCompanyTypeRef(
+                    $this->companyTypeRepository->findOneByTypeShortLoose((string) $short)
+                );
+            }
         }
 
         if (array_key_exists('address', $data)) {
@@ -189,6 +211,14 @@ final class CompanyController extends AbstractController
             $company->setManagerFirstName($data['managerFirstName']);
         }
 
+        if (array_key_exists('managerFirstNameEn', $data)) {
+            $company->setManagerFirstNameEn($data['managerFirstNameEn']);
+        }
+
+        if (array_key_exists('managerFirstNameRu', $data)) {
+            $company->setManagerFirstNameRu($data['managerFirstNameRu']);
+        }
+
         if (array_key_exists('managerLastName', $data)) {
             $company->setManagerLastName($data['managerLastName']);
         }
@@ -199,6 +229,14 @@ final class CompanyController extends AbstractController
 
         if (array_key_exists('role', $data)) {
             $company->setRole($data['role']);
+        }
+
+        if (array_key_exists('roleEn', $data)) {
+            $company->setRoleEn($data['roleEn']);
+        }
+
+        if (array_key_exists('roleRu', $data)) {
+            $company->setRoleRu($data['roleRu']);
         }
 
         if (array_key_exists('categoryId', $data) || array_key_exists('catagoryId', $data)) {
@@ -222,6 +260,8 @@ final class CompanyController extends AbstractController
         } elseif (
             isset($data['companyName'])
             || array_key_exists('companyType', $data)
+            || array_key_exists('companyTypeId', $data)
+            || array_key_exists('company_type_id', $data)
             || array_key_exists('categoryId', $data)
             || array_key_exists('catagoryId', $data)
         ) {
@@ -295,6 +335,40 @@ final class CompanyController extends AbstractController
         return new JsonResponse($result);
     }
 
+    /** @param array<string, mixed> $data */
+    private function resolveCompanyTypeFromPayload(array $data): ?CompanyType
+    {
+        $tid = (int) ($data['companyTypeId'] ?? $data['company_type_id'] ?? 0);
+        if ($tid > 0) {
+            $t = $this->companyTypeRepository->find($tid);
+
+            return $t instanceof CompanyType ? $t : null;
+        }
+
+        if (isset($data['companyType']) && trim((string) $data['companyType']) !== '') {
+            return $this->companyTypeRepository->findOneByTypeShortLoose((string) $data['companyType']);
+        }
+
+        return null;
+    }
+
+    private function companyTypeToArray(?CompanyType $t): ?array
+    {
+        if ($t === null) {
+            return null;
+        }
+
+        return [
+            'id'          => $t->getId(),
+            'typeShort'   => $t->getTypeShort(),
+            'typeShortEn' => $t->getTypeShortEn(),
+            'typeShortRu' => $t->getTypeShortRu(),
+            'type'        => $t->getType(),
+            'typeEn'      => $t->getTypeEn(),
+            'typeRu'      => $t->getTypeRu(),
+        ];
+    }
+
     private function sanitizeForFilename(string $name): string
     {
         $s = trim($name);
@@ -319,14 +393,20 @@ final class CompanyController extends AbstractController
             'companyName'      => $c->getCompanyName(),
             'code'             => $c->getCode(),
             'companyType'      => $c->getCompanyType(),
+            'companyTypeId'    => $c->getCompanyTypeRef()?->getId(),
+            'companyTypeRow'   => $this->companyTypeToArray($c->getCompanyTypeRef()),
             'address'          => $c->getAddress(),
             'cityOrDistrict'   => $c->getCityOrDistrict(),
             'managerType'      => $c->getManagerType(),
             'managerGender'    => $c->getManagerGender(),
-            'managerFirstName' => $c->getManagerFirstName(),
-            'managerLastName'  => $c->getManagerLastName(),
-            'documentDate'     => $c->getDocumentDate(),
-            'role'             => $c->getRole(),
+            'managerFirstName'   => $c->getManagerFirstName(),
+            'managerFirstNameEn' => $c->getManagerFirstNameEn(),
+            'managerFirstNameRu' => $c->getManagerFirstNameRu(),
+            'managerLastName'    => $c->getManagerLastName(),
+            'documentDate'       => $c->getDocumentDate(),
+            'role'               => $c->getRole(),
+            'roleEn'             => $c->getRoleEn(),
+            'roleRu'             => $c->getRoleRu(),
             'categoryId'       => $c->getCompanyCategory()?->getId(),
             'categoryName'     => $c->getCompanyCategory()?->getName(),
             'directory'        => $c->getDirectory(),

@@ -69,25 +69,36 @@ final class RiskController extends AbstractController
             return new JsonResponse(['error' => 'Leidžiami tik .xls ir .xlsx failai.'], 400);
         }
 
-        $projectDir = $kernel->getProjectDir();
-        $targetDir  = $projectDir . '/otherTemplates/AAP';
-
-        if (! is_dir($targetDir)) {
-            mkdir($targetDir, 0775, true);
+        $tmpPath = (string) $uploaded->getPathname();
+        if (! is_file($tmpPath)) {
+            return new JsonResponse([
+                'error' => 'Nepavyko pasiekti įkelto failo laikinoje vietoje.',
+            ], 500);
         }
 
+        $projectDir = $kernel->getProjectDir();
+        $targetDir  = $projectDir . '/otherTemplates/AAP';
         $targetPath = $targetDir . '/AAP.xlsx';
+        $saveWarning = null;
 
+        // Keep a stable copy as AAP.xlsx when directory is writable,
+        // but do not fail import if this copy cannot be written.
         try {
-            // Optional: delete old file (Windows safety)
-            if (file_exists($targetPath)) {
-                unlink($targetPath);
+            if (! is_dir($targetDir)) {
+                mkdir($targetDir, 0775, true);
             }
-            $uploaded->move($targetDir, 'AAP.xlsx');
+            if (is_dir($targetDir) && is_writable($targetDir)) {
+                if (file_exists($targetPath)) {
+                    @unlink($targetPath);
+                }
+                if (! @copy($tmpPath, $targetPath)) {
+                    $saveWarning = 'Nepavyko išsaugoti AAP.xlsx kopijos kataloge otherTemplates/AAP.';
+                }
+            } else {
+                $saveWarning = 'otherTemplates/AAP katalogas nėra writable, AAP.xlsx kopija neišsaugota.';
+            }
         } catch (\Throwable $e) {
-            return new JsonResponse([
-                'error' => 'Nepavyko išsaugoti failo: ' . $e->getMessage(),
-            ], 500);
+            $saveWarning = 'AAP.xlsx kopijos išsaugojimas nepavyko: ' . $e->getMessage();
         }
 
         $application = new Application($kernel);
@@ -96,7 +107,7 @@ final class RiskController extends AbstractController
 
         $input = new ArrayInput([
             'command' => 'app:aap:import-xls',
-            'path'    => $targetPath,
+            'path'    => $tmpPath,
             '--reset' => true,
         ]);
 
@@ -110,7 +121,11 @@ final class RiskController extends AbstractController
                 return new JsonResponse([
                     'error'  => 'Import komanda nepavyko.',
                     'output' => $output,
+<<<<<<< HEAD
                     // 'path'   => $tmpPath,
+=======
+                    'path'   => $targetPath,
+>>>>>>> 2629ae01695328b674b5dc2a619a279f86e102b7
                 ], 500);
             }
 
@@ -118,6 +133,8 @@ final class RiskController extends AbstractController
                 'status'  => 'ok',
                 'message' => 'AAP Excel importas į DB sėkmingas.',
                 'output'  => $output,
+                'warning' => $saveWarning,
+                'savedPath' => $saveWarning === null ? $targetPath : null,
             ]);
         } catch (\Throwable $e) {
             return new JsonResponse([
@@ -125,12 +142,8 @@ final class RiskController extends AbstractController
                 'class' => $e::class,
                 'file'  => $e->getFile(),
                 'line'  => $e->getLine(),
-                'path'  => $tmpPath,
+                'path'  => $targetPath,
             ], 500);
-        } finally {
-            if (isset($tmpPath) && is_file($tmpPath)) {
-                @unlink($tmpPath);
-            }
         }
     }
 }
