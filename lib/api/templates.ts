@@ -26,11 +26,16 @@ export const TemplateApi = {
   //   return api.post<{ status: string }>("/api/template/create", form);
   // },
 
-  createDocument: (companyId: number, templates: string[], custom?: CustomVariable, name?: string) => {
+  createDocument: (
+    companyId: number | null | undefined,
+    templates: string[],
+    custom?: CustomVariable,
+    name?: string
+  ) => {
     const result = api.postBlob(
       "/api/template/fillFileBulk",
       {
-        companyId,
+        ...(companyId != null && companyId > 0 ? { companyId } : {}),
         templates,
         ...(custom ? { custom } : {}),
         ...(name ? { name } : {})

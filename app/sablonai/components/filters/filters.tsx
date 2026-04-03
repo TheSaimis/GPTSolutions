@@ -7,7 +7,7 @@ import CheckBox from "@/components/inputFields/checkBox";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldDate from "@/components/inputFields/inputFieldDate";
 import { COMPANY_TYPES } from "@/lib/types/Company";
-import { ListFilter } from "lucide-react";
+import { ListFilter, X } from "lucide-react";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { toggleArrayValue, type SelectOption } from "@/lib/filters";
 
@@ -20,6 +20,11 @@ type AvailableMeta = {
   hasCreatedDate: boolean;
   companyNames: string[];
   userNames: string[];
+};
+
+type FiltersProps = {
+  isOpen?: boolean;
+  onClose?: () => void;
 };
 
 function detectLang(node: TemplateList): string {
@@ -64,7 +69,7 @@ function collectMetadata(nodes: TemplateList[]): AvailableMeta {
         const name = String(custom.createdBy).trim();
         if (name) userNameSet.add(name);
       }
-      if (custom?.created) hasCreatedDate = true;
+      if (custom?.created || custom?.modifiedAt) hasCreatedDate = true;
       if (custom?.mimeType) mimeTypes.add(String(custom.mimeType));
       languages.add(detectLang(node));
     }
@@ -84,7 +89,7 @@ function collectMetadata(nodes: TemplateList[]): AvailableMeta {
   };
 }
 
-export default function Filters() {
+export default function Filters({ isOpen, onClose }: FiltersProps) {
   const { catalogueTree, filters, setFilters } = useCatalogueTree();
 
   const available = useMemo(
@@ -112,173 +117,197 @@ export default function Filters() {
     available.hasCreatedBy ||
     available.hasCreatedDate;
 
-  return (
-    <div className={styles.container}>
-      <div className={styles.filters}>
-
-        <h1>
-          <ListFilter size={20} />
-          Filtrai
-        </h1>
-
-        {showCompanyTypeFilter && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <h2>Įmonės tipas</h2>
-            <div className={styles.checkboxGroup}>
-              {COMPANY_TYPES.map((type) => (
-                <div key={type} className={styles.types}>
-                  <CheckBox
-                    value={filters.types.includes(type)}
-                    onChange={(checked) =>
-                      setFilters(prev => ({
-                        ...prev,
-                        types: toggleArrayValue(prev.types, type, checked)
-                      }))
-                    }
-                  />
-                  <span>{type}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {available.hasCompanies && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <h2>Įmonė</h2>
-            <InputFieldSelect
-              options={companyOptions}
-              selected={filters.companies[0] ?? "Visos įmonės"}
-              onChange={(value) =>
-                setFilters(prev => ({
-                  ...prev,
-                  companies: value === "all" ? [] : [value]
-                }))
-              }
-            />
-          </div>
-        )}
-
-        {available.hasMimeVariety && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <h2>Failo formatas</h2>
-            <div className={styles.checkboxGroup}>
-              {[
-                {
-                  value: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                  label: "Word",
-                },
-                {
-                  value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                  label: "Excel",
-                },
-              ].map((mime) => (
-                <div key={mime.value} className={styles.types}>
-                  <CheckBox
-                    value={filters.mimeTypes.includes(mime.value)}
-                    onChange={(checked) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        mimeTypes: toggleArrayValue(prev.mimeTypes, mime.value, checked),
-                      }))
-                    }
-                  />
-                  <span>{mime.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {available.hasLanguageVariety && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <h2>Kalba</h2>
-            <div className={styles.checkboxGroup}>
-              {[
-                { code: "LT", label: "Lietuviu" },
-                { code: "RU", label: "Rusu" },
-                { code: "EN", label: "Anglu" },
-              ].map((lang) => (
-                <div key={lang.code} className={styles.types}>
-                  <CheckBox
-                    value={filters.languages.includes(lang.code)}
-                    onChange={(checked) =>
-                      setFilters(prev => ({
-                        ...prev,
-                        languages: toggleArrayValue(prev.languages, lang.code, checked),
-                      }))
-                    }
-                  />
-                  <span>{lang.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {available.hasCreatedBy && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <h2>Vartotojas</h2>
-            <InputFieldSelect
-              options={userOptions}
-              selected={filters.createdBy[0] ?? "Visi vartotojai"}
-              onChange={(value) =>
-                setFilters(prev => ({
-                  ...prev,
-                  createdBy: value === "all" ? [] : [value]
-                }))
-              }
-            />
-          </div>
-        )}
-
-        {available.hasCreatedDate && (
-          <div className={`${styles.filter} ${styles.sectionCard}`}>
-            <InputFieldDate
-              value={filters.createdFrom}
-              placeholder="Data nuo"
-              onChange={(value) =>
-                setFilters(prev => ({
-                  ...prev,
-                  createdFrom: value
-                }))
-              }
-            />
-            <InputFieldDate
-              value={filters.createdTo}
-              placeholder="Data iki"
-              onChange={(value) =>
-                setFilters(prev => ({
-                  ...prev,
-                  createdTo: value
-                }))
-              }
-            />
-          </div>
-        )}
-
+  const filterContent = (
+    <>
+      {showCompanyTypeFilter && (
         <div className={`${styles.filter} ${styles.sectionCard}`}>
-          <div className={styles.toggleRow}>
-            <CheckBox
-              value={filters.showEmptyDirectories}
-              onChange={(checked) =>
-                setFilters(prev => ({
-                  ...prev,
-                  showEmptyDirectories: checked
-                }))
-              }
-            />
-            <span>Rodyti tuščius aplankus</span>
+          <h2>Įmonės tipas</h2>
+          <div className={styles.checkboxGroup}>
+            {COMPANY_TYPES.map((type) => (
+              <div key={type} className={styles.types}>
+                <CheckBox
+                  value={filters.types.includes(type)}
+                  onChange={(checked) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      types: toggleArrayValue(prev.types, type, checked)
+                    }))
+                  }
+                />
+                <span>{type}</span>
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        {!hasAnyFilter && (
-          <div className={styles.helperText}>
-            Failai neturi metaduomenų filtravimui.
+      {available.hasCompanies && (
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Įmonė</h2>
+          <InputFieldSelect
+            options={companyOptions}
+            selected={filters.companies[0] ?? "Visos įmonės"}
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                companies: value === "all" ? [] : [value]
+              }))
+            }
+          />
+        </div>
+      )}
+
+      {available.hasMimeVariety && (
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Failo formatas</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              {
+                value: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                label: "Word",
+              },
+              {
+                value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                label: "Excel",
+              },
+            ].map((mime) => (
+              <div key={mime.value} className={styles.types}>
+                <CheckBox
+                  value={filters.mimeTypes.includes(mime.value)}
+                  onChange={(checked) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      mimeTypes: toggleArrayValue(prev.mimeTypes, mime.value, checked),
+                    }))
+                  }
+                />
+                <span>{mime.label}</span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
+      {available.hasLanguageVariety && (
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Kalba</h2>
+          <div className={styles.checkboxGroup}>
+            {[
+              { code: "LT", label: "Lietuviu" },
+              { code: "RU", label: "Rusu" },
+              { code: "EN", label: "Anglu" },
+            ].map((lang) => (
+              <div key={lang.code} className={styles.types}>
+                <CheckBox
+                  value={filters.languages.includes(lang.code)}
+                  onChange={(checked) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      languages: toggleArrayValue(prev.languages, lang.code, checked),
+                    }))
+                  }
+                />
+                <span>{lang.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {available.hasCreatedBy && (
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <h2>Vartotojas</h2>
+          <InputFieldSelect
+            options={userOptions}
+            selected={filters.createdBy[0] ?? "Visi vartotojai"}
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdBy: value === "all" ? [] : [value]
+              }))
+            }
+          />
+        </div>
+      )}
+
+      {available.hasCreatedDate && (
+        <div className={`${styles.filter} ${styles.sectionCard}`}>
+          <InputFieldDate
+            value={filters.createdFrom}
+            placeholder="Nuo kada redaguota/sukurta"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdFrom: value
+              }))
+            }
+          />
+          <InputFieldDate
+            value={filters.createdTo}
+            placeholder="Iki kada redaguota/sukurta"
+            onChange={(value) =>
+              setFilters(prev => ({
+                ...prev,
+                createdTo: value
+              }))
+            }
+          />
+        </div>
+      )}
+
+      <div className={`${styles.filter} ${styles.sectionCard}`}>
+        <div className={styles.toggleRow}>
+          <CheckBox
+            value={filters.showEmptyDirectories}
+            onChange={(checked) =>
+              setFilters(prev => ({
+                ...prev,
+                showEmptyDirectories: checked
+              }))
+            }
+          />
+          <span>Rodyti tuščius aplankus</span>
+        </div>
       </div>
-    </div>
+
+      {!hasAnyFilter && (
+        <div className={styles.helperText}>
+          Failai neturi metaduomenų filtravimui.
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className={styles.container}>
+        <div className={styles.filters}>
+          <h1>
+            <ListFilter size={20} />
+            Filtrai
+          </h1>
+          {filterContent}
+        </div>
+      </div>
+
+      {/* Mobile drawer */}
+      {isOpen && (
+        <>
+          <div className={styles.drawerOverlay} onClick={onClose} />
+          <div className={styles.drawer}>
+            <div className={styles.drawerHeader}>
+              <h2>Filtrai</h2>
+              <button type="button" className={styles.drawerClose} onClick={onClose}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.drawerBody}>
+              {filterContent}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

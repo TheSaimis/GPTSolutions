@@ -8,7 +8,7 @@ import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import styles from "./page.module.scss";
-import { Building2, SlidersHorizontal, X } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import {
     COMPANY_SORT_OPTIONS,
     DELETED_STATUS_OPTIONS,
@@ -18,6 +18,8 @@ import {
     type DeletedFilter,
 } from "@/lib/filters";
 
+const PAGE_SIZE = 15;
+
 export default function ImoniuSarasasPage() {
     const [companies, setCompanies] = useState<Company[] | null>(null);
     const [search, setSearch] = useState("");
@@ -25,6 +27,7 @@ export default function ImoniuSarasasPage() {
     const [sortBy, setSortBy] = useState("name-asc");
     const [deletedFilter, setDeletedFilter] = useState<DeletedFilter>("active");
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [page, setPage] = useState(1);
 
     useEffect(() => {
         document.title = "Įmonių sąrašas";
@@ -65,6 +68,26 @@ export default function ImoniuSarasasPage() {
 
         return sortCompanies(list, sortBy);
     }, [companies, search, selectedType, sortBy, deletedFilter]);
+
+    const totalFiltered = filteredCompanies.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+
+    useEffect(() => {
+        setPage(1);
+    }, [search, selectedType, sortBy, deletedFilter]);
+
+    useEffect(() => {
+        setPage((p) => Math.min(p, totalPages));
+    }, [totalPages]);
+
+    const paginatedCompanies = useMemo(() => {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        return filteredCompanies.slice(start, start + PAGE_SIZE);
+    }, [filteredCompanies, currentPage]);
+
+    const rangeFrom = totalFiltered === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+    const rangeTo = Math.min(currentPage * PAGE_SIZE, totalFiltered);
 
     const sortLabel = useMemo(
         () => COMPANY_SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? sortBy,
@@ -170,20 +193,52 @@ export default function ImoniuSarasasPage() {
                 ) : filteredCompanies.length === 0 ? (
                     <p className={styles.message}>Pagal pasirinktus filtrus įmonių nerasta.</p>
                 ) : (
-                    <div className={styles.expandableList}>
-                        <div className={styles.listHeader} aria-hidden>
-                            <span className={styles.hChevron} />
-                            <span>Tipas</span>
-                            <span>Pavadinimas</span>
-                            <span>Kodas</span>
-                            <span className={styles.hActions} />
+                    <>
+                        <div className={styles.expandableList}>
+                            <div className={styles.listHeader} aria-hidden>
+                                <span className={styles.hChevron} />
+                                <span>Tipas</span>
+                                <span>Pavadinimas</span>
+                                <span>Kodas</span>
+                                <span className={styles.hActions} />
+                            </div>
+                            {paginatedCompanies.map((company) =>
+                                company.id != null ? (
+                                    <CompanyExpandableRow key={company.id} company={company} />
+                                ) : null
+                            )}
                         </div>
-                        {filteredCompanies.map((company) =>
-                            company.id != null ? (
-                                <CompanyExpandableRow key={company.id} company={company} />
-                            ) : null
-                        )}
-                    </div>
+                        <nav className={styles.pagination} aria-label="Įmonių sąrašo puslapiavimas">
+                            <p className={styles.paginationInfo}>
+                                Rodoma {rangeFrom}–{rangeTo} iš {totalFiltered}
+                            </p>
+                            {totalPages > 1 && (
+                                <div className={styles.paginationButtons}>
+                                    <button
+                                        type="button"
+                                        className={styles.paginationBtn}
+                                        disabled={currentPage <= 1}
+                                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                        aria-label="Ankstesnis puslapis"
+                                    >
+                                        <ChevronLeft size={20} />
+                                    </button>
+                                    <span className={styles.paginationPages}>
+                                        {currentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className={styles.paginationBtn}
+                                        disabled={currentPage >= totalPages}
+                                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                        aria-label="Kitas puslapis"
+                                    >
+                                        <ChevronRight size={20} />
+                                    </button>
+                                </div>
+                            )}
+                        </nav>
+                    </>
                 )}
             </div>
         </div>

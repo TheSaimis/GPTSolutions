@@ -8,7 +8,7 @@ import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { FileText, Download } from "lucide-react";
 import { DirectoryStore, useDirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import PageBackBar from "@/components/navigation/PageBackBar";
-import styles from "../[...template]/page.module.scss";
+import styles from "../kurtiDokumenta/[...template]/page.module.scss";
 
 export default function TemplatePage() {
 

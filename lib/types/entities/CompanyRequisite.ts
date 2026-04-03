@@ -14,9 +14,13 @@ export interface CompanyRequisite {
   managerType: string | null;
   managerGender: string | null;
   managerFirstName: string | null;
+  managerFirstNameEn: string | null;
+  managerFirstNameRu: string | null;
   managerLastName: string | null;
   documentDate: string | null;
   role: string | null;
+  roleEn: string | null;
+  roleRu: string | null;
   directory: string | null;
   createdAt: string | null;
   deleted: boolean;

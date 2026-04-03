@@ -102,6 +102,34 @@ function matchesSearch(node: TemplateList, search: string) {
   return values.some((value) => normalize(value).includes(q));
 }
 
+function getLatestDate(dates: (string | undefined | null)[]): string | undefined {
+  let latest: Date | undefined;
+  let latestStr: string | undefined;
+  for (const d of dates) {
+    if (!d) continue;
+    const parsed = new Date(d);
+    if (Number.isNaN(parsed.getTime())) continue;
+    if (!latest || parsed > latest) {
+      latest = parsed;
+      latestStr = d;
+    }
+  }
+  return latestStr;
+}
+
+function matchesDateFilter(node: TemplateList, from?: string, to?: string): boolean {
+  if (!from && !to) return true;
+
+  const custom = node.metadata?.custom;
+  const dateStr = getLatestDate([
+    custom?.created,
+    custom?.modifiedAt,
+    node.createdAt,
+    node.modifiedAt,
+  ]);
+  return isWithinDateRange(dateStr, from, to);
+}
+
 function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
   const custom = node.metadata?.custom;
 
@@ -116,7 +144,7 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
     matchesTextFilter(filters.templateIds, custom?.templateId) &&
     matchesTextFilter(filters.documentIds, custom?.documentId) &&
     matchesTextFilter(filters.mimeTypes, custom?.mimeType) &&
-    isWithinDateRange(custom?.created, filters.createdFrom, filters.createdTo)
+    matchesDateFilter(node, filters.createdFrom, filters.createdTo)
   );
 }
 
