@@ -1,4 +1,4 @@
-import type { Equipment } from "./Equipment";
+import type { Equipment } from "../equipment/equipment";
 import type { Worker } from "../Worker";
 
 export interface WorkerItem {

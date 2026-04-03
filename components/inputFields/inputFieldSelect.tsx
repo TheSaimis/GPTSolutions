@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type Option =
   | string
   | {
-      value?: string;
-      label: string;
-    };
+    value?: string;
+    label: string;
+  };
 
 type Props = {
   options: Option[];
@@ -49,7 +49,7 @@ export default function InputFieldSelect({
 
   const isEmpty = normalizedOptions.length === 0;
   const effectivelyDisabled = disabled || isEmpty;
-  const selectedText = selected.trim();
+  const selectedText = typeof selected === "string" ? selected.trim() : "";
   const shownSelection = selectedText || internalSelectedLabel;
 
   const displayValue = isEmpty

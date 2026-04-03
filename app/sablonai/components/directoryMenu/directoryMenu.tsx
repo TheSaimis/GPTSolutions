@@ -8,6 +8,9 @@ import { useRouter } from "next/navigation";
 export default function DirectoryMenu() {
 
     const router = useRouter();
+    const selectedCount = useDirectoryStore(
+        (state) => state.selected.length
+      );
 
     const hasSelection = useDirectoryStore(
         (state) => state.selected.length > 0
@@ -19,7 +22,10 @@ export default function DirectoryMenu() {
 
     return (
         <div className={`${styles.directoryMenu} ${hasSelection && styles.selected}`}>
-            <button type="button" disabled={!hasSelection} onClick={clicked}>Kurti dokumentus</button>
+            <button type="button" disabled={!hasSelection} onClick={clicked}>
+                Kurti dokumentus
+                <span className={styles.countBadge}>{selectedCount}</span>
+            </button>
             <button type="button" onClick={() => DirectoryStore.clear()}>Išvalyti pasirinkimą</button>
         </div>
     );

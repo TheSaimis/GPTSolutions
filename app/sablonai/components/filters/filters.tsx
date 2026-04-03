@@ -18,7 +18,7 @@ type AvailableMeta = {
   hasLanguageVariety: boolean;
   hasCreatedBy: boolean;
   hasCreatedDate: boolean;
-  companyNames: string[];
+  companies: { value: string; label: string }[];
   userNames: string[];
 };
 
@@ -44,7 +44,7 @@ function detectLang(node: TemplateList): string {
 function collectMetadata(nodes: TemplateList[]): AvailableMeta {
   const mimeTypes = new Set<string>();
   const languages = new Set<string>();
-  const companyNameSet = new Set<string>();
+  const companyMap = new Map<string, { value: string; label: string }>();
   const userNameSet = new Set<string>();
   let hasTypes = false;
   let hasCompanies = false;
@@ -61,8 +61,24 @@ function collectMetadata(nodes: TemplateList[]): AvailableMeta {
       if (custom?.type) hasTypes = true;
       if (custom?.company) {
         hasCompanies = true;
-        const name = String(custom.company).trim();
-        if (name) companyNameSet.add(name);
+      }
+
+      const companyName = String(custom?.company ?? "").trim();
+      const companyId = String(custom?.companyId ?? "").trim();
+      if (companyName || companyId) {
+        hasCompanies = true;
+        if (companyId) {
+          const value = `id:${companyId}`;
+          const label = companyName || "Nežinoma įmonė";
+          if (!companyMap.has(value)) {
+            companyMap.set(value, { value, label });
+          }
+        } else if (companyName) {
+          const value = `name:${companyName}`;
+          if (!companyMap.has(value)) {
+            companyMap.set(value, { value, label: companyName });
+          }
+        }
       }
       if (custom?.createdBy) {
         hasCreatedBy = true;
@@ -84,7 +100,7 @@ function collectMetadata(nodes: TemplateList[]): AvailableMeta {
     hasLanguageVariety: languages.size > 1,
     hasCreatedBy,
     hasCreatedDate,
-    companyNames: Array.from(companyNameSet).sort((a, b) => a.localeCompare(b, "lt")),
+    companies: Array.from(companyMap.values()).sort((a, b) => a.label.localeCompare(b.label, "lt")),
     userNames: Array.from(userNameSet).sort((a, b) => a.localeCompare(b, "lt")),
   };
 }
@@ -99,8 +115,16 @@ export default function Filters({ isOpen, onClose }: FiltersProps) {
 
   const companyOptions: SelectOption[] = useMemo(() => [
     { value: "all", label: "Visos įmonės" },
-    ...available.companyNames.map((n) => ({ value: n, label: n })),
-  ], [available.companyNames]);
+    ...available.companies,
+  ], [available.companies]);
+  const selectedCompanyValue = filters.companyIds[0]
+    ? `id:${filters.companyIds[0]}`
+    : filters.companies[0]
+      ? `name:${filters.companies[0]}`
+      : "all";
+  const selectedCompanyLabel =
+    companyOptions.find((option) => option.value === selectedCompanyValue)?.label ?? "Visos įmonės";
+
 
   const userOptions: SelectOption[] = useMemo(() => [
     { value: "all", label: "Visi vartotojai" },
@@ -146,12 +170,20 @@ export default function Filters({ isOpen, onClose }: FiltersProps) {
           <h2>Įmonė</h2>
           <InputFieldSelect
             options={companyOptions}
-            selected={filters.companies[0] ?? "Visos įmonės"}
+            selected={selectedCompanyLabel}
             onChange={(value) =>
-              setFilters(prev => ({
-                ...prev,
-                companies: value === "all" ? [] : [value]
-              }))
+              setFilters(prev => {
+                if (value === "all") {
+                  return { ...prev, companies: [], companyIds: [] };
+                }
+                if (value.startsWith("id:")) {
+                  return { ...prev, companies: [], companyIds: [value.slice(3)] };
+                }
+                if (value.startsWith("name:")) {
+                  return { ...prev, companies: [value.slice(5)], companyIds: [] };
+                }
+                return { ...prev, companies: [value], companyIds: [] };
+              })
             }
           />
         </div>

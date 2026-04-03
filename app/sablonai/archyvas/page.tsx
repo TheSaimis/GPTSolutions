@@ -1,6 +1,7 @@
 "use client";
 
-import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { ArchiveApi } from "@/lib/api/archive";
+import { CatalougeApi } from "@/lib/api/catalouges";
 import { TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useState } from "react";
 import FileList from "../templateList/fileList";
@@ -11,14 +12,15 @@ import { CatalogueTreeProvider } from "../catalogueTreeContext";
 import { getCachedCatalogueTree, setCachedCatalogueTree } from "@/lib/cache/catalogueTreeCache";
 import { useRouter } from "next/navigation";
 import PageBackBar from "@/components/navigation/PageBackBar";
+import { downloadBlob } from "@/lib/functions/downloadBlob";
 
-export default function GeneratedFilesPage() {
+export default function ArchivedFilesPage() {
     const [templateList, setTemplateList] = useState<TemplateList[]>([]);
-    const fileType = "generated";
+    const fileType = "archive";
     const router = useRouter();
 
     useEffect(() => {
-        document.title = "Sukurti failai";
+        document.title = "Archyvas";
         async function getGeneratedFiles() {
             const cacheKey = fileType;
             const cachedTree = getCachedCatalogueTree(cacheKey);
@@ -26,7 +28,7 @@ export default function GeneratedFilesPage() {
                 setTemplateList(cachedTree);
                 return;
             }
-            const tree = await GeneratedFilesApi.getAll();
+            const tree = await ArchiveApi.getAll();
             setCachedCatalogueTree(cacheKey, tree);
             setTemplateList(tree);
         }
@@ -34,15 +36,8 @@ export default function GeneratedFilesPage() {
     }, []);
 
     async function downloadCatalogue() {
-        const { blob, filename } = await GeneratedFilesApi.getAllZip();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename || "generated.zip";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        const { blob, filename } = await CatalougeApi.catalogueDownload(fileType, "");
+        downloadBlob({ blob, filename });
     }
 
     return (
@@ -50,9 +45,9 @@ export default function GeneratedFilesPage() {
             <PageBackBar className={styles.backBar} />
             <div className={styles.header}>
                 <div className={styles.headerText}>
-                    <h1 className={styles.title}>Dokumentai</h1>
+                    <h1 className={styles.title}>Archyvas</h1>
                     <p className={styles.subtitle}>
-                        Pasirinkite veiksmą, kurį norite atlikti
+                        Šiame puslapyje galite peržiūrėti ir atsisiųsti sukurtų dokumentų archyvą.
                     </p>
                 </div>
                 <div className={styles.headerButtons}>
@@ -74,11 +69,11 @@ export default function GeneratedFilesPage() {
                     </button>
                     <button
                         type="button"
-                        onClick={() => router.push("/sablonai/archyvas")}
+                        onClick={() => router.push("/sablonai/sukurtiDokumentai")}
                         className={styles.downloadCatalogButton}
                     >
                         <ExternalLink size={18} />
-                        Sukurtų dokumentų archyvas
+                        Sukurtų dokumentų katalogas
                     </button>
                 </div>
             </div>

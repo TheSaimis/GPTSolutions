@@ -27,6 +27,11 @@ type CustomMetadata = {
     [key: string]: string | number | boolean | null | undefined | CustomVariable;
 };
 
+export type TemplateId = {
+    id: string;
+    path: string;
+};
+
 export type Metadata = {
     core?: CoreMetadata;
     custom?: CustomMetadata;

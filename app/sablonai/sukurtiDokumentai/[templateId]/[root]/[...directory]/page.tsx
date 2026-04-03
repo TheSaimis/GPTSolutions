@@ -54,11 +54,11 @@ export default function Page({ params }: PageProps) {
     async function getItems() {
       if (!templateId || !companyId || !userId) return;
       const [templateRes, companyRes, userRes] = await Promise.all([
-        TemplateApi.getById(templateId),
+        TemplateApi.getById([templateId]),
         CompanyApi.getById(Number(companyId)),
         UsersApi.getById(Number(userId)),
       ]);
-      setTemplatePath(templateRes);
+      setTemplatePath(templateRes[0].path);
       setCompany(companyRes ?? null);
       setUser(userRes);
     }

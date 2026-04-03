@@ -1,7 +1,9 @@
 import { CustomVariable } from "../types/Company";
-import { TemplateList } from "../types/TemplateList";
+import { TemplateList, TemplateId } from "../types/TemplateList";
 import { clearCachedCatalogueTree } from "../cache/catalogueTreeCache";
 import { clearWordFileCache } from "../cache/wordFileCache";
+import { resolveTemplateIdsFromCache } from "../functions/resolveTemplateIdsFromCache";
+import { MessageStore } from "../globalVariables/messages";
 import { api } from "./api";
 
 export const TemplateApi = {
@@ -9,8 +11,63 @@ export const TemplateApi = {
   getAll: () =>
     api.get<TemplateList[]>("/api/templates/all", { loadingMessage: "Kraunami šablonai..." }),
 
-  getById: (id: string) =>
-    api.get<string>(`/api/templates/id/${id}`),
+  getById: async (inputIds: string[] | string) => {
+    const ids = Array.from(
+      new Set(
+        (Array.isArray(inputIds) ? inputIds : [inputIds])
+          .map((id) => String(id).trim())
+          .filter(Boolean)
+      )
+    );
+
+    if (ids.length === 0) return [];
+
+    const cached = resolveTemplateIdsFromCache(ids);
+    const cachedIds = new Set(cached.map((item) => item.id));
+    const missingIds = ids.filter((id) => !cachedIds.has(id));
+
+    if (missingIds.length === 0) {
+      return cached;
+    }
+
+    try {
+      const remote = await api.post<TemplateId[]>(`/api/templates/id`, { ids: missingIds });
+      const byId = new Map<string, TemplateId>();
+      [...cached, ...remote].forEach((item) => {
+        if (!byId.has(item.id)) {
+          byId.set(item.id, item);
+        }
+      });
+
+      const resolved = ids
+        .map((id) => byId.get(id))
+        .filter((entry): entry is TemplateId => Boolean(entry));
+
+      if (resolved.length === 0) {
+        throw new Error("Nerastas nė vienas šablonas, tikriausiai jie ištrinti.");
+      }
+
+      if (resolved.length < ids.length) {
+        MessageStore.push({
+          title: "Įspėjimas",
+          message: "Dalis šablonų nebuvo rasta, tikriausiai jie ištrinti.",
+          backgroundColor: "#d69e2e",
+        });
+      }
+
+      return resolved;
+    } catch {
+      if (cached.length > 0) {
+        MessageStore.push({
+          title: "Įspėjimas",
+          message: "Dalis šablonų nebuvo rasta, tikriausiai jie ištrinti.",
+          backgroundColor: "#d69e2e",
+        });
+        return cached;
+      }
+      throw new Error("Nerastas nė vienas šablonas, tikriausiai jie ištrinti.");
+    }
+  },
 
   // getTemplatePDF: (path: string) =>
   //   api.getBlob(`/api/templates/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),

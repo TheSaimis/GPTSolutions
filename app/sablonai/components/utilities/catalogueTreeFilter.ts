@@ -136,11 +136,11 @@ function matchesFile(node: TemplateList, filters: CatalogueFilters): boolean {
   return (
     matchesSearch(node, filters.search) &&
     matchesExactFilter(filters.types, custom?.type) &&
-    matchesTextFilter(filters.companies, custom?.company) &&
+    matchesExactFilter(filters.companies, custom?.company) &&
     matchesLanguageFilter(filters.languages, node) &&
     matchesTextFilter(filters.createdBy, custom?.createdBy) &&
     matchesTextFilter(filters.userIds, custom?.userId) &&
-    matchesTextFilter(filters.companyIds, custom?.companyId) &&
+    matchesExactFilter(filters.companyIds, custom?.companyId) &&
     matchesTextFilter(filters.templateIds, custom?.templateId) &&
     matchesTextFilter(filters.documentIds, custom?.documentId) &&
     matchesTextFilter(filters.mimeTypes, custom?.mimeType) &&

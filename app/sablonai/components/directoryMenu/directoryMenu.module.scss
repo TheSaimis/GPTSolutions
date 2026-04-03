@@ -37,6 +37,9 @@
 .directoryMenu button:first-child {
     background: #EF2629;
     color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .directoryMenu button:first-child:hover:not(:disabled) {
@@ -58,4 +61,47 @@
     background: #F8FAFC;
     color: #0F172A;
     border-color: #cbd5e1;
+}
+
+.countBadge {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #fff;
+    color: #EF2629;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+@media (max-width: 900px) {
+    .directoryMenu {
+        width: calc(100% - 24px);
+        max-width: 640px;
+        padding: 12px 14px;
+        gap: 10px;
+        bottom: 16px;
+    }
+
+    .directoryMenu button {
+        padding: 10px 14px;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .directoryMenu {
+        flex-direction: column;
+        align-items: stretch;
+        border-radius: 12px;
+    }
+
+    .directoryMenu button {
+        width: 100%;
+        justify-content: center;
+    }
 }

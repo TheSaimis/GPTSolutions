@@ -92,7 +92,7 @@ export default function TemplatePage() {
         </Link>
         <Link
           className={styles.templateNavLink}
-          href="/sablonai/sukurtiDokumentai"
+          href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas"
         >
           Nemokamai išduodamų AP sąrašas
         </Link>

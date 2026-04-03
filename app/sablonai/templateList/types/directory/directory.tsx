@@ -2,18 +2,21 @@
 
 import styles from "../../fileList.module.scss";
 import { TemplateList } from "@/lib/types/TemplateList";
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { ChevronDown, Folder, ArrowUpToLine } from "lucide-react";
 import Files from "../file/file";
 import InputFieldFile from "@/components/inputFields/inputFieldFile";
 import DropZone from "@/components/inputFields/dropZone";
 import CreateDirectory from "./functions/createDirectory";
 import RenameDirectory from "./functions/renameDirectory";
+import { TemplateApi } from "@/lib/api/templates";
+import { DirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useDeleteFolder } from "./functions/deleteDirectory";
 import { useCreateFile } from "./functions/createFile";
 import { CatalougeApi } from "@/lib/api/catalouges";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
+import { extractTemplateIds } from "@/app/sablonai/components/utilities/extractTemplateIds";
 
 type DirectoryList = {
     name: string;
@@ -33,10 +36,16 @@ export default function Directory({ name, children, path, fileType, basedir }: D
     const { openMenuFromEvent } = useContextMenu();
     const { deleteFolder } = useDeleteFolder();
     const { createFile } = useCreateFile();
-    const role = localStorage.getItem("role");
-    function clicked() {
+    
+    const [role, setRole] = useState<string | null>(null);
+
+    const clicked = useCallback(() => {
         setCollapsed(!collapsed);
-    }
+    }, [collapsed]);
+
+    useEffect(() => {
+        setRole(localStorage.getItem("role"));
+    }, []);
 
     useEffect(() => {
         if (file) {
@@ -45,15 +54,24 @@ export default function Directory({ name, children, path, fileType, basedir }: D
         }
     }, [file, fileType, path, createFile]);
 
-    async function downloadFolder() {
+    const downloadFolder = useCallback(async () => {
         const res = await CatalougeApi.catalogueDownload(fileType ?? "", path ?? "");
         downloadBlob(res);
-    }
+    }, [fileType, path]);
 
-    
-    useEffect(() => {
-        console.log(path)
-    }, []);
+    const getTemplatePaths = useCallback(async () => {
+        const ids = extractTemplateIds(children ?? []);
+        if (ids.length === 0) {
+            return;
+        }
+        try {
+            const res = await TemplateApi.getById(ids);
+            const paths = res.map((r) => r.path);
+            paths.forEach((templatePath) => {
+                DirectoryStore.add(templatePath);
+            });
+        } catch {}
+    }, [children]);
 
     const menuItems = useMemo(
         () => [
@@ -78,6 +96,13 @@ export default function Directory({ name, children, path, fileType, basedir }: D
                     downloadFolder();
                 },
             },
+            {
+                id: "extractTemplateIds",
+                label: "Pasirinkti šablonus",
+                onClick: () => {
+                    getTemplatePaths();
+                },
+            },
             ...(role === "ROLE_ADMIN" ? [
                 {
                     id: "renameFolder",
@@ -95,14 +120,12 @@ export default function Directory({ name, children, path, fileType, basedir }: D
                 },
             ] : [])
         ],
-        [name, fileType, path, deleteFolder]
+        [name, fileType, path, deleteFolder, children, role, downloadFolder, getTemplatePaths]
     );
 
     return (
         <DropZone onFile={setFile} accept={[".docx", ".xlsx"]} className={styles.directory} >
-            <div className={styles.itemContainer}
-                onContextMenu={(e) => openMenuFromEvent(e, menuItems)}
-            >
+            <div className={styles.itemContainer} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
                 <div className={styles.item} onClick={clicked}>
                     <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
                     <Folder size={16} />
@@ -127,7 +150,6 @@ export default function Directory({ name, children, path, fileType, basedir }: D
                     <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
                 }
                 {(children ?? []).map((child) => child.type === "file" ? (
-                    
                     <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
                 ) : (
                     <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
