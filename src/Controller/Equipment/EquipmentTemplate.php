@@ -138,7 +138,6 @@ final class EquipmentTemplate extends AbstractController
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Nepavyko gauti duomenu: ' . $e->getMessage()], 500);
         }
-
         return new JsonResponse($payload);
     }
 }
