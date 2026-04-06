@@ -15,8 +15,14 @@ import CompanyFormLocaleToggle, { type CompanyFormLocale } from "@/components/co
 export default function ImonesPage() {
     const [companyType, setCompanyType] = useState("");
     const [companyName, setCompanyName] = useState("");
+    const [companyNameEn, setCompanyNameEn] = useState("");
+    const [companyNameRu, setCompanyNameRu] = useState("");
     const [address, setAddress] = useState("");
+    const [addressEn, setAddressEn] = useState("");
+    const [addressRu, setAddressRu] = useState("");
     const [cityOrDistrict, setCityOrDistrict] = useState("");
+    const [cityOrDistrictEn, setCityOrDistrictEn] = useState("");
+    const [cityOrDistrictRu, setCityOrDistrictRu] = useState("");
     const [code, setCode] = useState("");
     const [managerFirstName, setManagerFirstName] = useState("");
     const [managerLastName, setManagerLastName] = useState("");
@@ -29,6 +35,8 @@ export default function ImonesPage() {
     const [formLocale, setFormLocale] = useState<CompanyFormLocale>("lt");
     const [managerFirstNameEn, setManagerFirstNameEn] = useState("");
     const [managerFirstNameRu, setManagerFirstNameRu] = useState("");
+    const [managerLastNameEn, setManagerLastNameEn] = useState("");
+    const [managerLastNameRu, setManagerLastNameRu] = useState("");
     const [roleEn, setRoleEn] = useState("");
     const [roleRu, setRoleRu] = useState("");
 
@@ -77,54 +85,52 @@ export default function ImonesPage() {
 
     async function handleSubmit() {
         try {
-            if (formLocale === "lt") {
-                await CompanyApi.companyCreate({
-                    companyType,
-                    companyName,
-                    address,
-                    cityOrDistrict,
-                    code,
-                    managerFirstName,
-                    managerLastName,
-                    managerGender,
-                    role,
-                    categoryId: selectedCategoryId,
-                });
-            } else if (formLocale === "en") {
-                await CompanyApi.companyCreate({
-                    companyType: "",
-                    companyName,
-                    address,
-                    cityOrDistrict,
-                    code: "",
-                    managerFirstName: "",
-                    managerFirstNameEn,
-                    managerFirstNameRu: "",
-                    managerLastName,
-                    managerGender: "",
-                    role: "",
-                    roleEn,
-                    roleRu: "",
-                    categoryId: null,
-                });
-            } else {
-                await CompanyApi.companyCreate({
-                    companyType: "",
-                    companyName,
-                    address,
-                    cityOrDistrict,
-                    code: "",
-                    managerFirstName: "",
-                    managerFirstNameEn: "",
-                    managerFirstNameRu,
-                    managerLastName,
-                    managerGender: "",
-                    role: "",
-                    roleEn: "",
-                    roleRu,
-                    categoryId: null,
-                });
-            }
+            const payload = {
+                companyType,
+                companyName,
+                address,
+                cityOrDistrict,
+                code,
+                managerFirstName,
+                managerLastName,
+                managerGender,
+                role,
+                categoryId: selectedCategoryId,
+            } as const;
+
+            const optionalLocaleFields: Partial<Record<
+                | "companyNameEn"
+                | "companyNameRu"
+                | "addressEn"
+                | "addressRu"
+                | "cityOrDistrictEn"
+                | "cityOrDistrictRu"
+                | "managerFirstNameEn"
+                | "managerFirstNameRu"
+                | "managerLastNameEn"
+                | "managerLastNameRu"
+                | "roleEn"
+                | "roleRu",
+                string
+            >> = {};
+
+            if (companyNameEn.trim()) optionalLocaleFields.companyNameEn = companyNameEn.trim();
+            if (companyNameRu.trim()) optionalLocaleFields.companyNameRu = companyNameRu.trim();
+            if (addressEn.trim()) optionalLocaleFields.addressEn = addressEn.trim();
+            if (addressRu.trim()) optionalLocaleFields.addressRu = addressRu.trim();
+            if (cityOrDistrictEn.trim()) optionalLocaleFields.cityOrDistrictEn = cityOrDistrictEn.trim();
+            if (cityOrDistrictRu.trim()) optionalLocaleFields.cityOrDistrictRu = cityOrDistrictRu.trim();
+            if (managerFirstNameEn.trim()) optionalLocaleFields.managerFirstNameEn = managerFirstNameEn.trim();
+            if (managerFirstNameRu.trim()) optionalLocaleFields.managerFirstNameRu = managerFirstNameRu.trim();
+            if (managerLastNameEn.trim()) optionalLocaleFields.managerLastNameEn = managerLastNameEn.trim();
+            if (managerLastNameRu.trim()) optionalLocaleFields.managerLastNameRu = managerLastNameRu.trim();
+            if (roleEn.trim()) optionalLocaleFields.roleEn = roleEn.trim();
+            if (roleRu.trim()) optionalLocaleFields.roleRu = roleRu.trim();
+
+            await CompanyApi.companyCreate({
+                ...payload,
+                ...optionalLocaleFields,
+            });
             MessageStore.push({ title: "Sėkmingai", message: "įmonė sukurta", backgroundColor: "#22C55E" });
         } catch (e) {
             MessageStore.push({ title: "Klaida", message: (e as Error)?.message ?? "Nepavyko sukurti įmonės", backgroundColor: "#e53e3e" });
@@ -157,7 +163,7 @@ export default function ImonesPage() {
                         <>
                             <div className={styles.form}>
                                 <div className={styles.row}>
-                                    <InputFieldSelect options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                                    <InputFieldSelect label="Įmonės tipas" options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
                                     <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                                 </div>
 
@@ -183,12 +189,16 @@ export default function ImonesPage() {
                     ) : formLocale === "en" ? (
                         <>
                             <div className={styles.form}>
-                                <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
-                                <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
-                                <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
+                                <div className={styles.localeNotice}>
+                                    <h2>Anglų kalbos laukai</h2>
+                                    <p>Šie duomenys naudojami anglų kalbos šablonams ir nėra privalomi.</p>
+                                </div>
+                                <InputFieldText value={companyNameEn} onChange={setCompanyNameEn} placeholder="Įmones pavadinimas" />
+                                <InputFieldText value={addressEn} onChange={setAddressEn} placeholder="Adresas" />
+                                <InputFieldText value={cityOrDistrictEn} onChange={setCityOrDistrictEn} placeholder="Miestas/Rajonas" />
                                 <div className={styles.row}>
                                     <InputFieldText value={managerFirstNameEn} onChange={setManagerFirstNameEn} placeholder="Vardas" />
-                                    <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                                    <InputFieldText value={managerLastNameEn} onChange={setManagerLastNameEn} placeholder="Pavardė" />
                                 </div>
                                 <InputFieldText value={roleEn} onChange={setRoleEn} placeholder="Pareigos" />
                             </div>
@@ -200,12 +210,16 @@ export default function ImonesPage() {
                     ) : (
                         <>
                             <div className={styles.form}>
-                                <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
-                                <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
-                                <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
+                                <div className={styles.localeNotice}>
+                                    <h2>Rusų kalbos laukai</h2>
+                                    <p>Šie duomenys naudojami rusų kalbos šablonams ir nėra privalomi.</p>
+                                </div>
+                                <InputFieldText value={companyNameRu} onChange={setCompanyNameRu} placeholder="Įmones pavadinimas" />
+                                <InputFieldText value={addressRu} onChange={setAddressRu} placeholder="Adresas" />
+                                <InputFieldText value={cityOrDistrictRu} onChange={setCityOrDistrictRu} placeholder="Miestas/Rajonas" />
                                 <div className={styles.row}>
                                     <InputFieldText value={managerFirstNameRu} onChange={setManagerFirstNameRu} placeholder="Vardas" />
-                                    <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                                    <InputFieldText value={managerLastNameRu} onChange={setManagerLastNameRu} placeholder="Pavardė" />
                                 </div>
                                 <InputFieldText value={roleRu} onChange={setRoleRu} placeholder="Pareigos" />
                             </div>
@@ -217,7 +231,6 @@ export default function ImonesPage() {
                     )}
                 </div>
 
-                {formLocale === "lt" && (
                 <aside className={styles.categoryPanel}>
                     <h2 className={styles.categoryTitle}>Kategorijos</h2>
                     <input
@@ -247,7 +260,6 @@ export default function ImonesPage() {
                         {addingCategory ? "Pridedama..." : "Pridėti"}
                     </button>
                 </aside>
-                )}
             </div>
         </div>
     );

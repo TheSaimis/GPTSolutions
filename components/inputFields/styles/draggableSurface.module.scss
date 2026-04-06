@@ -1,0 +1,40 @@
+.surface {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+}
+
+.movable {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: 100%;
+  will-change: transform;
+}
+
+.dragHandle {
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Whole-surface drag (no separate handle) */
+.movable[data-drag-mode="full"] {
+  cursor: grab;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}

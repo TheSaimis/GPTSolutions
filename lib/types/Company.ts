@@ -16,16 +16,24 @@ export type Company = {
     companyTypeId?: number | null;
     companyTypeRow?: CompanyTypeRow | null;
     companyName?: string;
+    companyNameEn?: string | null;
+    companyNameRu?: string | null;
     code?: string;
     categoryId?: number | null;
     categoryName?: string | null;
     address?: string;
+    addressEn?: string | null;
+    addressRu?: string | null;
     cityOrDistrict?: string;
+    cityOrDistrictEn?: string | null;
+    cityOrDistrictRu?: string | null;
     managerType?: string;
     managerFirstName?: string;
     managerFirstNameEn?: string | null;
     managerFirstNameRu?: string | null;
     managerLastName?: string;
+    managerLastNameEn?: string | null;
+    managerLastNameRu?: string | null;
     managerGender?: string;
     documentDate?: string;
     modifiedAt?: string;
@@ -43,16 +51,24 @@ export const companyLabels: Record<keyof Company, string> = {
     companyTypeId: "Įmonės tipo ID",
     companyTypeRow: "Įmonės tipas (eilutė)",
     companyName: "Įmonės pavadinimas",
+    companyNameEn: "Įmonės pavadinimas (EN)",
+    companyNameRu: "Įmonės pavadinimas (RU)",
     code: "Įmonės kodas",
     categoryId: "Kategorijos ID",
     categoryName: "Kategorija",
     address: "Adresas",
+    addressEn: "Adresas (EN)",
+    addressRu: "Adresas (RU)",
     cityOrDistrict: "Miestas / rajonas",
+    cityOrDistrictEn: "Miestas / rajonas (EN)",
+    cityOrDistrictRu: "Miestas / rajonas (RU)",
     managerType: "Vadovo tipas",
     managerFirstName: "Vadovo vardas",
     managerFirstNameEn: "Vadovo vardas (EN)",
     managerFirstNameRu: "Vadovo vardas (RU)",
     managerLastName: "Vadovo pavardė",
+    managerLastNameEn: "Vadovo pavardė (EN)",
+    managerLastNameRu: "Vadovo pavardė (RU)",
     managerGender: "Vadovo lytis",
     documentDate: "Dokumento data",
     modifiedAt: "Redaguota",

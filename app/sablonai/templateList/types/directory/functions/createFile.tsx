@@ -31,47 +31,79 @@ function findFileByTemplateId(
 export function useCreateFile() {
   const { setCatalogueTree, catalogueTree, setFilters } = useCatalogueTree();
 
-  async function createFile(file: File, path: string, fileType: string) {
-    if (!file?.name || !FILE_TYPES.includes(file.type as any) || !fileType) {
+  async function createFiles(files: File[], path: string, fileType: string) {
+    const toUpload: File[] = [];
+
+    for (const file of files) {
+      if (
+        !file?.name ||
+        !(FILE_TYPES as readonly string[]).includes(file.type) ||
+        !fileType
+      ) {
+        continue;
+      }
+
+      try {
+        const parsedMetadata = await readDocxMetadataFromBlob(file);
+        const templateId = parsedMetadata.custom?.templateId ?? "";
+
+        if (templateId && fileType !== "generated") {
+          const existingFile = findFileByTemplateId(catalogueTree ?? [], templateId);
+
+          if (existingFile) {
+            setFilters((prev) => ({
+              ...prev,
+              search: existingFile.name,
+            }));
+
+            MessageStore.push({
+              title: "Toks šablonas jau egzistuoja",
+              message: `Rastas failas su tuo pačiu ID metaduomenyse: ${existingFile.name}. Norint šitą failą atnaujinti, ji ištrinkite ir įkelkite naują.`,
+              backgroundColor: "#e53e3e",
+            });
+
+            continue;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to read file metadata:", error);
+      }
+
+      toUpload.push(file);
+    }
+
+    if (toUpload.length === 0) {
       return;
     }
 
-    try {
-      const parsedMetadata = await readDocxMetadataFromBlob(file);
-      const templateId = parsedMetadata.custom?.templateId ?? "";
+    const res = await FilesApi.createFiles(toUpload, path ?? "", fileType);
 
-      if (templateId && fileType !== "generated") {
-        const existingFile = findFileByTemplateId(catalogueTree ?? [], templateId);
-
-        if (existingFile) {
-          setFilters((prev) => ({
-            ...prev,
-            search: existingFile.name,
-          }));
-
-          MessageStore.push({
-            title: "Toks šablonas jau egzistuoja",
-            message: `Rastas failas su tuo pačiu ID metaduomenyse: ${existingFile.name}. Norint šitą failą atnaujinti, ji ištrinkite ir įkelkite naują.`,
-            backgroundColor: "#e53e3e",
-          });
-
-          return;
-        }
+    for (const item of res.results) {
+      if (item.status === "SUCCESS" && item.file) {
+        setCatalogueTree((prev) => addFileToTree(prev, path ?? "", { ...item.file }));
       }
-    } catch (error) {
-      console.error("Failed to read file metadata:", error);
     }
 
-    const res = await FilesApi.createFile(file, path ?? "", fileType);
-
-    if (res.status === "SUCCESS" && res.file) {
-      const fileNode = {
-        ...res.file,
-      };
-
-      setCatalogueTree((prev) => addFileToTree(prev, path ?? "", fileNode));
+    if (res.status === "PARTIAL" || res.status === "FAIL") {
+      const failed = res.results.filter((r) => r.status === "FAIL").length;
+      if (failed > 0) {
+        MessageStore.push({
+          title: res.status === "FAIL" ? "Įkėlimas nepavyko" : "Dalį failų nepavyko įkelti",
+          message:
+            res.results
+              .filter((r) => r.status === "FAIL")
+              .map((r) => r.error ?? "Nežinoma klaida")
+              .slice(0, 5)
+              .join("; ") + (failed > 5 ? ` … (+${failed - 5})` : ""),
+          backgroundColor: "#e53e3e",
+        });
+      }
     }
   }
 
-  return { createFile };
+  async function createFile(file: File, path: string, fileType: string) {
+    await createFiles([file], path, fileType);
+  }
+
+  return { createFile, createFiles };
 }

@@ -3,13 +3,14 @@
 import { useRouter } from "next/navigation";
 import styles from "../../fileList.module.scss";
 import { FilesApi } from "@/lib/api/files";
+import type { DownloadResult } from "@/lib/api/api";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { renameFileInTree } from "@/app/sablonai/components/utilities/renameFile";
 import { removeFileFromTree } from "@/app/sablonai/components/utilities/deleteFile";
 import CheckBox from "@/components/inputFields/checkBox";
 import { File, Eye } from "lucide-react";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
-import { DirectoryStore, useDirectoryStore, } from "@/lib/globalVariables/directoriesToSend";
+import { DirectoryStore, useDirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import { formatFileSize } from "@/lib/functions/formatFileSize";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
@@ -17,15 +18,20 @@ import { useConfirmAction } from "@/components/confirmationPanel/confirmationPan
 import { FILE_TYPE_COLORS, type TemplateList } from "@/lib/types/TemplateList";
 import { useEffect, useRef, useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
+import { TEMPLATE_FILE_DRAG_MIME } from "@/app/sablonai/components/utilities/moveFileInTree";
+
 type List = {
   data: TemplateList;
   fileType: string;
 };
 
 export default function Files({ data, fileType }: List) {
-
   const router = useRouter();
-  const role = localStorage.getItem("role");
+  const [role] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("role") : null,
+  );
+  const canDragFile = role === "ROLE_ADMIN" && Boolean(fileType) && fileType !== "deleted";
+
   const selected = useDirectoryStore((s) => s.isSelected(data.path));
   const { openMenuFromEvent } = useContextMenu();
   const { setCatalogueTree } = useCatalogueTree();
@@ -58,11 +64,9 @@ export default function Files({ data, fileType }: List) {
 
   function previewPDF() {
     if (!fileType) return;
-    FilesApi.getPDF(fileType, data.path).then(
-      (res: any) => {
-        setPDFToView(res);
-      },
-    );
+    FilesApi.getPDF(fileType, data.path).then((res: DownloadResult) => {
+      setPDFToView(res);
+    });
   }
 
   function renameFile() {
@@ -74,9 +78,7 @@ export default function Files({ data, fileType }: List) {
       if (res.status === "SUCCESS") {
         setRename(false);
         setNewName(cleanedName);
-        setCatalogueTree((prev) =>
-          renameFileInTree(prev, data.path, finalName)
-        );
+        setCatalogueTree((prev) => renameFileInTree(prev, data.path, finalName));
       }
     });
   }
@@ -90,7 +92,7 @@ export default function Files({ data, fileType }: List) {
       confirmText: "Ištrinti",
       cancelText: "Atšaukti",
       icon: File,
-    })
+    });
     if (!confirmed) return;
     FilesApi.deleteFile(data.path, fileType).then((res) => {
       if (res.status === "SUCCESS") {
@@ -106,7 +108,7 @@ export default function Files({ data, fileType }: List) {
         DirectoryStore.remove(data.path);
         setCatalogueTree((prev) => removeFileFromTree(prev, data.path));
       }
-    })
+    });
   }
 
   function downloadFile() {
@@ -119,15 +121,28 @@ export default function Files({ data, fileType }: List) {
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "";
-    const date = new Date(dateStr.replace(" ", "T")); // important fix
-    return date.toLocaleDateString("lt-LT"); // Lithuanian format
+    const date = new Date(dateStr.replace(" ", "T"));
+    return date.toLocaleDateString("lt-LT");
   };
 
+  function onDragStartFile(e: React.DragEvent) {
+    if (!canDragFile || !fileType) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData(
+      TEMPLATE_FILE_DRAG_MIME,
+      JSON.stringify({ path: data.path, fileType }),
+    );
+    e.dataTransfer.effectAllowed = "move";
+  }
 
   return (
     <div>
       <div
-        className={`${styles.files} ${selected ? styles.selected : ""}`}
+        draggable={canDragFile}
+        onDragStart={onDragStartFile}
+        className={`${styles.files} ${selected ? styles.selected : ""} ${canDragFile ? styles.fileDraggable : ""}`}
         onContextMenu={(e) =>
           openMenuFromEvent(e, [
             {
@@ -199,11 +214,11 @@ export default function Files({ data, fileType }: List) {
           </div>
 
           <div className={styles.inputContainer}>
-            <button onClick={previewPDF} className={`${styles.button}`}>
+            <button type="button" onClick={previewPDF} className={`${styles.button}`}>
               <Eye size={16} className={styles.icon} />
             </button>
 
-            {fileType === "templates" &&
+            {fileType === "templates" && (
               <CheckBox
                 value={selected}
                 onChange={(checked: boolean) => {
@@ -211,7 +226,7 @@ export default function Files({ data, fileType }: List) {
                   else DirectoryStore.remove(data.path);
                 }}
               />
-            }
+            )}
           </div>
         </div>
       </div>

@@ -120,6 +120,14 @@ $border: #E2E8F0;
             background-color: #FDE8E8;
         }
 
+        .fileDraggable {
+            cursor: grab;
+
+            &:active {
+                cursor: grabbing;
+            }
+        }
+
         .empty {
             width: 100%;
             flex: 1;

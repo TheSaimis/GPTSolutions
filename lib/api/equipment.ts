@@ -1,5 +1,5 @@
 import { api, DownloadResult } from "./api";
-import { CreateFileResponse, TemplateList } from "../types/TemplateList";
+import { CreateFileResponse, CreateFilesResponse, TemplateList } from "../types/TemplateList";
 import { getEquipmentCache, addEquipmentToCache, removeEquipmentFromCache, clearEquipmentCache, setEquipmentCache } from "../cache/equipmentCache";
 import { Equipment } from "../types/equipment/equipment";
 import { WorkerItem } from "../types/entities";
@@ -25,13 +25,31 @@ export const EquipmentApi = {
 
     getPDF: (root: string, path: string) => api.getBlob(`/api/files/pdf/${root}/${path}`),
 
-    createFile: (file: File, directory: string, root: string) => {
+    createFiles: (files: File[], directory: string, root: string) => {
         const form = new FormData();
-        form.append("template", file);
+        for (const file of files) {
+            form.append("templates[]", file);
+        }
         form.append("directory", directory);
         form.append("root", root);
-        setCachedWordFile(root + "/" + directory, file);
-        return api.post<CreateFileResponse>("/api/files/create", form);
+        const dirPrefix = directory ? `${directory.replace(/\/+$/, "")}/` : "";
+        for (const file of files) {
+            setCachedWordFile(`${root}/${dirPrefix}${file.name}`, file);
+        }
+        return api.post<CreateFilesResponse>("/api/files/create", form);
+    },
+
+    createFile: async (file: File, directory: string, root: string): Promise<CreateFileResponse> => {
+        const res = await EquipmentApi.createFiles([file], directory, root);
+        const first = res.results[0];
+        if (!first) {
+            return { status: "FAIL", error: "No result from server" };
+        }
+        return {
+            status: first.status,
+            file: first.file,
+            error: first.error,
+        };
     },
 
     getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),

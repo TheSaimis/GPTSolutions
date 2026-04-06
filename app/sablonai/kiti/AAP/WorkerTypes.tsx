@@ -276,7 +276,11 @@ export default function WorkerTypes() {
             <div className={styles.importSection}>
               <h4 className={styles.importTitle}>Importuoti AAP Excel į DB</h4>
               <DropZone
-                onFile={setImportFile}
+                onFiles={(files) => {
+                  if (files[0]) {
+                    setImportFile(files[0]);
+                  }
+                }}
                 accept={[".xls", ".xlsx"]}
                 className={styles.importDropZone}
                 disabled={importingAap}

@@ -13,7 +13,7 @@ import { useCatalogueTree } from "../catalogueTreeContext";
 import { useCreateFile } from "./types/directory/functions/createFile";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { FILE_TYPES } from "@/lib/types/TemplateList";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 type FileListProps = {
     overflow?: boolean;
@@ -24,16 +24,32 @@ export default function FileList({ overflow }: FileListProps) {
     const [file, setFile] = useState<File | null>(null);
     const [create, setCreate] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const { createFile } = useCreateFile();
+    const { createFile, createFiles } = useCreateFile();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
 
     useEffect(() => {
-        if (file) {
-            createFile(file, "", fileType);
-            setFile(null);
+        if (!file) {
+            return;
         }
+        let cancelled = false;
+        void (async () => {
+            await createFile(file, "", fileType);
+            if (!cancelled) {
+                setFile(null);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [file, fileType, createFile]);
+
+    const handleDroppedFiles = useCallback(
+        async (files: File[]) => {
+            await createFiles(files, "", fileType);
+        },
+        [createFiles, fileType],
+    );
 
     const menuItems = useMemo(
         () => [
@@ -54,7 +70,7 @@ export default function FileList({ overflow }: FileListProps) {
         ], []);
 
     return (
-        <DropZone accept={FILE_TYPES} onFile={setFile} className={styles.container}>
+        <DropZone accept={FILE_TYPES} onFiles={handleDroppedFiles} className={styles.container}>
             <div style={{ display: "none" }}>
                 <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
             </div>
@@ -91,7 +107,7 @@ export default function FileList({ overflow }: FileListProps) {
                                 <Directory
                                     key={node.path ?? node.name}
                                     name={node.name}
-                                    children={node.children}
+                                    nodes={node.children}
                                     path={node.path}
                                     fileType={fileType}
                                 />

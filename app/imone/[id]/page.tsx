@@ -29,9 +29,15 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     const [loading, setLoading] = useState(!Number.isNaN(id));
     const [companyType, setCompanyType] = useState("");
     const [companyName, setCompanyName] = useState("");
+    const [companyNameEn, setCompanyNameEn] = useState("");
+    const [companyNameRu, setCompanyNameRu] = useState("");
     const [address, setAddress] = useState("");
+    const [addressEn, setAddressEn] = useState("");
+    const [addressRu, setAddressRu] = useState("");
     const [code, setCode] = useState("");
     const [cityOrDistrict, setCityOrDistrict] = useState("");
+    const [cityOrDistrictEn, setCityOrDistrictEn] = useState("");
+    const [cityOrDistrictRu, setCityOrDistrictRu] = useState("");
     const [managerType, setManagerType] = useState("");
     const [managerFirstName, setManagerFirstName] = useState("");
     const [managerLastName, setManagerLastName] = useState("");
@@ -49,6 +55,8 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     const [managerFirstNameRu, setManagerFirstNameRu] = useState("");
     const [roleEn, setRoleEn] = useState("");
     const [roleRu, setRoleRu] = useState("");
+    const [managerLastNameEn, setManagerLastNameEn] = useState("");
+    const [managerLastNameRu, setManagerLastNameRu] = useState("");
 
     useEffect(() => {
         if (Number.isNaN(id)) {
@@ -60,9 +68,15 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                 if (c) {
                     setCompanyType(c.companyType ?? "");
                     setCompanyName(c.companyName ?? "");
+                    setCompanyNameEn(c.companyNameEn ?? "");
+                    setCompanyNameRu(c.companyNameRu ?? "");
                     setAddress(c.address ?? "");
+                    setAddressEn(c.addressEn ?? "");
+                    setAddressRu(c.addressRu ?? "");
                     setCode(c.code ?? "");
                     setCityOrDistrict(c.cityOrDistrict ?? "");
+                    setCityOrDistrictEn(c.cityOrDistrictEn ?? "");
+                    setCityOrDistrictRu(c.cityOrDistrictRu ?? "");
                     setManagerType(c.managerType ?? "");
                     setManagerFirstName(c.managerFirstName ?? "");
                     setManagerLastName(c.managerLastName ?? "");
@@ -74,6 +88,8 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                     setManagerFirstNameRu(c.managerFirstNameRu ?? "");
                     setRoleEn(c.roleEn ?? "");
                     setRoleRu(c.roleRu ?? "");
+                    setManagerLastNameEn(c.managerLastNameEn ?? "");
+                    setManagerLastNameRu(c.managerLastNameRu ?? "");
                     setReadOnly({
                         createdAt: c.createdAt,
                         modifiedAt: c.modifiedAt,
@@ -90,9 +106,11 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     function handleFormLocaleChange(next: CompanyFormLocale) {
         if (next === "en") {
             setManagerFirstNameEn((p) => (p.trim() ? p : managerFirstName));
+            setManagerLastNameEn((p) => (p.trim() ? p : managerLastName));
             setRoleEn((p) => (p.trim() ? p : role));
         } else if (next === "ru") {
             setManagerFirstNameRu((p) => (p.trim() ? p : managerFirstName));
+            setManagerLastNameRu((p) => (p.trim() ? p : managerLastName));
             setRoleRu((p) => (p.trim() ? p : role));
         }
         setFormLocale(next);
@@ -151,39 +169,54 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
 
     async function handleSubmit() {
         if (Number.isNaN(id)) return;
-        let payload: Parameters<typeof CompanyApi.companyUpdate>[1];
-        if (formLocale === "lt") {
-            payload = {
-                companyType,
-                companyName,
-                address,
-                code,
-                cityOrDistrict,
-                managerType,
-                managerFirstName,
-                managerLastName,
-                managerGender,
-                role,
-            };
-        } else if (formLocale === "en") {
-            payload = {
-                companyName,
-                address,
-                cityOrDistrict,
-                managerFirstNameEn,
-                managerLastName,
-                roleEn,
-            };
-        } else {
-            payload = {
-                companyName,
-                address,
-                cityOrDistrict,
-                managerFirstNameRu,
-                managerLastName,
-                roleRu,
-            };
-        }
+
+        const basePayload = {
+            companyType,
+            companyName,
+            address,
+            code,
+            cityOrDistrict,
+            managerType,
+            managerFirstName,
+            managerLastName,
+            managerGender,
+            role,
+        } as const;
+
+        const optionalLocaleFields: Partial<Record<
+            | "companyNameEn"
+            | "companyNameRu"
+            | "addressEn"
+            | "addressRu"
+            | "cityOrDistrictEn"
+            | "cityOrDistrictRu"
+            | "managerFirstNameEn"
+            | "managerFirstNameRu"
+            | "managerLastNameEn"
+            | "managerLastNameRu"
+            | "roleEn"
+            | "roleRu",
+            string
+        >> = {};
+
+        if (companyNameEn.trim()) optionalLocaleFields.companyNameEn = companyNameEn.trim();
+        if (companyNameRu.trim()) optionalLocaleFields.companyNameRu = companyNameRu.trim();
+        if (addressEn.trim()) optionalLocaleFields.addressEn = addressEn.trim();
+        if (addressRu.trim()) optionalLocaleFields.addressRu = addressRu.trim();
+        if (cityOrDistrictEn.trim()) optionalLocaleFields.cityOrDistrictEn = cityOrDistrictEn.trim();
+        if (cityOrDistrictRu.trim()) optionalLocaleFields.cityOrDistrictRu = cityOrDistrictRu.trim();
+        if (managerFirstNameEn.trim()) optionalLocaleFields.managerFirstNameEn = managerFirstNameEn.trim();
+        if (managerFirstNameRu.trim()) optionalLocaleFields.managerFirstNameRu = managerFirstNameRu.trim();
+        if (managerLastNameEn.trim()) optionalLocaleFields.managerLastNameEn = managerLastNameEn.trim();
+        if (managerLastNameRu.trim()) optionalLocaleFields.managerLastNameRu = managerLastNameRu.trim();
+        if (roleEn.trim()) optionalLocaleFields.roleEn = roleEn.trim();
+        if (roleRu.trim()) optionalLocaleFields.roleRu = roleRu.trim();
+
+        const payload: Parameters<typeof CompanyApi.companyUpdate>[1] = {
+            ...basePayload,
+            ...optionalLocaleFields,
+        };
+
         const res = await CompanyApi.companyUpdate(id, payload);
         if (res?.status === "SUCCESS") {
             MessageStore.push({ title: "Sėkmingai", message: "Įmonė atnaujinta", backgroundColor: "#22C55E" });
@@ -274,7 +307,7 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                 {formLocale === "lt" ? (
                     <div className={styles.form}>
                         <div className={styles.row}>
-                            <InputFieldSelect options={[...COMPANY_TYPES]} selected={companyType} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                            <InputFieldSelect label="Įmonės tipas" options={[...COMPANY_TYPES]} selected={companyType} onChange={setCompanyType} placeholder="Įmonės tipas" />
                             <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmonės pavadinimas" />
                         </div>
 
@@ -283,7 +316,7 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                         <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas / rajonas" />
                         <InputFieldText value={managerType} onChange={setManagerType} placeholder="Vadovo tipas" />
 
-                        <InputFieldSelect options={["Vyras", "Moteris"]} selected={managerGender} onChange={setManagerGender} placeholder="Vadovo lytis" />
+                        <InputFieldSelect label="Vadovo lytis" options={["Vyras", "Moteris"]} selected={managerGender} onChange={setManagerGender} placeholder="Vadovo lytis" />
 
                         <div className={styles.row}>
                             <InputFieldText regex={/^[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]+$/} value={managerFirstName} onChange={setManagerFirstName} placeholder="Vadovo vardas" />
@@ -294,25 +327,33 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                     </div>
                 ) : formLocale === "en" ? (
                     <div className={styles.form}>
-                        <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
-                        <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
-                        <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
-                        <div className={styles.row}>
-                            <InputFieldText value={managerFirstNameEn} onChange={setManagerFirstNameEn} placeholder="Vardas" />
-                            <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                        <div className={styles.localeNotice}>
+                            <h2>Anglų kalbos laukai</h2>
+                            <p>Šie duomenys naudojami anglų kalbos šablonams ir nėra privalomi.</p>
                         </div>
-                        <InputFieldText value={roleEn} onChange={setRoleEn} placeholder="Pareigos" />
+                        <InputFieldText value={companyNameEn} onChange={setCompanyNameEn} placeholder="Įmonės pavadinimas (EN)" />
+                        <InputFieldText value={addressEn} onChange={setAddressEn} placeholder="Adresas (EN)" />
+                        <InputFieldText value={cityOrDistrictEn} onChange={setCityOrDistrictEn} placeholder="Miestas / rajonas (EN)" />
+                        <div className={styles.row}>
+                            <InputFieldText value={managerFirstNameEn} onChange={setManagerFirstNameEn} placeholder="Vardas (EN)" />
+                            <InputFieldText value={managerLastNameEn} onChange={setManagerLastNameEn} placeholder="Pavardė (EN)" />
+                        </div>
+                        <InputFieldText value={roleEn} onChange={setRoleEn} placeholder="Pareigos (EN)" />
                     </div>
                 ) : (
                     <div className={styles.form}>
-                        <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
-                        <InputFieldText value={address} onChange={setAddress} placeholder="Adresas" />
-                        <InputFieldText value={cityOrDistrict} onChange={setCityOrDistrict} placeholder="Miestas/Rajonas" />
-                        <div className={styles.row}>
-                            <InputFieldText value={managerFirstNameRu} onChange={setManagerFirstNameRu} placeholder="Vardas" />
-                            <InputFieldText value={managerLastName} onChange={setManagerLastName} placeholder="Pavardė" />
+                        <div className={styles.localeNotice}>
+                            <h2>Rusų kalbos laukai</h2>
+                            <p>Šie duomenys naudojami rusų kalbos šablonams ir nėra privalomi.</p>
                         </div>
-                        <InputFieldText value={roleRu} onChange={setRoleRu} placeholder="Pareigos" />
+                        <InputFieldText value={companyNameRu} onChange={setCompanyNameRu} placeholder="Įmonės pavadinimas (RU)" />
+                        <InputFieldText value={addressRu} onChange={setAddressRu} placeholder="Adresas (RU)" />
+                        <InputFieldText value={cityOrDistrictRu} onChange={setCityOrDistrictRu} placeholder="Miestas / rajonas (RU)" />
+                        <div className={styles.row}>
+                            <InputFieldText value={managerFirstNameRu} onChange={setManagerFirstNameRu} placeholder="Vardas (RU)" />
+                            <InputFieldText value={managerLastNameRu} onChange={setManagerLastNameRu} placeholder="Pavardė (RU)" />
+                        </div>
+                        <InputFieldText value={roleRu} onChange={setRoleRu} placeholder="Pareigos (RU)" />
                     </div>
                 )}
 

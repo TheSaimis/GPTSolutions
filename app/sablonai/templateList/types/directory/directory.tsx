@@ -21,12 +21,11 @@ import { extractTemplateIds } from "@/app/sablonai/components/utilities/extractT
 type DirectoryList = {
     name: string;
     fileType: string,
-    children?: TemplateList[]
+    nodes?: TemplateList[]
     path?: string
-    basedir?: string
 }
 
-export default function Directory({ name, children, path, fileType, basedir }: DirectoryList) {
+export default function Directory({ name, nodes, path, fileType }: DirectoryList) {
 
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [rename, setRename] = useState<boolean>(false);
@@ -35,24 +34,38 @@ export default function Directory({ name, children, path, fileType, basedir }: D
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
     const { deleteFolder } = useDeleteFolder();
-    const { createFile } = useCreateFile();
+    const { createFile, createFiles } = useCreateFile();
     
-    const [role, setRole] = useState<string | null>(null);
+    const [role] = useState<string | null>(() =>
+        typeof window !== "undefined" ? localStorage.getItem("role") : null,
+    );
 
     const clicked = useCallback(() => {
         setCollapsed(!collapsed);
     }, [collapsed]);
 
     useEffect(() => {
-        setRole(localStorage.getItem("role"));
-    }, []);
-
-    useEffect(() => {
-        if (file) {
-            createFile(file, path ?? "", fileType);
-            setFile(null);
+        if (!file) {
+            return;
         }
+        let cancelled = false;
+        void (async () => {
+            await createFile(file, path ?? "", fileType);
+            if (!cancelled) {
+                setFile(null);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [file, fileType, path, createFile]);
+
+    const handleDroppedFiles = useCallback(
+        async (files: File[]) => {
+            await createFiles(files, path ?? "", fileType);
+        },
+        [createFiles, fileType, path],
+    );
 
     const downloadFolder = useCallback(async () => {
         const res = await CatalougeApi.catalogueDownload(fileType ?? "", path ?? "");
@@ -60,7 +73,7 @@ export default function Directory({ name, children, path, fileType, basedir }: D
     }, [fileType, path]);
 
     const getTemplatePaths = useCallback(async () => {
-        const ids = extractTemplateIds(children ?? []);
+        const ids = extractTemplateIds(nodes ?? []);
         if (ids.length === 0) {
             return;
         }
@@ -71,7 +84,7 @@ export default function Directory({ name, children, path, fileType, basedir }: D
                 DirectoryStore.add(templatePath);
             });
         } catch {}
-    }, [children]);
+    }, [nodes]);
 
     const menuItems = useMemo(
         () => [
@@ -120,18 +133,18 @@ export default function Directory({ name, children, path, fileType, basedir }: D
                 },
             ] : [])
         ],
-        [name, fileType, path, deleteFolder, children, role, downloadFolder, getTemplatePaths]
+        [name, fileType, path, deleteFolder, role, downloadFolder, getTemplatePaths]
     );
 
     return (
-        <DropZone onFile={setFile} accept={[".docx", ".xlsx"]} className={styles.directory} >
+        <DropZone onFiles={handleDroppedFiles} accept={[".docx", ".xlsx"]} className={styles.directory} >
             <div className={styles.itemContainer} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
                 <div className={styles.item} onClick={clicked}>
                     <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
                     <Folder size={16} />
 
                     {rename ? (
-                        <RenameDirectory name={name} path={path} onFocus={setRename} fileType={fileType} folders={children?.filter((child) => child.type === "directory")} />
+                        <RenameDirectory name={name} path={path} onFocus={setRename} fileType={fileType} folders={nodes?.filter((child) => child.type === "directory")} />
                     ) : (
                         <p>{name}</p>
                     )}
@@ -147,12 +160,12 @@ export default function Directory({ name, children, path, fileType, basedir }: D
 
             <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
                 {create &&
-                    <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={children?.filter((child) => child.type === "directory")} />
+                    <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={nodes?.filter((child) => child.type === "directory")} />
                 }
-                {(children ?? []).map((child) => child.type === "file" ? (
+                {(nodes ?? []).map((child) => child.type === "file" ? (
                     <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
                 ) : (
-                    <Directory key={child.path ?? child.name} name={child.name} children={child.children} path={child.path} fileType={fileType} />
+                    <Directory key={child.path ?? child.name} name={child.name} nodes={child.children} path={child.path} fileType={fileType} />
                 )
                 )}
             </div>

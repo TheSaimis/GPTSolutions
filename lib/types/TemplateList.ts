@@ -38,9 +38,15 @@ export type Metadata = {
 };
 
 export type CreateFileResponse = {
-    status: "SUCCESS" | "FAIL";
-    file?: TemplateList;
-    error?: string;
+  status: "SUCCESS" | "FAIL";
+  file?: TemplateList;
+  error?: string;
+};
+
+/** POST /api/files/create — batch upload (always includes `results`; may be one item). */
+export type CreateFilesResponse = {
+  status: "SUCCESS" | "PARTIAL" | "FAIL";
+  results: CreateFileResponse[];
 };
 
 export type TemplateList = {
