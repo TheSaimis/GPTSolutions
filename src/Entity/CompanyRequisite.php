@@ -25,6 +25,12 @@ class CompanyRequisite
     #[Assert\NotBlank(message: 'Įmonės pavadinimas yra privalomas.')]
     private ?string $companyName = null;
 
+    #[ORM\Column(name: 'company_name_en', length: 255, nullable: true)]
+    private ?string $companyNameEn = null;
+
+    #[ORM\Column(name: 'company_name_ru', length: 255, nullable: true)]
+    private ?string $companyNameRu = null;
+
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $code = null;
 
@@ -41,8 +47,20 @@ class CompanyRequisite
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $address = null;
 
+    #[ORM\Column(name: 'address_en', length: 255, nullable: true)]
+    private ?string $addressEn = null;
+
+    #[ORM\Column(name: 'address_ru', length: 255, nullable: true)]
+    private ?string $addressRu = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $cityOrDistrict = null;
+
+    #[ORM\Column(name: 'city_or_district_en', length: 255, nullable: true)]
+    private ?string $cityOrDistrictEn = null;
+
+    #[ORM\Column(name: 'city_or_district_ru', length: 255, nullable: true)]
+    private ?string $cityOrDistrictRu = null;
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $managerType = null;
@@ -55,6 +73,12 @@ class CompanyRequisite
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $managerLastName = null;
+
+    #[ORM\Column(name: 'manager_last_name_en', length: 255, nullable: true)]
+    private ?string $managerLastNameEn = null;
+
+    #[ORM\Column(name: 'manager_last_name_ru', length: 255, nullable: true)]
+    private ?string $managerLastNameRu = null;
 
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $documentDate = null;
@@ -161,6 +185,28 @@ class CompanyRequisite
         return $this;
     }
 
+    public function getCompanyNameEn(): ?string
+    {
+        return $this->companyNameEn;
+    }
+
+    public function setCompanyNameEn(?string $v): static
+    {
+        $this->companyNameEn = $v;
+        return $this;
+    }
+
+    public function getCompanyNameRu(): ?string
+    {
+        return $this->companyNameRu;
+    }
+
+    public function setCompanyNameRu(?string $v): static
+    {
+        $this->companyNameRu = $v;
+        return $this;
+    }
+
     public function getCode(): ?string
     {
         return $this->code;
@@ -205,6 +251,28 @@ class CompanyRequisite
         return $this;
     }
 
+    public function getAddressEn(): ?string
+    {
+        return $this->addressEn;
+    }
+
+    public function setAddressEn(?string $v): static
+    {
+        $this->addressEn = $v;
+        return $this;
+    }
+
+    public function getAddressRu(): ?string
+    {
+        return $this->addressRu;
+    }
+
+    public function setAddressRu(?string $v): static
+    {
+        $this->addressRu = $v;
+        return $this;
+    }
+
     public function getCityOrDistrict(): ?string
     {
         return $this->cityOrDistrict;
@@ -213,6 +281,28 @@ class CompanyRequisite
     public function setCityOrDistrict(?string $v): static
     {
         $this->cityOrDistrict = $v;
+        return $this;
+    }
+
+    public function getCityOrDistrictEn(): ?string
+    {
+        return $this->cityOrDistrictEn;
+    }
+
+    public function setCityOrDistrictEn(?string $v): static
+    {
+        $this->cityOrDistrictEn = $v;
+        return $this;
+    }
+
+    public function getCityOrDistrictRu(): ?string
+    {
+        return $this->cityOrDistrictRu;
+    }
+
+    public function setCityOrDistrictRu(?string $v): static
+    {
+        $this->cityOrDistrictRu = $v;
         return $this;
     }
 
@@ -257,6 +347,28 @@ class CompanyRequisite
     public function setManagerLastName(?string $v): static
     {
         $this->managerLastName = $v;
+        return $this;
+    }
+
+    public function getManagerLastNameEn(): ?string
+    {
+        return $this->managerLastNameEn;
+    }
+
+    public function setManagerLastNameEn(?string $v): static
+    {
+        $this->managerLastNameEn = $v;
+        return $this;
+    }
+
+    public function getManagerLastNameRu(): ?string
+    {
+        return $this->managerLastNameRu;
+    }
+
+    public function setManagerLastNameRu(?string $v): static
+    {
+        $this->managerLastNameRu = $v;
         return $this;
     }
 

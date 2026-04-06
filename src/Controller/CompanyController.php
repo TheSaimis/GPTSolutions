@@ -39,10 +39,16 @@ final class CompanyController extends AbstractController
 
         $company = new CompanyRequisite();
         $company->setCompanyName($data['companyName'] ?? '');
+        $company->setCompanyNameEn($data['companyNameEn'] ?? null);
+        $company->setCompanyNameRu($data['companyNameRu'] ?? null);
         $company->setCode($data['code'] ?? '');
         $company->setCompanyTypeRef($this->resolveCompanyTypeFromPayload($data));
         $company->setAddress($data['address'] ?? null);
+        $company->setAddressEn($data['addressEn'] ?? null);
+        $company->setAddressRu($data['addressRu'] ?? null);
         $company->setCityOrDistrict($data['cityOrDistrict'] ?? null);
+        $company->setCityOrDistrictEn($data['cityOrDistrictEn'] ?? null);
+        $company->setCityOrDistrictRu($data['cityOrDistrictRu'] ?? null);
         $managerType = $data['managerType'] ?? null;
         $company->setManagerType($managerType);
         $company->setManagerGender($data['managerGender'] ?? null);
@@ -50,6 +56,8 @@ final class CompanyController extends AbstractController
         $company->setManagerFirstNameEn($data['managerFirstNameEn'] ?? null);
         $company->setManagerFirstNameRu($data['managerFirstNameRu'] ?? null);
         $company->setManagerLastName($data['managerLastName'] ?? null);
+        $company->setManagerLastNameEn($data['managerLastNameEn'] ?? null);
+        $company->setManagerLastNameRu($data['managerLastNameRu'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
         $company->setRole($data['role'] ?? null);
         $company->setRoleEn($data['roleEn'] ?? null);
@@ -166,6 +174,12 @@ final class CompanyController extends AbstractController
             }
             $company->setCompanyName($newName);
         }
+        if (array_key_exists('companyNameEn', $data)) {
+            $company->setCompanyNameEn($data['companyNameEn']);
+        }
+        if (array_key_exists('companyNameRu', $data)) {
+            $company->setCompanyNameRu($data['companyNameRu']);
+        }
 
         if (isset($data['code'])) {
             $company->setCode($data['code']);
@@ -193,9 +207,21 @@ final class CompanyController extends AbstractController
         if (array_key_exists('address', $data)) {
             $company->setAddress($data['address']);
         }
+        if (array_key_exists('addressEn', $data)) {
+            $company->setAddressEn($data['addressEn']);
+        }
+        if (array_key_exists('addressRu', $data)) {
+            $company->setAddressRu($data['addressRu']);
+        }
 
         if (array_key_exists('cityOrDistrict', $data)) {
             $company->setCityOrDistrict($data['cityOrDistrict']);
+        }
+        if (array_key_exists('cityOrDistrictEn', $data)) {
+            $company->setCityOrDistrictEn($data['cityOrDistrictEn']);
+        }
+        if (array_key_exists('cityOrDistrictRu', $data)) {
+            $company->setCityOrDistrictRu($data['cityOrDistrictRu']);
         }
 
         if (array_key_exists('managerType', $data)) {
@@ -221,6 +247,12 @@ final class CompanyController extends AbstractController
 
         if (array_key_exists('managerLastName', $data)) {
             $company->setManagerLastName($data['managerLastName']);
+        }
+        if (array_key_exists('managerLastNameEn', $data)) {
+            $company->setManagerLastNameEn($data['managerLastNameEn']);
+        }
+        if (array_key_exists('managerLastNameRu', $data)) {
+            $company->setManagerLastNameRu($data['managerLastNameRu']);
         }
 
         if (array_key_exists('documentDate', $data)) {
@@ -391,18 +423,26 @@ final class CompanyController extends AbstractController
         return [
             'id'               => $c->getId(),
             'companyName'      => $c->getCompanyName(),
+            'companyNameEn'    => $c->getCompanyNameEn(),
+            'companyNameRu'    => $c->getCompanyNameRu(),
             'code'             => $c->getCode(),
             'companyType'      => $c->getCompanyType(),
             'companyTypeId'    => $c->getCompanyTypeRef()?->getId(),
             'companyTypeRow'   => $this->companyTypeToArray($c->getCompanyTypeRef()),
             'address'          => $c->getAddress(),
+            'addressEn'        => $c->getAddressEn(),
+            'addressRu'        => $c->getAddressRu(),
             'cityOrDistrict'   => $c->getCityOrDistrict(),
+            'cityOrDistrictEn' => $c->getCityOrDistrictEn(),
+            'cityOrDistrictRu' => $c->getCityOrDistrictRu(),
             'managerType'      => $c->getManagerType(),
             'managerGender'    => $c->getManagerGender(),
             'managerFirstName'   => $c->getManagerFirstName(),
             'managerFirstNameEn' => $c->getManagerFirstNameEn(),
             'managerFirstNameRu' => $c->getManagerFirstNameRu(),
             'managerLastName'    => $c->getManagerLastName(),
+            'managerLastNameEn'  => $c->getManagerLastNameEn(),
+            'managerLastNameRu'  => $c->getManagerLastNameRu(),
             'documentDate'       => $c->getDocumentDate(),
             'role'               => $c->getRole(),
             'roleEn'             => $c->getRoleEn(),

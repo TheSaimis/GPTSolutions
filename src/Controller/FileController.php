@@ -7,6 +7,7 @@ use App\Services\FileService;
 use App\Services\GetPDF;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
@@ -65,14 +66,21 @@ final class FileController extends AbstractController
         ]);
     }
 
+    /**
+     * POST multipart: root, directory, and either
+     * - template: single UploadedFile (legacy), or
+     * - templates: one or more files (field name "templates" / "templates[]").
+     *
+     * Response JSON: { "status": "SUCCESS"|"PARTIAL"|"FAIL", "results": [ per-file addWordDocument results ] }
+     */
     #[Route('/create', name: 'api_files_upload', methods: ['POST'])]
     public function upload(Request $request): JsonResponse
     {
         $root = trim((string) $request->request->get('root', ''));
         $path = trim((string) $request->request->get('directory', ''));
-        $file = $request->files->get('template');
-        if (! $file) {
-            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
+        $uploadedFiles = $this->collectUploadedFiles($request);
+        if ($uploadedFiles === []) {
+            return new JsonResponse(['error' => 'Missing file field "template" or "templates"'], 400);
         }
         if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
@@ -86,11 +94,69 @@ final class FileController extends AbstractController
             $path = substr($path, strlen($root) + 1);
         }
 
-        $result = $this->addWordDocument->addWordDocument($file, $path, $root);
+        $results    = [];
+        $anySuccess = false;
+        $anyFail    = false;
+        foreach ($uploadedFiles as $file) {
+            $result = $this->addWordDocument->addWordDocument($file, $path, $root);
+            $results[] = $result;
+            if (($result['status'] ?? '') === 'SUCCESS') {
+                $anySuccess = true;
+            } else {
+                $anyFail = true;
+            }
+        }
 
-        $this->auditLogger->log("Ä®keltas failas Ä¯ {$root}/{$path}");
+        $count = count($results);
+        $this->auditLogger->log("Įkelta failų ({$count}) į {$root}/{$path}");
 
-        return new JsonResponse($result);
+        $overall = $anyFail && ! $anySuccess ? 'FAIL' : ($anyFail ? 'PARTIAL' : 'SUCCESS');
+
+        return new JsonResponse([
+            'status'  => $overall,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * Collects `template`, `templates`, or `templates[]` (and similar keys browsers send).
+     *
+     * @return list<UploadedFile>
+     */
+    private function collectUploadedFiles(Request $request): array
+    {
+        $out = [];
+        foreach ($request->files->all() as $key => $raw) {
+            $key = (string) $key;
+            if ($key === 'template' || $key === 'templates' || str_starts_with($key, 'templates')) {
+                $out = array_merge($out, $this->normalizeUploadedFiles($raw));
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param mixed $raw
+     *
+     * @return list<UploadedFile>
+     */
+    private function normalizeUploadedFiles(mixed $raw): array
+    {
+        if ($raw instanceof UploadedFile) {
+            return [$raw];
+        }
+        if (! is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $item) {
+            if ($item instanceof UploadedFile) {
+                $out[] = $item;
+            }
+        }
+
+        return $out;
     }
 
     #[Route('/rename', name: 'api_file_rename', methods: ['POST'])]
