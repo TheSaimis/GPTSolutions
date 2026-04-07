@@ -25,14 +25,12 @@ final class RiskExcelService
     private const BORDER_THIN = 'thin';
     private const GRAY_FILL   = 'F2F2F2';
     private const TEMPLATE_ABSOLUTE_PATH = 'C:\\Users\\memeh\\Downloads\\AAP lentele nauja.xls';
-    /** Vienu darbuotoju užimama šablono aukštis (eil. 1–26 faile „AAP lentele nauja.xls“). */
-    private const TEMPLATE_BLOCK_HEIGHT = 26;
+    /** Vieno darbuotojo blokas (su parašų eilute) užima 27 eilutes. */
+    private const TEMPLATE_BLOCK_HEIGHT = 27;
     /**
-     * Eilučių skaičius nuo vienos lentelės pradžios iki kitos (1 → 30).
-     * Po pirmos lentelės šablone lieka 4 tuščios eilutės (26–29); kita lentelė nuo 30.
-     * Anksčiau buvo 26+1=27 — antra lentelė prasidėdavo 28 eilutėje ir vizualiai persidengdavo su tarpu.
+     * Keep worker blocks contiguous to avoid spacer-only printed pages between blocks.
      */
-    private const TEMPLATE_BLOCK_STRIDE = 29;
+    private const TEMPLATE_BLOCK_STRIDE = self::TEMPLATE_BLOCK_HEIGHT;
     private const TEMPLATE_MAX_COL = 34;
     /** Kiekvienos lentelės 1 eilutė — vienas sujungimas A:AH (šablonas dažnai praranda kopijuojant blokus). */
     private const BLOCK_MAIN_TITLE = 'Profesinės rizikos veiksnių įvertinimo, parenkant asmenines apsaugos priemones';
@@ -803,7 +801,7 @@ final class RiskExcelService
 
         for ($index = 1; $index < $workerCount; $index++) {
             $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
-            $sheet->setBreak('A' . $blockStart, SpreadsheetWorksheet::BREAK_ROW);
+            $sheet->setBreak('A' . $blockStart - 1, SpreadsheetWorksheet::BREAK_ROW);
         }
 
         $pageSetup = $sheet->getPageSetup();
