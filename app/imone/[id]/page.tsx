@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 import { Building2, Save, Trash } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
+import { CompanyTypeApi } from "@/lib/api/companyTypes";
 import { MessageStore } from "@/lib/globalVariables/messages";
-import { COMPANY_TYPES } from "@/lib/types/Company";
+import type { CompanyTypeRow } from "@/lib/types/Company";
+import {
+    applyCompanyTypeSelection,
+    buildCompanyTypeDropdownOptions,
+} from "@/lib/companyTypeSelect";
 import Link from "next/link";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
@@ -28,6 +33,8 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
 
     const [loading, setLoading] = useState(!Number.isNaN(id));
     const [companyType, setCompanyType] = useState("");
+    const [companyTypeRows, setCompanyTypeRows] = useState<CompanyTypeRow[]>([]);
+    const [companyTypeId, setCompanyTypeId] = useState<number | null>(null);
     const [companyName, setCompanyName] = useState("");
     const [companyNameEn, setCompanyNameEn] = useState("");
     const [companyNameRu, setCompanyNameRu] = useState("");
@@ -63,10 +70,29 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
             return;
         }
         document.title = "Redaguoti įmonę";
-        CompanyApi.getById(id)
-            .then((c) => {
+        Promise.all([
+            CompanyApi.getById(id),
+            CompanyTypeApi.getAll().catch(() => [] as CompanyTypeRow[]),
+        ])
+            .then(([c, types]) => {
+                const list = Array.isArray(types) ? types : [];
+                setCompanyTypeRows(list);
+                const typesFromDb = list.length > 0;
                 if (c) {
                     setCompanyType(c.companyType ?? "");
+                    if (typesFromDb) {
+                        let tid = c.companyTypeId ?? null;
+                        if ((tid == null || tid <= 0) && c.companyType) {
+                            const want = c.companyType.trim().toLowerCase();
+                            const match = list.find(
+                                (t) => t.typeShort.trim().toLowerCase() === want
+                            );
+                            if (match) tid = match.id;
+                        }
+                        setCompanyTypeId(tid != null && tid > 0 ? tid : null);
+                    } else {
+                        setCompanyTypeId(null);
+                    }
                     setCompanyName(c.companyName ?? "");
                     setCompanyNameEn(c.companyNameEn ?? "");
                     setCompanyNameRu(c.companyNameRu ?? "");
@@ -170,8 +196,8 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
     async function handleSubmit() {
         if (Number.isNaN(id)) return;
 
+        const { fromDatabase: typesFromDb } = buildCompanyTypeDropdownOptions(companyTypeRows);
         const basePayload = {
-            companyType,
             companyName,
             address,
             code,
@@ -181,6 +207,11 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
             managerLastName,
             managerGender,
             role,
+            ...(typesFromDb && companyTypeId != null && companyTypeId > 0
+                ? { companyTypeId }
+                : !typesFromDb && companyType.trim()
+                  ? { companyType: companyType.trim() }
+                  : {}),
         } as const;
 
         const optionalLocaleFields: Partial<Record<
@@ -235,6 +266,13 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
             </div>
         );
     }
+
+    const { fromDatabase: companyTypesFromDb, options: companyTypeOptions } =
+        buildCompanyTypeDropdownOptions(companyTypeRows);
+    const selectedCompanyTypeLabel = companyTypesFromDb
+        ? companyTypeRows.find((t) => Number(t.id) === Number(companyTypeId))?.typeShort ??
+          companyType
+        : companyType;
 
     return (
         <div className={styles.page}>
@@ -307,7 +345,22 @@ export default function ImonesRedagavimasPage({ params }: { params: PageParams }
                 {formLocale === "lt" ? (
                     <div className={styles.form}>
                         <div className={styles.row}>
-                            <InputFieldSelect label="Įmonės tipas" options={[...COMPANY_TYPES]} selected={companyType} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                            <InputFieldSelect
+                                label="Įmonės tipas"
+                                options={companyTypeOptions}
+                                selected={selectedCompanyTypeLabel}
+                                onChange={(valueStr) =>
+                                    applyCompanyTypeSelection(
+                                        companyTypesFromDb,
+                                        valueStr,
+                                        companyTypeRows,
+                                        setCompanyTypeId,
+                                        setCompanyType
+                                    )
+                                }
+                                placeholder="Įmonės tipas"
+                                emptyMessage="Tipų nerasta"
+                            />
                             <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmonės pavadinimas" />
                         </div>
 

@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import { Building2, Save } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import { CompanyApi } from "@/lib/api/companies";
+import { CompanyTypeApi } from "@/lib/api/companyTypes";
 import { MessageStore } from "@/lib/globalVariables/messages";
-import { COMPANY_TYPES, type CompanyCategory } from "@/lib/types/Company";
+import type { CompanyCategory, CompanyTypeRow } from "@/lib/types/Company";
+import {
+    applyCompanyTypeSelection,
+    buildCompanyTypeDropdownOptions,
+} from "@/lib/companyTypeSelect";
 import styles from "./page.module.scss";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import InputFieldNumber from "@/components/inputFields/inputFieldNumber";
@@ -13,7 +18,9 @@ import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import CompanyFormLocaleToggle, { type CompanyFormLocale } from "@/components/companyForm/CompanyFormLocaleToggle";
 
 export default function ImonesPage() {
-    const [companyType, setCompanyType] = useState("");
+    const [companyTypeRows, setCompanyTypeRows] = useState<CompanyTypeRow[]>([]);
+    const [companyTypeId, setCompanyTypeId] = useState<number | null>(null);
+    const [companyTypeShort, setCompanyTypeShort] = useState("");
     const [companyName, setCompanyName] = useState("");
     const [companyNameEn, setCompanyNameEn] = useState("");
     const [companyNameRu, setCompanyNameRu] = useState("");
@@ -46,7 +53,17 @@ export default function ImonesPage() {
         CompanyApi.getCategories()
             .then((items) => setCategories(items))
             .catch(() => setCategories([]));
+        CompanyTypeApi.getAll()
+            .then((rows) => setCompanyTypeRows(Array.isArray(rows) ? rows : []))
+            .catch(() => setCompanyTypeRows([]));
     }, []);
+
+    const { fromDatabase: companyTypesFromDb, options: companyTypeOptions } =
+        buildCompanyTypeDropdownOptions(companyTypeRows);
+    const selectedCompanyTypeLabel = companyTypesFromDb
+        ? companyTypeRows.find((t) => Number(t.id) === Number(companyTypeId))?.typeShort ??
+          ""
+        : companyTypeShort;
 
     const filteredCategories = categories.filter((item) =>
         item.name.toLowerCase().includes(categorySearch.toLowerCase())
@@ -86,7 +103,6 @@ export default function ImonesPage() {
     async function handleSubmit() {
         try {
             const payload = {
-                companyType,
                 companyName,
                 address,
                 cityOrDistrict,
@@ -96,6 +112,11 @@ export default function ImonesPage() {
                 managerGender,
                 role,
                 categoryId: selectedCategoryId,
+                ...(companyTypesFromDb && companyTypeId != null && companyTypeId > 0
+                    ? { companyTypeId }
+                    : !companyTypesFromDb && companyTypeShort.trim()
+                      ? { companyType: companyTypeShort.trim() }
+                      : {}),
             } as const;
 
             const optionalLocaleFields: Partial<Record<
@@ -163,7 +184,22 @@ export default function ImonesPage() {
                         <>
                             <div className={styles.form}>
                                 <div className={styles.row}>
-                                    <InputFieldSelect label="Įmonės tipas" options={[...COMPANY_TYPES]} onChange={setCompanyType} placeholder="Įmonės tipas" />
+                                    <InputFieldSelect
+                                        label="Įmonės tipas"
+                                        options={companyTypeOptions}
+                                        selected={selectedCompanyTypeLabel}
+                                        onChange={(valueStr) =>
+                                            applyCompanyTypeSelection(
+                                                companyTypesFromDb,
+                                                valueStr,
+                                                companyTypeRows,
+                                                setCompanyTypeId,
+                                                setCompanyTypeShort
+                                            )
+                                        }
+                                        placeholder="Įmonės tipas"
+                                        emptyMessage="Tipų nerasta"
+                                    />
                                     <InputFieldText value={companyName} onChange={setCompanyName} placeholder="Įmones pavadinimas" />
                                 </div>
 

@@ -191,6 +191,16 @@ $border: #E2E8F0;
     p:last-child {
         margin-bottom: 0;
     }
+
+    code {
+        background: $primary-light;
+        color: $primary;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.82em;
+        font-weight: 600;
+        font-family: ui-monospace, monospace;
+    }
 }
 
 // Search

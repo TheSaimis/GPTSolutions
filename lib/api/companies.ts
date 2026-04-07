@@ -2,39 +2,48 @@ import { api } from "./api";
 import { CompanyStore, useCompanyStore } from "../globalVariables/companies";
 import type { Company, CompanyCategory, CompanyTypeRow } from "../types/Company";
 import type { ApiStatus } from "@/lib/types/Api";
+import {
+    normalizeCompanyFromApi,
+    withCompanyWriteAliases,
+} from "@/lib/api/companyApiNormalize";
 
 export const CompanyApi = {
 
     getAll: async () => {
         if (useCompanyStore.getState().wasSet) return useCompanyStore.getState().companies;
         const res = await api.get<Company[]>("/api/company/all", { loadingMessage: "Kraunamos įmonės...", });
-        CompanyStore.set(res);
-        return res;
+        const list = Array.isArray(res) ? res.map((c) => normalizeCompanyFromApi(c)) : [];
+        CompanyStore.set(list);
+        return list;
     },
 
     getAllDeleted: async () => {
         const res = await api.get<Company[]>("/api/company/all/deleted", { loadingMessage: "Kraunamos ištrintos įmonės...", });
-        return res;
+        return Array.isArray(res) ? res.map((c) => normalizeCompanyFromApi(c)) : [];
     },
 
     getById: async (id: number) => {
         const existing = useCompanyStore.getState().companies.find((cmp) => cmp.id === id);
-        if (existing) return existing;
+        if (existing) return normalizeCompanyFromApi(existing);
         const res = await api.get<Company>(`/api/company/${id}`)
-        CompanyStore.push(res);
-        return res;
+        const normalized = normalizeCompanyFromApi(res);
+        CompanyStore.push(normalized);
+        return normalized;
     },
 
     companyCreate: async (company: Company, errorMessage?: string, errorTitle?: string) => {
-        const res = await api.post<Company>("/api/company/create", company);
-        CompanyStore.push(res);
-        return res;
+        const body = withCompanyWriteAliases({ ...company } as Record<string, unknown>);
+        const res = await api.post<Company>("/api/company/create", body);
+        const normalized = normalizeCompanyFromApi(res);
+        CompanyStore.push(normalized);
+        return normalized;
     },
 
     companyUpdate: async (id: number, company: Partial<Company>) => {
-        const res = await api.post<ApiStatus<Company>>(`/api/company/update/${id}`, company);
+        const body = withCompanyWriteAliases({ ...company } as Record<string, unknown>);
+        const res = await api.post<ApiStatus<Company>>(`/api/company/update/${id}`, body);
         if (res.status === "SUCCESS" && res.data) {
-            CompanyStore.update(id, res.data);
+            CompanyStore.update(id, normalizeCompanyFromApi(res.data));
         }
         return res;
     },

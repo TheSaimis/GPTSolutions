@@ -1,0 +1,163 @@
+$primary: #EF2629;
+$primary-hover: #d91f22;
+$primary-light: rgba(239, 38, 41, 0.08);
+$bg: #F1F5F9;
+$text-dark: #0F172A;
+$text-muted: #64748B;
+$border: #E2E8F0;
+
+.page {
+    flex: 1;
+    background: $bg;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 48px;
+}
+
+.topBar {
+    width: 100%;
+    max-width: 720px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    padding: 32px;
+    width: 100%;
+    max-width: 720px;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .fileIcon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: $primary-light;
+        color: $primary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0 0 2px;
+        letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+        color: $text-muted;
+        margin: 0;
+    }
+}
+
+.divider {
+    height: 1px;
+    background: $border;
+    margin: 24px 0;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.langBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid $border;
+}
+
+.langTitle {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.row {
+    display: flex;
+    gap: 16px;
+
+    > * {
+        flex: 1;
+        min-width: 0;
+    }
+
+    @media (max-width: 560px) {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+.submitButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 24px;
+    font-size: 0.938rem;
+    font-weight: 600;
+    color: #fff;
+    background: $primary;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+
+    &:hover:not(:disabled) {
+        background: $primary-hover;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.message {
+    font-size: 0.9rem;
+    color: $text-muted;
+    margin: 0;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: $text-muted;
+    margin: 0 0 8px;
+    line-height: 1.45;
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: 16px 10px 32px;
+    }
+
+    .card {
+        padding: 20px 16px;
+    }
+}

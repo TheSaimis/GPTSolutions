@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { HelpCircle, Info, Copy, CheckCircle2, X, ZoomIn, Search, ChevronDown, Globe, BookOpen, Layers, Shield } from "lucide-react";
+import { HelpCircle, Info, Copy, CheckCircle2, X, ZoomIn, Search, ChevronDown, Globe, BookOpen, Layers, Shield, FileSpreadsheet } from "lucide-react";
 import PageBackBar from "@/components/navigation/PageBackBar";
 import Image from "next/image";
 import Link from "next/link";
@@ -391,13 +391,64 @@ export default function KaipNaudotiPage() {
                 </div>
             </div>
 
+            {/* AAP ir kenksmingų faktorių pažyma */}
+            <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                    <div className={styles.fileIcon}><FileSpreadsheet size={24} /></div>
+                    <div>
+                        <h2 className={styles.title}>AAP ir kenksmingų faktorių pažyma</h2>
+                        <p className={styles.subtitle}>Savo šablonai: Word ir Excel</p>
+                    </div>
+                </div>
+
+                <div className={styles.divider} />
+
+                <div className={styles.navGuide}>
+                    <div>
+                        <h3>Kenksmingų faktorių nustatymo pažyma (Word, .docx)</h3>
+                        <p>
+                            Modulis: <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>. Čia naudojamas <strong>jūsų paruoštas Word šablonas</strong>, įkeltas į šablonų katalogą kaip ir kiti dokumentai. Sistema užpildo įmonės rekvizitus ir lentelę pagal priskirtus darbuotojų tipus bei jų rizikų duomenis.
+                        </p>
+                        <ul>
+                            <li>
+                                <strong>Kodėl svarbi 3-ioji lentelės eilutė:</strong> pirmoje eilutėje paprastai būna stulpelių antraštės („Eil. Nr.“, „Pareigybė“ ir t. t.), antroje — stulpelių numeracija ar kita techninė eilutė. <strong>Trečiojoje eilutėje</strong> turi būti kintamieji, pvz.{" "}
+                                <code>${"${eilNr}"}</code>, <code>${"${pareigybe}"}</code>, <code>${"${veiksniai}"}</code>, <code>${"${sifrai}"}</code>, <code>${"${periodiskumas}"}</code>. Būtent ši eilutė kopijuojama kiekvienam įrašui (PhpWord <em>clone row</em> logika). Jei šiuos laukus įrašysite kitoje eilutėje, dokumentas generuosis neteisingai.
+                            </li>
+                            <li>
+                                <strong>Stulpelių plotis:</strong> Word lentelėje nustatytas stulpelių plotis ir išdėstymas tiesiogiai veikia galutinio PDF/Word vaizdą — tekstas laužomas pagal jūsų lentelės geometriją.
+                            </li>
+                            <li>
+                                Dokumento pradžioje ir pabaigoje naudokite tuos pačius bendrus kintamuosius kaip ir kituose šablonuose, pvz. <code>${"${Kompanija}"}</code>, <code>${"${TIPAS}"}</code>, <code>${"${kodas}"}</code>, <code>${"${adresas}"}</code>, <code>${"${Miestas}"}</code>, linksnius <code>${"${Vadovo}"}</code>, <code>${"${Vardo}"}</code>, <code>${"${Pavardo}"}</code>, <code>${"${data}"}</code>, apačioje <code>${"${Role}"}</code>, <code>${"${Vadovas}"}</code> ir kt. Tikslų sąrašą žr. aukščiau esančiame kintamųjų kataloge.
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>AAP — profesinės rizikos lentelė (Excel, .xlsx)</h3>
+                        <p>
+                            Modulis: <Link href="/sablonai/kiti/AAP">AAP</Link>. Generuojamas <strong>Excel</strong> failas pagal šablono struktūrą serveryje. Tai nėra „paprastas“ vieno lapo Word šablonas: kiekvienam darbuotojui kopijuojamas fiksuoto <strong>aukščio blokas</strong> (eilučių skaičius šablone), užpildomi rizikų taškai pagal duomenų bazėje sukonfigūruotas eilutes ir stulpelius.
+                        </p>
+                        <ul>
+                            <li>
+                                <strong>Stulpelių plotis ir išdėstymas:</strong> ypač svarbu parašų zonoms ir rizikų lentelės tinkleliui — per siauri ar perkelti stulpeliai lūžta teksto išdėstymas. Rekomenduojama pradėti nuo standartinio šablono ir keisti atsargiai.
+                            </li>
+                            <li>
+                                <strong>Savo šablonas:</strong> failas paprastai laikomas serverio aplanke (pvz. <code>otherTemplates/AAP/AAP.xlsx</code>) arba administratoriaus nustatytu keliu. Jei keičiate šabloną, jį reikia suderinti su esama generavimo logika — kitaip gali sutrikti blokų kopijavimas ir laukų užpildymas.
+                            </li>
+                            <li>
+                                Rizikos stulpelių susiejimas su duomenų baze naudoja šablono eilučių numeraciją (techniškai rizikų subkategorijos dažnai pradedamos nuo trečios eilutės ir toliau) — todėl „trečia eilutė“ kaip pradžia duomenims yra būdinga ir čia, tik Excel kontekste.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             {/* Pavyzdys */}
             <div className={styles.exampleCard}>
                 <div className={styles.cardHeader}>
                     <div className={styles.fileIcon}><Info size={24} /></div>
                     <div>
-                        <h2 className={styles.title}>Pavyzdys: Prieš ir po</h2>
-                        <p className={styles.subtitle}>Paspauskite ant nuotraukos, kad padidintumėte</p>
+                        <h2 className={styles.title}>Pavyzdys: kenksmingų faktorių pažyma</h2>
+                        <p className={styles.subtitle}>Šablonas su kintamaisiais ir sugeneruotas dokumentas — paspauskite nuotrauką, kad padidintumėte</p>
                     </div>
                 </div>
 
@@ -405,20 +456,20 @@ export default function KaipNaudotiPage() {
 
                 <div className={styles.exampleGrid}>
                     <div className={styles.exampleItem}>
-                        <h3>Šablonas (su kintamaisiais)</h3>
+                        <h3>Šablonas (Word, ${"${...}"} kintamieji)</h3>
                         <div className={styles.imageWrapper} onClick={() => setSelectedImg(beforeImg)}>
                             <div className={styles.zoomIcon}><ZoomIn size={24} /></div>
                             <div className={styles.imageHeightFix}>
-                                <Image src={beforeImg} alt="Šablonas prieš" placeholder="blur" fill className={styles.imgContain} />
+                                <Image src={beforeImg} alt="Kenksmingų faktorių pažymos šablonas su kintamaisiais" fill className={styles.imgContain} sizes="(max-width: 900px) 100vw, 50vw" />
                             </div>
                         </div>
                     </div>
                     <div className={styles.exampleItem}>
-                        <h3>Sugeneruotas dokumentas</h3>
+                        <h3>Užpildytas dokumentas</h3>
                         <div className={styles.imageWrapper} onClick={() => setSelectedImg(afterImg)}>
                             <div className={styles.zoomIcon}><ZoomIn size={24} /></div>
                             <div className={styles.imageHeightFix}>
-                                <Image src={afterImg} alt="Dokumentas po" placeholder="blur" fill className={styles.imgContain} />
+                                <Image src={afterImg} alt="Sugeneruota kenksmingų faktorių pažyma su duomenimis" fill className={styles.imgContain} sizes="(max-width: 900px) 100vw, 50vw" />
                             </div>
                         </div>
                     </div>

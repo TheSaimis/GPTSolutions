@@ -8,7 +8,7 @@ import { CompanyApi } from "@/lib/api/companies";
 import type { Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import styles from "./page.module.scss";
-import { Building2, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, SlidersHorizontal, X, Tags } from "lucide-react";
 import {
     COMPANY_SORT_OPTIONS,
     DELETED_STATUS_OPTIONS,
@@ -28,6 +28,11 @@ export default function ImoniuSarasasPage() {
     const [deletedFilter, setDeletedFilter] = useState<DeletedFilter>("active");
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [page, setPage] = useState(1);
+    const [role, setRole] = useState("");
+
+    useEffect(() => {
+        setRole(localStorage.getItem("role") || "");
+    }, []);
 
     useEffect(() => {
         document.title = "Įmonių sąrašas";
@@ -134,10 +139,18 @@ export default function ImoniuSarasasPage() {
             <div className={styles.content}>
                 <div className={styles.titleRow}>
                     <h1 className={styles.pageTitle}>Įmonių sąrašas</h1>
-                    <Link href="/imones" className={styles.createButton}>
-                        <Building2 size={18} />
-                        Pridėti įmonę
-                    </Link>
+                    <div className={styles.titleActions}>
+                        {role === "ROLE_ADMIN" && (
+                            <Link href="/imones/tipai" className={styles.secondaryButton}>
+                                <Tags size={18} />
+                                Įmonių tipai
+                            </Link>
+                        )}
+                        <Link href="/imones" className={styles.createButton}>
+                            <Building2 size={18} />
+                            Pridėti įmonę
+                        </Link>
+                    </div>
                 </div>
 
                 {companies && companies.length > 0 && (

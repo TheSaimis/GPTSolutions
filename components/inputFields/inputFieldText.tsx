@@ -13,14 +13,16 @@ type Props = {
   onKeyDown?: Record<string, () => void>;
   type?: string;
   icon?: LucideIcon;
+  disabled?: boolean;
 };
 
 const InputFieldText = forwardRef<HTMLInputElement, Props>(
   (
-    { value, placeholder, onChange, type, icon: Icon, regex, onFocus, onKeyDown },
+    { value, placeholder, onChange, type, icon: Icon, regex, onFocus, onKeyDown, disabled },
     ref
   ) => {
     function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+      if (disabled) return;
       const val = e.target.value;
 
       if (val === "") {
@@ -45,6 +47,7 @@ const InputFieldText = forwardRef<HTMLInputElement, Props>(
           type={type || "text"}
           value={value}
           placeholder={placeholder}
+          disabled={disabled}
           onChange={handleChange}
           onFocus={(e) => {
             e.target.select();

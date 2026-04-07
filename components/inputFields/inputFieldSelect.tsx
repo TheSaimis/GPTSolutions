@@ -79,9 +79,7 @@ export default function InputFieldSelect({
   }, [effectivelyDisabled]);
 
   useEffect(() => {
-    if (selectedText) {
-      setInternalSelectedLabel(selectedText);
-    }
+    setInternalSelectedLabel(selectedText);
   }, [selectedText]);
 
   return (
