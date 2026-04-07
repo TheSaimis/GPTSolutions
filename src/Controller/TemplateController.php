@@ -196,6 +196,8 @@ final class TemplateController extends AbstractController
      * Be įmonės galima nurodyti: companyName/kompanija, code/kodas, documentDate/data, role, companyType/tipas,
      * category/tipasPilnas, address/adresas, cityOrDistrict/miestas, outputDirectory, managerType,
      * managerFirstName/vardas, managerLastName/pavarde.
+     * Su companyId: kiekvienam šablono keliui nustatoma kalba (kaip CreateFile – pavadinime ar kelyje EN/RU/LT),
+     * ir kompanijos laukai imami iš DB atitinkama kalba (pvz. company_name_en, type_short_en, …), jei tuščia – LT atsarginė reikšmė.
      * Return: vienas .docx arba .zip, arba JSON su results.
      */
     #[Route('/api/template/fillFileBulk', name: 'api_template_fill_file_bulk', methods: ['POST'])]
@@ -235,25 +237,18 @@ final class TemplateController extends AbstractController
 
             $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
 
-            $code        = (string) $company->getCode();
+            $code = (string) $company->getCode();
+            /** Per šablono kelią žemiau sujungiama su localizedCompanyFieldsForFillBulk. */
             $companyData = [
-                'kompanija'   => (string) $company->getCompanyName(),
-                'kodas'       => $code,
-                'data'        => (string) $documentDate,
-                'role'        => (string) ($company->getRole() ?? ''),
-                'tipas'       => (string) ($company->getCompanyType() ?? ''),
-                'tipasPilnas' => (string) $company->resolveTipasPilnasForDocuments(),
-                'adresas'     => (string) ($company->getAddress() ?? ''),
-                'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
-                'outputDirectory' => (string) ($company->getDirectory() ?? ''),
-                'managerType' => (string) ($company->getManagerType() ?? ''),
-                'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
-                'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
-
-                'userId'      => (string) ($user->getId() ?? ''),
-                'userName'    => (string) ($user->getFirstName() ?? ''),
-                'userSurname' => (string) ($user->getLastName() ?? ''),
-                'companyId'   => (string) $company->getId(),
+                'kodas'             => $code,
+                'data'              => (string) $documentDate,
+                'outputDirectory'   => (string) ($company->getDirectory() ?? ''),
+                'managerType'       => (string) ($company->getManagerType() ?? ''),
+                'userId'            => (string) ($user->getId() ?? ''),
+                'userName'          => (string) ($user->getFirstName() ?? ''),
+                'userSurname'       => (string) ($user->getLastName() ?? ''),
+                'companyId'         => (string) $company->getId(),
+                '_fillBulkCompany'  => true,
             ];
         } else {
             $company   = null;
@@ -323,9 +318,16 @@ final class TemplateController extends AbstractController
             }
             $template = basename($tplPath);
 
+            $payload = $companyData;
+            if (($companyData['_fillBulkCompany'] ?? false) === true && $company instanceof CompanyRequisite) {
+                unset($payload['_fillBulkCompany']);
+                $lang = $this->resolveLanguageFromTemplateRelativePath($tplPath);
+                $payload = array_merge($payload, $this->localizedCompanyFieldsForFillBulk($company, $lang));
+            }
+
             try {
                 $generatedPath = $this->createFile->createWordDocument(
-                    array_merge($companyData, [
+                    array_merge($payload, [
                         'directory' => $directory,
                         'template'  => $template,
                     ]),
@@ -599,6 +601,113 @@ final class TemplateController extends AbstractController
         }
 
         return null;
+    }
+
+    /**
+     * Kaip CreateFile::detectLanguageFromPath – pagal šablono kelią / pavadinimą (EN, RU, LT).
+     */
+    private function resolveLanguageFromTemplateRelativePath(string $relativePath): string
+    {
+        $norm     = str_replace('\\', '/', trim($relativePath));
+        $baseName = pathinfo($norm, PATHINFO_FILENAME);
+
+        if (preg_match('/\s(RU|EN)$/i', (string) $baseName, $matches)) {
+            return mb_strtoupper($matches[1]);
+        }
+        if (preg_match('/(?:^|[\s_-])(RU|EN)$/i', (string) $baseName, $matches)) {
+            return mb_strtoupper($matches[1]);
+        }
+
+        $segments = preg_split('#/#', $norm, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        foreach ($segments as $seg) {
+            $t = trim($seg);
+            if (preg_match('/^(RU|EN|LT)$/i', $t)) {
+                return mb_strtoupper($t);
+            }
+        }
+
+        return 'LT';
+    }
+
+    /**
+     * Užpildo kompanijos laukus iš DB pagal kalbą (suderinta su CreateFile.resolveDocumentLanguage).
+     *
+     * @return array<string, string>
+     */
+    private function localizedCompanyFieldsForFillBulk(CompanyRequisite $company, string $lang): array
+    {
+        if ($lang === 'EN') {
+            return [
+                'kompanija'   => (string) ($company->getCompanyNameEn() ?? $company->getCompanyName() ?? ''),
+                'role'        => (string) ($company->getRoleEn() ?? $company->getRole() ?? ''),
+                'tipas'       => $this->resolveCompanyTypeShortForLang($company, 'EN'),
+                'tipasPilnas' => $this->resolveTipasPilnasForLang($company, 'EN'),
+                'adresas'     => (string) ($company->getAddressEn() ?? $company->getAddress() ?? ''),
+                'miestas'     => (string) ($company->getCityOrDistrictEn() ?? $company->getCityOrDistrict() ?? ''),
+                'vardas'      => (string) ($company->getManagerFirstNameEn() ?? $company->getManagerFirstName() ?? ''),
+                'pavarde'     => (string) ($company->getManagerLastNameEn() ?? $company->getManagerLastName() ?? ''),
+            ];
+        }
+
+        if ($lang === 'RU') {
+            return [
+                'kompanija'   => (string) ($company->getCompanyNameRu() ?? $company->getCompanyName() ?? ''),
+                'role'        => (string) ($company->getRoleRu() ?? $company->getRole() ?? ''),
+                'tipas'       => $this->resolveCompanyTypeShortForLang($company, 'RU'),
+                'tipasPilnas' => $this->resolveTipasPilnasForLang($company, 'RU'),
+                'adresas'     => (string) ($company->getAddressRu() ?? $company->getAddress() ?? ''),
+                'miestas'     => (string) ($company->getCityOrDistrictRu() ?? $company->getCityOrDistrict() ?? ''),
+                'vardas'      => (string) ($company->getManagerFirstNameRu() ?? $company->getManagerFirstName() ?? ''),
+                'pavarde'     => (string) ($company->getManagerLastNameRu() ?? $company->getManagerLastName() ?? ''),
+            ];
+        }
+
+        return [
+            'kompanija'   => (string) $company->getCompanyName(),
+            'role'        => (string) ($company->getRole() ?? ''),
+            'tipas'       => (string) ($company->getCompanyType() ?? ''),
+            'tipasPilnas' => (string) $company->resolveTipasPilnasForDocuments(),
+            'adresas'     => (string) ($company->getAddress() ?? ''),
+            'miestas'     => (string) ($company->getCityOrDistrict() ?? ''),
+            'vardas'      => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'     => (string) ($company->getManagerLastName() ?? ''),
+        ];
+    }
+
+    private function resolveCompanyTypeShortForLang(CompanyRequisite $company, string $lang): string
+    {
+        $ref = $company->getCompanyTypeRef();
+        if ($lang === 'EN') {
+            $v = $ref?->getTypeShortEn();
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        } elseif ($lang === 'RU') {
+            $v = $ref?->getTypeShortRu();
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        }
+
+        return (string) ($company->getCompanyType() ?? '');
+    }
+
+    private function resolveTipasPilnasForLang(CompanyRequisite $company, string $lang): string
+    {
+        $ref = $company->getCompanyTypeRef();
+        if ($lang === 'EN') {
+            $v = $ref?->getTypeEn();
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        } elseif ($lang === 'RU') {
+            $v = $ref?->getTypeRu();
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        }
+
+        return (string) $company->resolveTipasPilnasForDocuments();
     }
 
     /**
