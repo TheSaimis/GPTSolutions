@@ -46,7 +46,7 @@ export default function Page({ params }: PageProps) {
                 CompanyApi.getById(Number(companyId)),
                 UsersApi.getById(Number(userId)),
             ]);
-            setTemplatePath(templateRes);
+            setTemplatePath(templateRes[0].path);
             setCompany(companyRes ?? null);
             setUser(userRes);
         }

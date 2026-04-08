@@ -101,7 +101,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             removeWorker,
             clearWorkers
         }),
-        [equipment]
+        [equipment, workerItems, workers]
     );
 
     return (

@@ -31,4 +31,16 @@ export const CompanyTypeApi = {
         const res = await api.put<CompanyTypeRow>(`/api/company-types/${id}`, body);
         return normalizeCompanyTypeRows([res])[0] ?? (res as CompanyTypeRow);
     },
+
+    create: async (body: {
+        typeShort: string;
+        type: string;
+        typeShortEn?: string | null;
+        typeShortRu?: string | null;
+        typeEn?: string | null;
+        typeRu?: string | null;
+    }) => {
+        const res = await api.post<CompanyTypeRow>("/api/company-types", body);
+        return normalizeCompanyTypeRows([res])[0] ?? (res as CompanyTypeRow);
+    },
 };

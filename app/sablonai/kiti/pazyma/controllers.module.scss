@@ -32,6 +32,25 @@
   gap: 10px;
 }
 
+.templatePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.templateTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.templateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .error {
   color: #d42225;
   font-weight: 600;

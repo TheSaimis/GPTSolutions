@@ -1,7 +1,6 @@
 "use client";
 
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
-import InputFieldFile from "@/components/inputFields/inputFieldFile";
 import { CompanyApi } from "@/lib/api/companies";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
 import { HealthCertificateApi, HealthCertificateWorkerRisksApi } from "@/lib/api/healthCertificate";
@@ -29,8 +28,6 @@ export default function DocumentController() {
     []
   );
   const [checkPeriods, setCheckPeriods] = useState<Record<number, string>>({});
-  const [templateFile, setTemplateFile] = useState<File | null>(null);
-  const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const [addingWorker, setAddingWorker] = useState(false);
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -190,21 +187,6 @@ export default function DocumentController() {
     }
   }
 
-  async function uploadCertificateTemplate() {
-    if (!templateFile) return;
-
-    setUploadingTemplate(true);
-    setError(null);
-    try {
-      await HealthCertificateApi.uploadTemplate(templateFile);
-      setTemplateFile(null);
-    } catch {
-      setError("Nepavyko įkelti pažymos šablono.");
-    } finally {
-      setUploadingTemplate(false);
-    }
-  }
-
   async function createHealthRiskFactorCertificate() {
     if (!selectedCompanyId || !allCheckPeriodsFilled) return;
 
@@ -237,22 +219,6 @@ export default function DocumentController() {
   return (
     <div className={styles.controller}>
       <h3 className={styles.title}>Dokumentų kūrimas</h3>
-      <div className={`${styles.panel} ${styles.formRow}`}>
-        <InputFieldFile
-          value={templateFile}
-          onChange={setTemplateFile}
-          placeholder="Pažymos šablonas (.docx)"
-          accept={[".docx"]}
-        />
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonSecondary}`}
-          onClick={uploadCertificateTemplate}
-          disabled={!templateFile || uploadingTemplate}
-        >
-          {uploadingTemplate ? "Įkeliama..." : "Įkelti/atnaujinti šabloną"}
-        </button>
-      </div>
       <div className={`${styles.panel} ${styles.formRow}`}>
         <InputFieldSelect
           label="Įmonė"

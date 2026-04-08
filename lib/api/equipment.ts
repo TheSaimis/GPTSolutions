@@ -9,6 +9,40 @@ export const EquipmentApi = {
 
     getAll: () => api.get<Equipment[]>("/api/equipment"),
     getWorkerItems: () => api.get<WorkerItem[]>("/api/worker-items"),
+    createEquipment: (input: Pick<Equipment, "name" | "expirationDate">) =>
+        api.post<Equipment>("/api/equipment", input),
+    updateEquipment: (
+        id: number,
+        input: Partial<Pick<Equipment, "name" | "expirationDate">>,
+    ) => api.put<Equipment>(`/api/equipment/${id}`, input),
+    deleteEquipment: (id: number) =>
+        api.delete<{ message: string }>(`/api/equipment/${id}`),
+
+    createWorkerItem: (input: { workerId: number; equipmentId: number }) =>
+        api.post<WorkerItem>("/api/worker-items", input),
+    deleteWorkerItem: (id: number) =>
+        api.delete<{ message: string }>(`/api/worker-items/${id}`),
+
+    createTemplateDocument: (companyId: number) =>
+        api.postBlob("/api/equipment-template/createTemplate", { companyId }, {
+            loadingMessage: "Kuriamas AAP dokumentas...",
+            fallbackFilename: "aap-sarasas.docx",
+        }),
+    getCompanyData: (companyId: number) =>
+        api.get<{
+            company: {
+                id: number;
+                companyName?: string | null;
+                code?: string | null;
+                address?: string | null;
+                cityOrDistrict?: string | null;
+            };
+            workers: Array<{
+                workerId: number;
+                workerName: string;
+                equipment: Array<{ id: number; name: string; expirationDate: string }>;
+            }>;
+        }>(`/api/equipment-template/company/${companyId}/data`),
 
     downloadFile: async (path: string): Promise<DownloadResult> => {
         const cachedBlob = getCachedWordFile(path);

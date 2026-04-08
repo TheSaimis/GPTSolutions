@@ -7,7 +7,7 @@ import CompanyTypeExpandableRow from "@/components/companyTypeList/CompanyTypeEx
 import { CompanyTypeApi } from "@/lib/api/companyTypes";
 import type { CompanyTypeRow } from "@/lib/types/Company";
 import styles from "./page.module.scss";
-import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus } from "lucide-react";
 
 const PAGE_SIZE = 15;
 
@@ -72,10 +72,16 @@ export default function ImoniuTipaiPage() {
             <div className={styles.content}>
                 <div className={styles.titleRow}>
                     <h1 className={styles.pageTitle}>Įmonių tipai</h1>
-                    <Link href="/imones/sarasas" className={styles.backLink}>
-                        <List size={18} />
-                        Įmonių sąrašas
-                    </Link>
+                    <div className={styles.titleActions}>
+                        <Link href="/imones/tipai/naujas" className={styles.createLink}>
+                            <Plus size={18} />
+                            Naujas tipas
+                        </Link>
+                        <Link href="/imones/sarasas" className={styles.backLink}>
+                            <List size={18} />
+                            Įmonių sąrašas
+                        </Link>
+                    </div>
                 </div>
 
                 {rows && rows.length > 0 && (

@@ -108,6 +108,8 @@ export default function TemplatePage() {
                     <div className={styles.form}>
                         <InputFieldSelect
                             placeholder="Įmonė"
+                            selected={company}
+                            search={true}
                             onChange={setCompany}
                             options={companies.map((c) => ({
                                 value: String(c.id),
@@ -144,8 +146,6 @@ export default function TemplatePage() {
                     <CompanyCard id={Number(company)} />
                 }
             </div>
-
-
         </div>
     );
 }

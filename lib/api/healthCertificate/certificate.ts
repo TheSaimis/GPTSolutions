@@ -18,4 +18,18 @@ export const HealthCertificateApi = {
       { loadingMessage: "Įkeliamas pažymos šablonas..." }
     );
   },
+
+  getTemplatePdf() {
+    return api.getBlob("/api/files/pdf/templates/otherTemplates/pazyma/pazyma.docx", {
+      loadingMessage: "Ruošiama šablono PDF peržiūra...",
+      fallbackFilename: "pazyma.pdf",
+    });
+  },
+
+  downloadTemplate() {
+    return api.getBlob("/api/files/download/templates/otherTemplates/pazyma/pazyma.docx", {
+      loadingMessage: "Atsiunčiamas šablonas...",
+      fallbackFilename: "pazyma.docx",
+    });
+  },
 };

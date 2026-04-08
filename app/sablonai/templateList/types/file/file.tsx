@@ -134,6 +134,11 @@ export default function Files({ data, fileType }: List) {
       TEMPLATE_FILE_DRAG_MIME,
       JSON.stringify({ path: data.path, fileType }),
     );
+    // Fallback for environments that do not preserve custom MIME types reliably.
+    e.dataTransfer.setData(
+      "text/plain",
+      JSON.stringify({ path: data.path, fileType }),
+    );
     e.dataTransfer.effectAllowed = "move";
   }
 

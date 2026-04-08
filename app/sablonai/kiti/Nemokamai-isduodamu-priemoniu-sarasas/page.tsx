@@ -19,36 +19,49 @@ const componentMap = {
 } satisfies Record<EquipmentTab, React.ComponentType>;
 
 function EquipmentPageContent() {
-  const { setEquipment, setWorkerItems } = useEquipment();
+  const { setEquipment, setWorkerItems, setWorkers } = useEquipment();
   const [activeTab, setActiveTab] = useState<EquipmentTab>("document");
 
   useEffect(() => {
-    EquipmentApi.getWorkerItems().then((res) => {
-      setWorkerItems(res);
-      console.log(res);
+    EquipmentApi.getAll().then(setEquipment).catch(() => undefined);
+    EquipmentApi.getWorkerItems().then(setWorkerItems).catch(() => undefined);
+    import("@/lib/api/workers").then(({ WorkersApi }) => {
+      WorkersApi.getAll().then(setWorkers).catch(() => undefined);
     });
-  }, [setEquipment]);
+  }, [setEquipment, setWorkerItems, setWorkers]);
 
   const ActiveComponent = componentMap[activeTab];
 
   return (
     <div className={styles.container}>
       <div className={styles.navigation}>
-        <button className="buttons" onClick={() => setActiveTab("document")}>
+        <button
+          className={`${styles.tabButton} ${activeTab === "document" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("document")}
+        >
           Dokumento kūrimas
         </button>
-        <button className="buttons" onClick={() => setActiveTab("assignment")}>
+        <button
+          className={`${styles.tabButton} ${activeTab === "assignment" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("assignment")}
+        >
           Apsaugos priemonių priskirimas
         </button>
-        <button className="buttons" onClick={() => setActiveTab("equipment")}>
+        <button
+          className={`${styles.tabButton} ${activeTab === "equipment" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("equipment")}
+        >
           Apsaugos priemonės
         </button>
-        <button className="buttons" onClick={() => setActiveTab("template")}>
+        <button
+          className={`${styles.tabButton} ${activeTab === "template" ? styles.tabButtonActive : ""}`}
+          onClick={() => setActiveTab("template")}
+        >
           Šablonas
         </button>
       </div>
 
-      <h1 className={styles.title}>Nemokamai išduodamų priemonių sąrašas</h1>
+      <h1 className={styles.title}>Nemokamai išduodamų priemonių sąrašas</h1>
 
       <ActiveComponent />
     </div>

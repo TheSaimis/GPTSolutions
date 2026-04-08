@@ -2,7 +2,7 @@
 
 import styles from "./PazymaWorkflowTopNav.module.scss";
 
-export type PazymaWorkflowTab = "document" | "worker" | "risk";
+export type PazymaWorkflowTab = "document" | "worker" | "risk" | "template";
 
 type PazymaWorkflowTopNavProps = {
   active: PazymaWorkflowTab;
@@ -13,6 +13,7 @@ const TABS: { id: PazymaWorkflowTab; label: string }[] = [
   { id: "document", label: "Dokumentų kūrimas" },
   { id: "worker", label: "Darbuotojų valdymas" },
   { id: "risk", label: "Rizikų valdymas" },
+  { id: "template", label: "Šablonas" },
 ];
 
 export default function PazymaWorkflowTopNav({

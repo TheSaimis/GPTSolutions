@@ -16,6 +16,33 @@ type CompanyCardProps = {
 const COMPACT_FIELDS: (keyof Company)[] = ["code", "companyType", "cityOrDistrict"];
 const MINI_FIELDS: (keyof Company)[] = ["companyType"];
 
+function renderCompanyValue(value: unknown): string {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => renderCompanyValue(item)).join(", ");
+    }
+
+    if (value && typeof value === "object") {
+        const row = value as {
+            typeShort?: unknown;
+            type?: unknown;
+            companyName?: unknown;
+            name?: unknown;
+            id?: unknown;
+        };
+        const preferred = row.typeShort ?? row.type ?? row.companyName ?? row.name ?? row.id;
+        if (preferred != null) {
+            return String(preferred);
+        }
+        return "—";
+    }
+
+    return "—";
+}
+
 export default function CompanyCard({ id, company: companyProp, variant = "large" }: CompanyCardProps) {
     const [company, setCompany] = useState<Company | null>(companyProp ?? null);
     const [role, setRole] = useState("");
@@ -70,7 +97,7 @@ export default function CompanyCard({ id, company: companyProp, variant = "large
                         <dt className={styles.label}>
                             {companyLabels[key as keyof Company] ?? key}
                         </dt>
-                        <dd className={styles.value}>{value}</dd>
+                        <dd className={styles.value}>{renderCompanyValue(value)}</dd>
                     </div>
                 ))}
             </dl>

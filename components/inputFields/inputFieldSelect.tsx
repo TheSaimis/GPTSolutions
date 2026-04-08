@@ -21,6 +21,7 @@ type Props = {
   onChange: (v: string) => void;
   disabled?: boolean;
   icon?: LucideIcon;
+  search?: boolean;
 };
 
 export default function InputFieldSelect({
@@ -32,10 +33,13 @@ export default function InputFieldSelect({
   onChange,
   disabled = false,
   icon: Icon,
+  search = false,
 }: Props) {
   const [visible, setVisible] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const [internalSelectedLabel, setInternalSelectedLabel] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const normalizedOptions = useMemo(
     () =>
@@ -50,7 +54,18 @@ export default function InputFieldSelect({
   const isEmpty = normalizedOptions.length === 0;
   const effectivelyDisabled = disabled || isEmpty;
   const selectedText = typeof selected === "string" ? selected.trim() : "";
-  const shownSelection = selectedText || internalSelectedLabel;
+  const selectedOptionLabel = useMemo(() => {
+    if (!selectedText) return "";
+    const byValue = normalizedOptions.find(
+      (option) => String(option.value) === selectedText
+    );
+    if (byValue) return byValue.label;
+    const byLabel = normalizedOptions.find(
+      (option) => option.label.trim() === selectedText
+    );
+    return byLabel?.label ?? selectedText;
+  }, [normalizedOptions, selectedText]);
+  const shownSelection = selectedOptionLabel || internalSelectedLabel;
 
   const displayValue = isEmpty
     ? emptyMessage
@@ -58,6 +73,15 @@ export default function InputFieldSelect({
 
   const showMuted =
     !isEmpty && !shownSelection && Boolean(placeholder?.trim());
+
+  const filteredOptions = useMemo(() => {
+    if (!search) return normalizedOptions;
+    const query = searchValue.trim().toLowerCase();
+    if (!query) return normalizedOptions;
+    return normalizedOptions.filter((option) =>
+      option.label.toLowerCase().includes(query)
+    );
+  }, [normalizedOptions, search, searchValue]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -79,8 +103,18 @@ export default function InputFieldSelect({
   }, [effectivelyDisabled]);
 
   useEffect(() => {
-    setInternalSelectedLabel(selectedText);
-  }, [selectedText]);
+    if (!visible) {
+      setSearchValue("");
+      return;
+    }
+    if (!search) return;
+    const timeout = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [visible, search]);
+
+  useEffect(() => {
+    setInternalSelectedLabel(selectedOptionLabel);
+  }, [selectedOptionLabel]);
 
   return (
     <div
@@ -96,14 +130,28 @@ export default function InputFieldSelect({
 
       <div
         className={`${styles.selectShell} ${visible && !isEmpty ? styles.selectShellOpen : ""} ${effectivelyDisabled ? styles.selectShellDisabled : ""}`}
-        onClick={() =>
-          !effectivelyDisabled && setVisible((prev) => !prev)
-        }
+        onClick={() => {
+          if (effectivelyDisabled) return;
+          if (search) {
+            setVisible(true);
+            return;
+          }
+          setVisible((prev) => !prev);
+        }}
+        onFocus={() => {
+          if (!effectivelyDisabled && search) {
+            setVisible(true);
+          }
+        }}
         onKeyDown={(e) => {
           if (effectivelyDisabled) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setVisible((prev) => !prev);
+            if (search) {
+              setVisible(true);
+            } else {
+              setVisible((prev) => !prev);
+            }
           }
           if (e.key === "Escape") setVisible(false);
         }}
@@ -113,13 +161,38 @@ export default function InputFieldSelect({
         aria-haspopup="listbox"
         tabIndex={effectivelyDisabled ? -1 : 0}
       >
-        <span
-          className={
-            showMuted || isEmpty ? styles.selectValueMuted : styles.selectValue
-          }
-        >
-          {displayValue}
-        </span>
+        {search && !isEmpty ? (
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={visible ? searchValue : shownSelection}
+            placeholder={placeholder || "Ieškoti..."}
+            className={styles.selectSearchInput}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={() => {
+              if (!effectivelyDisabled) setVisible(true);
+            }}
+            onChange={(e) => {
+              if (!visible) setVisible(true);
+              setSearchValue(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setVisible(false);
+              }
+            }}
+            disabled={effectivelyDisabled}
+            aria-label={label || placeholder || "Paieška"}
+          />
+        ) : (
+          <span
+            className={
+              showMuted || isEmpty ? styles.selectValueMuted : styles.selectValue
+            }
+          >
+            {displayValue}
+          </span>
+        )}
         <ChevronDown
           size={18}
           className={`${styles.selectChevron} ${visible && !isEmpty ? styles.selectChevronOpen : ""}`}
@@ -129,7 +202,7 @@ export default function InputFieldSelect({
 
       {visible && !isEmpty ? (
         <ul className={styles.selectOptionsList} role="listbox">
-          {normalizedOptions.map((v) => (
+          {filteredOptions.map((v) => (
             <li key={String(v.value) + v.label} role="none">
               <button
                 type="button"
@@ -139,6 +212,7 @@ export default function InputFieldSelect({
                   e.stopPropagation();
                   onChange(v.value || v.label);
                   setInternalSelectedLabel(v.label);
+                  setSearchValue("");
                   setVisible(false);
                 }}
               >
@@ -146,6 +220,11 @@ export default function InputFieldSelect({
               </button>
             </li>
           ))}
+          {search && filteredOptions.length === 0 ? (
+            <li role="none" className={styles.selectNoResults}>
+              Nerasta pasirinkimų
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import DocumentController from "./documentController/DocumentController";
 import { PazymaProvider } from "./pazymaContext";
 import RiskController from "./riskController/RiskController";
+import TemplateController from "./templateController/TemplateController";
 import WorkerController from "./workerController/workerController";
 import styles from "./page.module.scss";
 import PazymaWorkflowTopNav, {
@@ -25,6 +26,7 @@ export default function RiskControllerPage() {
           {activeController === "document" ? <DocumentController /> : null}
           {activeController === "worker" ? <WorkerController /> : null}
           {activeController === "risk" ? <RiskController /> : null}
+          {activeController === "template" ? <TemplateController /> : null}
         </div>
       </div>
     </PazymaProvider>

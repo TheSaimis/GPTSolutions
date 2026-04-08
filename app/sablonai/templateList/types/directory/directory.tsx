@@ -14,6 +14,7 @@ import { DirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useDeleteFolder } from "./functions/deleteDirectory";
 import { useCreateFile } from "./functions/createFile";
+import { useDirectoryFileMoveDrop } from "./functions/useDirectoryFileMoveDrop";
 import { CatalougeApi } from "@/lib/api/catalouges";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { extractTemplateIds } from "@/app/sablonai/components/utilities/extractTemplateIds";
@@ -39,6 +40,11 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
     const [role] = useState<string | null>(() =>
         typeof window !== "undefined" ? localStorage.getItem("role") : null,
     );
+    const { onDirectoryDragOver, onDirectoryDrop } = useDirectoryFileMoveDrop({
+        role,
+        fileType,
+        path,
+    });
 
     const clicked = useCallback(() => {
         setCollapsed(!collapsed);
@@ -138,36 +144,44 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
 
     return (
         <DropZone onFiles={handleDroppedFiles} accept={[".docx", ".xlsx"]} className={styles.directory} >
-            <div className={styles.itemContainer} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
-                <div className={styles.item} onClick={clicked}>
-                    <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
-                    <Folder size={16} />
+            <div
+                onDragOver={onDirectoryDragOver}
+                onDrop={onDirectoryDrop}
+            >
+                <div
+                    className={styles.itemContainer}
+                    onContextMenu={(e) => openMenuFromEvent(e, menuItems)}
+                >
+                    <div className={styles.item} onClick={clicked}>
+                        <ChevronDown className={`${collapsed ? styles.collapsed : ""} ${styles.arrow}`} />
+                        <Folder size={16} />
 
-                    {rename ? (
-                        <RenameDirectory name={name} path={path} onFocus={setRename} fileType={fileType} folders={nodes?.filter((child) => child.type === "directory")} />
-                    ) : (
-                        <p>{name}</p>
-                    )}
+                        {rename ? (
+                            <RenameDirectory name={name} path={path} onFocus={setRename} fileType={fileType} folders={nodes?.filter((child) => child.type === "directory")} />
+                        ) : (
+                            <p>{name}</p>
+                        )}
 
-                    <div onClick={(e) => { fileInputRef.current?.click(); e.stopPropagation(); }}>
-                        <ArrowUpToLine size={16} />
-                        <div style={{ display: "none" }}>
-                            <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".docx", ".xlsx"]} />
+                        <div onClick={(e) => { fileInputRef.current?.click(); e.stopPropagation(); }}>
+                            <ArrowUpToLine size={16} />
+                            <div style={{ display: "none" }}>
+                                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".docx", ".xlsx"]} />
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
-                {create &&
-                    <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={nodes?.filter((child) => child.type === "directory")} />
-                }
-                {(nodes ?? []).map((child) => child.type === "file" ? (
-                    <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
-                ) : (
-                    <Directory key={child.path ?? child.name} name={child.name} nodes={child.children} path={child.path} fileType={fileType} />
-                )
-                )}
+                <div className={`${collapsed ? styles.collapsed : ""} ${styles.child}`}>
+                    {create &&
+                        <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={nodes?.filter((child) => child.type === "directory")} />
+                    }
+                    {(nodes ?? []).map((child) => child.type === "file" ? (
+                        <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
+                    ) : (
+                        <Directory key={child.path ?? child.name} name={child.name} nodes={child.children} path={child.path} fileType={fileType} />
+                    )
+                    )}
+                </div>
             </div>
         </DropZone>
     );

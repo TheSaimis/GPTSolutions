@@ -233,6 +233,33 @@ $bg-input: #F8FAFC;
     overflow-y: auto;
 }
 
+.selectNoResults {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    color: $text-muted;
+}
+
+.selectSearchInput {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: $text-dark;
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    outline: none;
+    padding: 0;
+}
+
+.selectSearchInput::placeholder {
+    color: #94a3b8;
+}
+
+.selectSearchInput:disabled {
+    cursor: not-allowed;
+}
+
 .selectOptionButton {
     display: block;
     width: 100%;
