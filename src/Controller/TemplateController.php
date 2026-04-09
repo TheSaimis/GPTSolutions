@@ -503,6 +503,7 @@ final class TemplateController extends AbstractController
             'xls'   => 'application/vnd.ms-excel',
             default => 'application/octet-stream',
         });
+        $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
             basename($resolved)
@@ -528,6 +529,7 @@ final class TemplateController extends AbstractController
 
         $response = new BinaryFileResponse($pdfPath);
         $response->headers->set('Content-Type', 'application/pdf');
+        $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_INLINE,
             pathinfo($path, PATHINFO_FILENAME) . '.pdf'

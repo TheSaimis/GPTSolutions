@@ -50,6 +50,7 @@ final class GeneratedFileController extends AbstractController
 
         $response = new BinaryFileResponse($pdfPath);
         $response->headers->set('Content-Type', 'application/pdf');
+        $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_INLINE,
             pathinfo($path, PATHINFO_FILENAME) . '.pdf'
@@ -117,6 +118,7 @@ final class GeneratedFileController extends AbstractController
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'xls' => 'application/vnd.ms-excel',
         });
+        $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
             basename($resolved)

@@ -25,14 +25,17 @@ final class RiskController extends AbstractController
     ) {}
 
     /**
-     * GET /api/risk/export/{companyId}
+     * GET /api/risk/export/{companyId}?nameAndSurname=...&role=...
+     * POST /api/risk/export/{companyId} — JSON: { "nameAndSurname": "...", "role": "..." }
      * Sugeneruoja .xlsx failą su rizikos vertinimo lentelėmis kiekvienam įmonės darbuotojui.
      */
-    #[Route('/export/{companyId}', name: 'api_risk_export', methods: ['GET'], requirements: ['companyId' => '\d+'])]
-    public function export(int $companyId): JsonResponse | BinaryFileResponse
+    #[Route('/export/{companyId}', name: 'api_risk_export', methods: ['GET', 'POST'], requirements: ['companyId' => '\d+'])]
+    public function export(Request $request, int $companyId): JsonResponse | BinaryFileResponse
     {
+        [$nameAndSurname, $role] = $this->parseRiskExportSignerParams($request);
+
         try {
-            $path = $this->riskExcelService->generate($companyId);
+            $path = $this->riskExcelService->generate($companyId, $nameAndSurname, $role);
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (\Throwable $e) {
@@ -50,6 +53,34 @@ final class RiskController extends AbstractController
         );
 
         return $response;
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string} [nameAndSurname, role]
+     */
+    private function parseRiskExportSignerParams(Request $request): array
+    {
+        if ($request->isMethod('POST')) {
+            $data = json_decode($request->getContent(), true);
+            if (! is_array($data)) {
+                return [null, null];
+            }
+            $ns = trim((string) ($data['nameAndSurname'] ?? ''));
+            $r  = trim((string) ($data['role'] ?? ''));
+
+            return [
+                $ns !== '' ? $ns : null,
+                $r !== '' ? $r : null,
+            ];
+        }
+
+        $ns = trim((string) $request->query->get('nameAndSurname', ''));
+        $r  = trim((string) $request->query->get('role', ''));
+
+        return [
+            $ns !== '' ? $ns : null,
+            $r !== '' ? $r : null,
+        ];
     }
 
     #[Route('/import-xls', name: 'api_risk_import_xls', methods: ['POST'])]

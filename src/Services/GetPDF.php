@@ -49,6 +49,10 @@ final class GetPDF
                 "Failas neprieinamas: " . $filePath
             );
         }
+
+        // PHP caches stat() per path; after an in-place replace, filemtime/size can be stale and
+        // we'd wrongly reuse an old cached PDF with the same hash.
+        clearstatcache(true, $filePath);
     
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
@@ -63,7 +67,7 @@ final class GetPDF
             mkdir($outputDir, 0775, true);
         }
     
-        $hash = md5($baseDir . $relativePath . filemtime($filePath));
+        $hash = md5($baseDir . "\0" . $relativePath . "\0" . filemtime($filePath) . "\0" . filesize($filePath));
         $pdfName = pathinfo($filePath, PATHINFO_FILENAME) . '_' . $hash . '.pdf';
         $pdfPath = $outputDir . '/' . $pdfName;
     

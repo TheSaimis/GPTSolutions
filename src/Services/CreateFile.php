@@ -22,11 +22,12 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - pavarde / managerLastName – vadovo pavardė
  *   - tipas / companyType – įmonės tipas (trumpas kodas, pvz. UAB)
  *   - tipasPilnas / category – pilnas pavadinimas; jei tuščia, CreateFile pildo iš mapTipasPilnas(tipas)
+ *   - tipasKompaktiskas – kaip tipasPilnas; jei kompanija ilgesnė nei 14 simbolių, naudojamas tipas (trumpesnis)
  *   - adresas / address – adresas
  *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *
  * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
- * ${tipas}, ${tipasPilnas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
+ * ${tipas}, ${tipasPilnas}, ${tipasKompaktiskas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
  * ${vadovo} (pareigų kilm.), ${vadovui}, ${vadovą}, ${vadovu}, ${vadove} (viet. vyr. pareigai),
  * ${vadovėje}, ${vadovei}, ${vadovę}, ${vadovasNom}, ${vadovasKreip} (šauksm.), ${vadoves} (= vadovo, ASCII),
  * ${vardo} (kilm.), ${vardui}, ${vardą}, ${vardu}, ${vardviet} (viet.),
@@ -94,6 +95,8 @@ final class CreateFile
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
 
+        $tipasKompaktiskas = mb_strlen($companyName, 'UTF-8') > 14 ? $tipas : $tipasPilnas;
+
         $templatePath = $this->resolveTemplatePath($directory, $template);
         if ($templatePath === null || ! is_readable($templatePath)) {
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
@@ -148,7 +151,8 @@ final class CreateFile
 
         $managerType   = $this->effectiveManagerType($data);
         $lytis         = $this->resolveLytisForPersonDeclension($data);
-        $tipasPilnasTr = $tipasPilnas;
+        $tipasPilnasTr       = $tipasPilnas;
+        $tipasKompaktiskasTr = $tipasKompaktiskas;
 
         $vadovas = $this->formatManagerFullName(
             $vardas !== '' ? $vardas : null,
@@ -175,6 +179,7 @@ final class CreateFile
             $this->setValueCaseInsensitive($processor, 'role', $role);
             $this->setValueCaseInsensitive($processor, 'tipas', $tipas);
             $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnas);
+            $this->setValueCaseInsensitive($processor, 'tipasKompaktiskas', $tipasKompaktiskas);
             $this->setValueCaseInsensitive($processor, 'lytis', $lytis);
             $this->setValueCaseInsensitive($processor, 'vadovo', $vadovo);
             $this->setValueCaseInsensitive($processor, 'vadoves', $vadovo);
@@ -206,11 +211,13 @@ final class CreateFile
             $roleTr        = $this->translateRole($managerType, $lang);
             $tipasTr       = $this->translateTipas($tipas, $lang, $tipasPilnas);
             $tipasPilnasTr = $this->translateTipasPilnas($tipas, $tipasPilnas, $lang);
+            $tipasKompaktiskasTr = mb_strlen($companyName, 'UTF-8') > 14 ? $tipasTr : $tipasPilnasTr;
             $lytisTr       = $this->translateGender($lytis, $lang);
 
             $this->setValueCaseInsensitive($processor, 'role', $roleTr);
             $this->setValueCaseInsensitive($processor, 'tipas', $tipasTr);
             $this->setValueCaseInsensitive($processor, 'tipasPilnas', $tipasPilnasTr);
+            $this->setValueCaseInsensitive($processor, 'tipasKompaktiskas', $tipasKompaktiskasTr);
             $this->setValueCaseInsensitive($processor, 'lytis', $lytisTr);
             $this->setValueCaseInsensitive($processor, 'vadovo', $roleTr);
             $this->setValueCaseInsensitive($processor, 'vadoves', $roleTr);
@@ -265,13 +272,15 @@ final class CreateFile
 
         $processor->saveAs($outputPath);
 
-        $tipasPilnasOut = $tipasPilnasTr;
-        $splitMacros    = [];
+        $tipasPilnasOut       = $tipasPilnasTr;
+        $tipasKompaktiskasOut = $tipasKompaktiskasTr;
+        $splitMacros          = [];
         foreach (
             [
-                'tipasPilnas'  => $tipasPilnasOut,
-                'companyName'  => $companyName,
-                'documentDate' => $documentDateDisplay,
+                'tipasPilnas'        => $tipasPilnasOut,
+                'tipasKompaktiskas'  => $tipasKompaktiskasOut,
+                'companyName'        => $companyName,
+                'documentDate'       => $documentDateDisplay,
             ] as $ph => $val
         ) {
             foreach ($this->placeholderVariants($ph, $val) as $k => $v) {
@@ -330,6 +339,8 @@ final class CreateFile
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
 
+        $tipasKompaktiskas = mb_strlen($companyName, 'UTF-8') > 14 ? $tipas : $tipasPilnas;
+
         $templatePath = $this->resolveTemplatePath($directory, $template);
         if ($templatePath === null || ! is_readable($templatePath)) {
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
@@ -383,9 +394,10 @@ final class CreateFile
             'role'         => $role,
             'vardas'       => $vardas,
             'pavarde'      => $pavarde,
-            'tipas'        => $tipas,
-            'tipasPilnas'  => $tipasPilnas,
-            'adresas'      => $adresas,
+            'tipas'               => $tipas,
+            'tipasPilnas'         => $tipasPilnas,
+            'tipasKompaktiskas'   => $tipasKompaktiskas,
+            'adresas'             => $adresas,
             'miestas'      => $miestas,
             'vadovas'      => $vadovas,
             'lytis'        => $lytis,
@@ -442,10 +454,12 @@ final class CreateFile
             $roleTr                       = $this->translateRole($managerType, $lang);
             $tipasTr                      = $this->translateTipas($tipas, $lang, $tipasPilnas);
             $tipasPilnasTr                = $this->translateTipasPilnas($tipas, $tipasPilnas, $lang);
+            $tipasKompaktiskasTr          = mb_strlen($companyName, 'UTF-8') > 14 ? $tipasTr : $tipasPilnasTr;
             $lytisTr                      = $this->translateGender($lytis, $lang);
             $replacements['role']         = $roleTr;
             $replacements['tipas']        = $tipasTr;
             $replacements['tipasPilnas']  = $tipasPilnasTr;
+            $replacements['tipasKompaktiskas'] = $tipasKompaktiskasTr;
             $replacements['lytis']        = $lytisTr;
             $replacements                += [
                 'vadovo'       => $roleTr,
@@ -880,6 +894,9 @@ final class CreateFile
         // Word šablonai dažnai naudoja ${TipasPilnas} – mb_convert_case('tipasPilnas') duoda „Tipaspilnas“, ne „TipasPilnas“.
         if ($lower === 'tipaspilnas') {
             $variants['TipasPilnas'] = $value;
+        }
+        if ($lower === 'tipaskompaktiskas') {
+            $variants['TipasKompaktiskas'] = $value;
         }
         if ($lower === 'companyname') {
             $variants['CompanyName'] = $value;

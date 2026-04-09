@@ -257,9 +257,6 @@ final class FileService
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
                 } elseif ($ext === 'url') {
-<<<<<<< HEAD
-                    $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
-=======
                     $entry['metadata'] = [
                         'core'   => [],
                         'custom' => [
@@ -267,7 +264,6 @@ final class FileService
                             'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
                         ],
                     ];
->>>>>>> 35b40c37bb0c4a79047b5c8c8d26f26648dee07c
                 }
 
                 $result[] = $entry;
@@ -383,9 +379,6 @@ final class FileService
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
                 } elseif ($ext === 'url') {
-<<<<<<< HEAD
-                    $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
-=======
                     $entry['metadata'] = [
                         'core'   => [],
                         'custom' => [
@@ -393,7 +386,6 @@ final class FileService
                             'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
                         ],
                     ];
->>>>>>> 35b40c37bb0c4a79047b5c8c8d26f26648dee07c
                 }
 
                 $result[] = $entry;

@@ -16,6 +16,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet as SpreadsheetWorksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
@@ -61,7 +62,11 @@ final class RiskExcelService
         private readonly string $projectDir,
     ) {}
 
-    public function generate(int $companyId): string
+    /**
+     * @param string|null $nameAndSurname Tekstas virš parašo linijos dešinėje (nekeičia etiketės žemiau).
+     * @param string|null $role            Tekstas virš parašo linijos kairėje (nekeičia „(pareigos)“ žemiau).
+     */
+    public function generate(int $companyId, ?string $nameAndSurname = null, ?string $role = null): string
     {
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if ($company === null) {
@@ -106,7 +111,9 @@ final class RiskExcelService
                 $company,
                 $companyName,
                 $worker,
-                $riskPoints
+                $riskPoints,
+                $nameAndSurname,
+                $role
             );
         }
 
@@ -472,7 +479,9 @@ final class RiskExcelService
         CompanyRequisite $company,
         string $companyName,
         Worker $worker,
-        array $riskPoints
+        array $riskPoints,
+        ?string $nameAndSurname = null,
+        ?string $role = null,
     ): void {
         $companyRow   = $blockStart + 2;
         $dataStartRow = $blockStart + 7;
@@ -526,7 +535,7 @@ final class RiskExcelService
             ->setVertical(Alignment::VERTICAL_CENTER);
 
         $this->applyBodyPartCategoryVerticalMerges($sheet, $blockStart);
-        $this->applyTemplateBlockFooterMerges($sheet, $blockStart);
+        $this->applyTemplateBlockFooterMerges($sheet, $blockStart, $role, $nameAndSurname);
     }
 
     /**
@@ -617,7 +626,9 @@ final class RiskExcelService
      */
     private function applyTemplateBlockFooterMerges(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
-        int $blockStart
+        int $blockStart,
+        ?string $roleText = null,
+        ?string $nameAndSurnameText = null,
     ): void {
         $lastCol         = self::TEMPLATE_MAX_COL;
         $lastLetter      = $this->colLetter($lastCol);
@@ -660,29 +671,34 @@ final class RiskExcelService
         $rightStartLetter = $this->colLetter($rightStartCol);
         $rightEndLetter   = $this->colLetter($rightEndCol);
 
-        // Kiekviena parašų zona — vienas sujungtas laukas (2 eilutės): viršuje linija, apačioje etiketė.
-        $this->mergeSignatureFieldBlock(
+        // Viršutinė eilutė — įrašomas tekstas; linija — tos eilutės apatinis rėmelis; žemiau — šablono etiketės.
+        $roleVal            = ($roleText !== null && $roleText !== '') ? $roleText : '';
+        $nameAndSurnameVal = ($nameAndSurnameText !== null && $nameAndSurnameText !== '') ? $nameAndSurnameText : '';
+        $this->writeSignatureFieldPair(
             $sheet,
             $leftStartLetter,
             $leftEndLetter,
             $signatureLineRow,
             $signatureLabelRow,
+            $roleVal,
             '(pareigos)'
         );
-        $this->mergeSignatureFieldBlock(
+        $this->writeSignatureFieldPair(
             $sheet,
             $midStartLetter,
             $midEndLetter,
             $signatureLineRow,
             $signatureLabelRow,
+            '',
             '(parašas)'
         );
-        $this->mergeSignatureFieldBlock(
+        $this->writeSignatureFieldPair(
             $sheet,
             $rightStartLetter,
             $rightEndLetter,
             $signatureLineRow,
             $signatureLabelRow,
+            $nameAndSurnameVal,
             '(vardo raidė, pavardė)'
         );
     }
@@ -713,24 +729,44 @@ final class RiskExcelService
     }
 
     /**
-     * Vienas sujungtas parašo laukas (horizontaliai per stulpelius + 2 eilutes): ne atskira linijos ir etiketės eilutės.
+     * Parašo zona: viršutinė eilutė — $valueText (įrašas virš linijos); apatinė — $labelText (pvz. „(pareigos)“).
+     * Horizontali linija — viršutinės eilutės apatinis rėmelis.
      */
-    private function mergeSignatureFieldBlock(
+    private function writeSignatureFieldPair(
         \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
         string $startColLetter,
         string $endColLetter,
-        int $topRow,
-        int $bottomRow,
-        string $label
+        int $valueRow,
+        int $labelRow,
+        string $valueText,
+        string $labelText,
     ): void {
-        $range = $startColLetter . $topRow . ':' . $endColLetter . $bottomRow;
-        $sheet->mergeCells($range);
-        $sheet->setCellValue($startColLetter . $topRow, $label);
-        $sheet->getStyle($range)->getAlignment()
+        // Šablono eilutė virš parašų dažnai palieka apatinį rėmelį — atrodo kaip linija virš vardo / pareigų.
+        if ($valueRow > 1) {
+            $aboveRange = $startColLetter . ($valueRow - 1) . ':' . $endColLetter . ($valueRow - 1);
+            $sheet->getStyle($aboveRange)->getBorders()->getBottom()->setBorderStyle(Border::BORDER_NONE);
+        }
+
+        $valueRange = $startColLetter . $valueRow . ':' . $endColLetter . $valueRow;
+        $sheet->mergeCells($valueRange);
+        $sheet->setCellValue($startColLetter . $valueRow, $valueText);
+        $sheet->getStyle($valueRange)->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_BOTTOM)
+            ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
-        $sheet->getStyle($range)->getBorders()->getTop()->setBorderStyle(self::BORDER_THIN);
+        $vb = $sheet->getStyle($valueRange)->getBorders();
+        $vb->getTop()->setBorderStyle(Border::BORDER_NONE);
+        $vb->getBottom()->setBorderStyle(self::BORDER_THIN);
+
+        $labelRange = $startColLetter . $labelRow . ':' . $endColLetter . $labelRow;
+        $sheet->mergeCells($labelRange);
+        $sheet->setCellValue($startColLetter . $labelRow, $labelText);
+        $sheet->getStyle($labelRange)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $lb = $sheet->getStyle($labelRange)->getBorders();
+        $lb->getTop()->setBorderStyle(Border::BORDER_NONE);
     }
 
     private function unmergeCellsIntersectingRange(
@@ -1319,28 +1355,31 @@ final class RiskExcelService
             $rightEndCol,
         ] = $this->resolveAapSignatureColumnBounds($totalCols);
 
-        $this->mergeSignatureFieldBlock(
+        $this->writeSignatureFieldPair(
             $sheet,
             $this->colLetter($leftStartCol),
             $this->colLetter($leftEndCol),
             $signatureLineRow,
             $signatureLabelRow,
+            '',
             '(pareigos)'
         );
-        $this->mergeSignatureFieldBlock(
+        $this->writeSignatureFieldPair(
             $sheet,
             $this->colLetter($midStartCol),
             $this->colLetter($midEndCol),
             $signatureLineRow,
             $signatureLabelRow,
+            '',
             '(parašas)'
         );
-        $this->mergeSignatureFieldBlock(
+        $this->writeSignatureFieldPair(
             $sheet,
             $this->colLetter($rightStartCol),
             $this->colLetter($rightEndCol),
             $signatureLineRow,
             $signatureLabelRow,
+            '',
             '(vardo raidė, pavardė)'
         );
 
