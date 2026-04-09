@@ -104,6 +104,8 @@ export const wordVariables = [
     "${data}",
     "${documentDate}",
     "${dataSkaitmenimis}",
+    "${atliktiDarbai}",
+    "${companyFolderDataNames}",
 
     "${role}",
     "${lytis}",
