@@ -48,7 +48,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -77,7 +77,7 @@ final class FileService
     /**
      * @return 'SUCCESS'|'FAIL'
      */
-    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -113,7 +113,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null || ! is_file($fullPath)) {
@@ -199,6 +199,14 @@ final class FileService
                 $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                } elseif ($ext === 'url') {
+                    $entry['metadata'] = [
+                        'core'   => [],
+                        'custom' => [
+                            'mimeType' => 'application/internet-shortcut',
+                            'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
+                        ],
+                    ];
                 }
 
                 $result[] = $entry;
@@ -298,7 +306,7 @@ final class FileService
                 ];
             } else {
                 $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
-                if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+                if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
                     continue;
                 }
 
@@ -313,6 +321,14 @@ final class FileService
 
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                } elseif ($ext === 'url') {
+                    $entry['metadata'] = [
+                        'core'   => [],
+                        'custom' => [
+                            'mimeType' => 'application/internet-shortcut',
+                            'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
+                        ],
+                    ];
                 }
 
                 $result[] = $entry;
@@ -368,7 +384,7 @@ final class FileService
         }
     
         $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
             return self::FAIL;
         }
     
@@ -506,6 +522,26 @@ final class FileService
         $value = trim($nodes->item(0)?->textContent ?? '');
 
         return $value !== '' ? $value : null;
+    }
+
+    private function readInternetShortcutUrl(string $path): string
+    {
+        $raw = @file_get_contents($path);
+        if (! is_string($raw) || $raw === '') {
+            return '';
+        }
+
+        $lines = preg_split("/\r\n|\n|\r/", $raw) ?: [];
+        foreach ($lines as $line) {
+            $line = trim((string) $line);
+            if (! str_starts_with(strtoupper($line), 'URL=')) {
+                continue;
+            }
+
+            return trim(substr($line, 4));
+        }
+
+        return '';
     }
 }
 
