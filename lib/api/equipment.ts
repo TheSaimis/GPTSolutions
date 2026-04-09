@@ -3,7 +3,7 @@ import { CreateFileResponse, CreateFilesResponse, TemplateList } from "../types/
 import { getEquipmentCache, addEquipmentToCache, removeEquipmentFromCache, clearEquipmentCache, setEquipmentCache } from "../cache/equipmentCache";
 import { Equipment } from "../types/equipment/equipment";
 import { WorkerItem } from "../types/entities";
-import { setCachedWordFile, getCachedWordFile } from "../cache/wordFileCache";
+import { setCachedWordFile, getCachedWordFile, clearWordFileCache } from "../cache/wordFileCache";
 
 export const EquipmentApi = {
 
@@ -59,7 +59,7 @@ export const EquipmentApi = {
 
     getPDF: (root: string, path: string) => api.getBlob(`/api/files/pdf/${root}/${path}`),
 
-    createFiles: (files: File[], directory: string, root: string) => {
+    createFiles: async (files: File[], directory: string, root: string): Promise<CreateFilesResponse> => {
         const form = new FormData();
         for (const file of files) {
             form.append("templates[]", file);
@@ -68,9 +68,18 @@ export const EquipmentApi = {
         form.append("root", root);
         const dirPrefix = directory ? `${directory.replace(/\/+$/, "")}/` : "";
         for (const file of files) {
-            setCachedWordFile(`${root}/${dirPrefix}${file.name}`, file);
+            clearWordFileCache(`${root}/${dirPrefix}${file.name}`);
         }
-        return api.post<CreateFilesResponse>("/api/files/create", form);
+        const res = await api.post<CreateFilesResponse>("/api/files/create", form);
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const key = `${root}/${dirPrefix}${file.name}`;
+            const item = res.results[i];
+            if (item?.status === "SUCCESS") {
+                setCachedWordFile(key, file);
+            }
+        }
+        return res;
     },
 
     createFile: async (file: File, directory: string, root: string): Promise<CreateFileResponse> => {
@@ -87,7 +96,19 @@ export const EquipmentApi = {
     },
 
     getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),
-    renameFile: (directory: string, name: string, root: string) => api.post<{ status: string }>("/api/files/rename", { directory, name, root }),
-    deleteFile: (directory: string, root: string) => api.post<{ status: string }>("/api/files/delete", { directory, root }),
+    renameFile: async (directory: string, name: string, root: string) => {
+        const res = await api.post<{ status: string }>("/api/files/rename", { directory, name, root });
+        if (res.status === "SUCCESS") {
+            clearWordFileCache(`${root}/${directory}`);
+        }
+        return res;
+    },
+    deleteFile: async (directory: string, root: string) => {
+        const res = await api.post<{ status: string }>("/api/files/delete", { directory, root });
+        if (res.status === "SUCCESS") {
+            clearWordFileCache(`${root}/${directory}`);
+        }
+        return res;
+    },
     restoreFile: (directory: string) => api.post<{ status: string }>("/api/files/restore", { directory }),
 }

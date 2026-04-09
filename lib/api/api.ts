@@ -151,6 +151,8 @@ async function request<T>({
       headers,
       body: finalBody,
       credentials: "include",
+      // Avoid stale blobs after template replace / refresh (HTTP cache keyed by URL).
+      ...(responseType === "blob" ? { cache: "no-store" as RequestCache } : {}),
     });
 
     if (!res.ok) {

@@ -40,6 +40,9 @@ export default function WorkerTypes() {
   const [pendingWorkerIds, setPendingWorkerIds] = useState<Set<number>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [deletingWorkerIds, setDeletingWorkerIds] = useState<Set<number>>(new Set());
+  /** Parašų laukai eksporte: vardas ir pavardė, pareigos */
+  const [exportNameAndSurname, setExportNameAndSurname] = useState("");
+  const [exportRole, setExportRole] = useState("");
 
   useEffect(() => {
     setIsAdmin(
@@ -119,7 +122,11 @@ export default function WorkerTypes() {
     setCreatingDocument(true);
     try {
       await refresh();
-      const { blob, filename } = await TemplateApi.createAPPDocument(selectedCompanyId);
+      const signer =
+        exportNameAndSurname.trim() !== "" || exportRole.trim() !== ""
+          ? { nameAndSurname: exportNameAndSurname, role: exportRole }
+          : undefined;
+      const { blob, filename } = await TemplateApi.createAPPDocument(selectedCompanyId, signer);
       downloadBlob({ blob, filename });
       MessageStore.push({
         title: "Sėkmingai",
@@ -257,6 +264,18 @@ export default function WorkerTypes() {
                   placeholder="Pasirinkite įmonę"
                   emptyMessage="Šiuo metu nėra įmonių"
                   onChange={(value) => setSelectedCompanyId(Number(value) || null)}
+                />
+              </div>
+              <div className={styles.documentSignerFields}>
+                <InputFieldText
+                  value={exportNameAndSurname}
+                  onChange={setExportNameAndSurname}
+                  placeholder="Vardas ir pavardė (parašas) — neprivaloma"
+                />
+                <InputFieldText
+                  value={exportRole}
+                  onChange={setExportRole}
+                  placeholder="Pareigos — neprivaloma"
                 />
               </div>
               <button

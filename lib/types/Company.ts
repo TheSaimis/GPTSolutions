@@ -91,10 +91,14 @@ export const COMPANY_TYPES = [
 export const wordVariables = [
     "${kompanija}",
     "${companyName}",
+    "${companyDirectory}",
+    "${atliktiDarbai}",
 
     "${tipas}",
     "${tipasPilnas}",
     "${TIPASPILNAS}",
+    "${tipasKompaktiskas}",
+    "${TIPASKOMPAKTISKAS}",
 
     "${adresas}",
     "${Miestas}",
@@ -104,8 +108,6 @@ export const wordVariables = [
     "${data}",
     "${documentDate}",
     "${dataSkaitmenimis}",
-    "${atliktiDarbai}",
-    "${companyFolderDataNames}",
 
     "${role}",
     "${lytis}",

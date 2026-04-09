@@ -105,11 +105,25 @@ export const TemplateApi = {
     return result;
   },
 
-  createAPPDocument: (companyId: number) => {
-    const result = api.getBlob(
-      `/api/risk/export/${companyId}`,
-    )
-    return result;
+  /**
+   * @param signer Optional: parašų laukai Excel faile (pareigos / vardas ir pavardė).
+   *               Naudokite POST su JSON, jei reikšmės ilgos ar su specialiais simboliais.
+   */
+  createAPPDocument: (
+    companyId: number,
+    signer?: { nameAndSurname?: string; role?: string },
+  ) => {
+    const hasSigner =
+      signer &&
+      ((signer.nameAndSurname != null && signer.nameAndSurname.trim() !== "") ||
+        (signer.role != null && signer.role.trim() !== ""));
+    if (hasSigner) {
+      return api.postBlob(`/api/risk/export/${companyId}`, {
+        nameAndSurname: signer?.nameAndSurname?.trim() ?? "",
+        role: signer?.role?.trim() ?? "",
+      });
+    }
+    return api.getBlob(`/api/risk/export/${companyId}`);
   },
 
   importAapXlsToDb: (file: File, reset = false) => {

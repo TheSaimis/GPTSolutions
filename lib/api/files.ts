@@ -1,18 +1,12 @@
 import { api, DownloadResult } from "./api";
 import { CreateFileResponse, CreateFilesResponse, TemplateList } from "../types/TemplateList";
-import { setCachedWordFile, getCachedWordFile } from "../cache/wordFileCache";
+import { setCachedWordFile, getCachedWordFile, clearWordFileCache } from "../cache/wordFileCache";
 
 /** Matches POST /api/files/change-directory (move file within the same baseDir). */
 export type FilesChangeDirectoryResult = {
   status: "SUCCESS" | "FAIL";
   oldPath?: string;
   newPath?: string;
-  error?: string;
-};
-
-export type CreateLinkResponse = {
-  status: "SUCCESS" | "FAIL";
-  file?: TemplateList;
   error?: string;
 };
 
@@ -33,14 +27,14 @@ export const FilesApi = {
     return res;
   },
 
-
   getPDF: (root: string, path: string) => api.getBlob(`/api/files/pdf/${root}/${path}`),
 
   /**
    * Upload one or more files to the same directory in a single request.
    * Backend field: `templates[]` (or legacy `template` for a single file via {@link createFile}).
+   * Clears in-memory cache for those paths first so replacements with the same filename are not stale.
    */
-  createFiles: (files: File[], directory: string, root: string) => {
+  createFiles: async (files: File[], directory: string, root: string): Promise<CreateFilesResponse> => {
     const form = new FormData();
     for (const file of files) {
       form.append("templates[]", file);
@@ -49,9 +43,18 @@ export const FilesApi = {
     form.append("root", root);
     const dirPrefix = directory ? `${directory.replace(/\/+$/, "")}/` : "";
     for (const file of files) {
-      setCachedWordFile(`${root}/${dirPrefix}${file.name}`, file);
+      clearWordFileCache(`${root}/${dirPrefix}${file.name}`);
     }
-    return api.post<CreateFilesResponse>("/api/files/create", form);
+    const res = await api.post<CreateFilesResponse>("/api/files/create", form);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const key = `${root}/${dirPrefix}${file.name}`;
+      const item = res.results[i];
+      if (item?.status === "SUCCESS") {
+        setCachedWordFile(key, file);
+      }
+    }
+    return res;
   },
 
   /** Single-file upload; uses the same endpoint as {@link createFiles} with one file. */
@@ -68,14 +71,6 @@ export const FilesApi = {
     };
   },
 
-  createLink: (name: string, url: string, directory: string, root: string) =>
-    api.post<CreateLinkResponse>("/api/files/create-link", {
-      name,
-      url,
-      directory,
-      root,
-    }),
-
   getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),
 
   /**
@@ -84,14 +79,31 @@ export const FilesApi = {
    * @param directory - Relative path to the file (e.g. category/UAB/MyDoc.docx)
    * @param newDirectory - Target folder relative to baseDir (filename unchanged)
    */
-  changeDirectory: (baseDir: string, directory: string, newDirectory: string) =>
-    api.post<FilesChangeDirectoryResult>("/api/files/change-directory", {
+  changeDirectory: async (baseDir: string, directory: string, newDirectory: string) => {
+    const res = await api.post<FilesChangeDirectoryResult>("/api/files/change-directory", {
       baseDir,
       directory,
       newDirectory,
-    }),
+    });
+    if (res.status === "SUCCESS") {
+      clearWordFileCache(`${baseDir}/${directory}`);
+    }
+    return res;
+  },
 
-  renameFile: (directory: string, name: string, root: string) => api.post<{ status: string }>("/api/files/rename", { directory, name, root }),
-  deleteFile: (directory: string, root: string) => api.post<{ status: string }>("/api/files/delete", { directory, root }),
+  renameFile: async (directory: string, name: string, root: string) => {
+    const res = await api.post<{ status: string }>("/api/files/rename", { directory, name, root });
+    if (res.status === "SUCCESS") {
+      clearWordFileCache(`${root}/${directory}`);
+    }
+    return res;
+  },
+  deleteFile: async (directory: string, root: string) => {
+    const res = await api.post<{ status: string }>("/api/files/delete", { directory, root });
+    if (res.status === "SUCCESS") {
+      clearWordFileCache(`${root}/${directory}`);
+    }
+    return res;
+  },
   restoreFile: (directory: string) => api.post<{ status: string }>("/api/files/restore", { directory }),
 }
