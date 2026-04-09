@@ -67,6 +67,56 @@ final class FileController extends AbstractController
     }
 
     /**
+     * POST /api/files/create-link
+     * Body JSON: { "name": "...", "url": "https://...", "directory": "relative/path", "root": "templates"|"generated"|"archive" }
+     */
+    #[Route('/create-link', name: 'api_files_create_link', methods: ['POST'])]
+    public function createLink(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+        }
+
+        $root      = trim((string) ($data['root'] ?? ''));
+        $directory = trim((string) ($data['directory'] ?? ''));
+        $name      = trim((string) ($data['name'] ?? ''));
+        $url       = trim((string) ($data['url'] ?? ''));
+
+        if ($name === '' || $url === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'name and url are required'], 400);
+        }
+
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true) || $root === 'deleted') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid root'], 400);
+        }
+        if (($resp = $this->denyArchiveForNonAdmin($root)) !== null) {
+            return $resp;
+        }
+
+        $directory = str_replace('\\', '/', $directory);
+        $directory = ltrim($directory, '/');
+        if (str_starts_with($directory, $root . '/')) {
+            $directory = substr($directory, strlen($root) + 1);
+        }
+
+        $result = $this->fileService->createInternetShortcut($root, $directory, $name, $url);
+        if (($result['status'] ?? '') !== 'SUCCESS' || ! isset($result['file'])) {
+            return new JsonResponse([
+                'status' => 'FAIL',
+                'error'  => $result['error'] ?? 'Failed to create shortcut',
+            ], 400);
+        }
+
+        $this->auditLogger->log('Sukurta nuoroda: ' . $root . '/' . ($result['file']['path'] ?? ''));
+
+        return new JsonResponse([
+            'status' => 'SUCCESS',
+            'file'   => $result['file'],
+        ]);
+    }
+
+    /**
      * POST multipart: root, directory, and either
      * - template: single UploadedFile (legacy), or
      * - templates: one or more files (field name "templates" / "templates[]").
@@ -341,7 +391,7 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Failas nerastas: ' . $path], 404);
         }
         $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+        if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
             return new JsonResponse(['error' => 'LeidÅ¾iami tik Word ir Excel failai'], 400);
         }
         $response = new BinaryFileResponse($resolved);
@@ -350,6 +400,7 @@ final class FileController extends AbstractController
             'doc'  => 'application/msword',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'xls'  => 'application/vnd.ms-excel',
+            'url'  => 'application/internet-shortcut',
         });
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,

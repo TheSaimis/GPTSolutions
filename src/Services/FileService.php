@@ -48,7 +48,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function delete(string $baseDir, string $path, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -77,7 +77,7 @@ final class FileService
     /**
      * @return 'SUCCESS'|'FAIL'
      */
-    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function rename(string $baseDir, string $path, string $newName, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null) {
@@ -113,7 +113,7 @@ final class FileService
      *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx']): string
+    public function move(string $baseDir, string $path, string $newDirectory, array $allowedExtensions = ['doc', 'docx', 'xls', 'xlsx', 'url']): string
     {
         $fullPath = $this->resolvePath($baseDir, $path);
         if ($fullPath === null || ! is_file($fullPath)) {
@@ -150,6 +150,63 @@ final class FileService
         } catch (\Throwable) {
             return self::FAIL;
         }
+    }
+
+    /**
+     * Sukuria Windows tipo interneto nuorodos failÄ… (.url) su [InternetShortcut] sekcija.
+     *
+     * @return array{status: 'SUCCESS'|'FAIL', file?: array<string, mixed>, error?: string}
+     */
+    public function createInternetShortcut(string $baseDir, string $directory, string $displayName, string $targetUrl): array
+    {
+        $baseFull = $this->getBaseFullPath($baseDir);
+        if ($baseFull === null) {
+            return ['status' => self::FAIL, 'error' => 'Invalid base directory'];
+        }
+
+        if (! filter_var($targetUrl, FILTER_VALIDATE_URL)) {
+            return ['status' => self::FAIL, 'error' => 'Invalid URL'];
+        }
+        $scheme = parse_url($targetUrl, PHP_URL_SCHEME);
+        if (! is_string($scheme) || ! in_array(strtolower($scheme), ['http', 'https'], true)) {
+            return ['status' => self::FAIL, 'error' => 'Only http and https URLs are allowed'];
+        }
+
+        $directory = trim(str_replace('\\', '/', $directory), '/');
+        if (str_contains($directory, '..')) {
+            return ['status' => self::FAIL, 'error' => 'Invalid directory'];
+        }
+
+        $filename = $this->sanitizeShortcutFileName($displayName);
+        $targetDir = $directory !== '' ? $baseFull . '/' . $directory : $baseFull;
+        $resolved = realpath($targetDir);
+        if ($resolved === false || ! is_dir($resolved) || ! str_starts_with($resolved, $baseFull)) {
+            return ['status' => self::FAIL, 'error' => 'Target directory not found'];
+        }
+
+        $fullPath = $resolved . '/' . $filename;
+        if (file_exists($fullPath)) {
+            return ['status' => self::FAIL, 'error' => 'Shortcut already exists'];
+        }
+
+        $ini = "[InternetShortcut]\r\nURL=" . $targetUrl . "\r\n";
+        if (file_put_contents($fullPath, $ini, LOCK_EX) === false) {
+            return ['status' => self::FAIL, 'error' => 'Failed to write shortcut'];
+        }
+
+        $relPath = $directory !== '' ? $directory . '/' . $filename : $filename;
+
+        $entry = [
+            'name'       => $filename,
+            'type'       => 'file',
+            'size'       => filesize($fullPath) ?: 0,
+            'path'       => $relPath,
+            'createdAt'  => date('Y-m-d H:i:s', filectime($fullPath)),
+            'modifiedAt' => date('Y-m-d H:i:s', filemtime($fullPath)),
+            'metadata'   => $this->readUrlShortcutMetadata($fullPath),
+        ];
+
+        return ['status' => self::SUCCESS, 'file' => $entry];
     }
 
     /**
@@ -199,6 +256,8 @@ final class FileService
                 $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                } elseif ($ext === 'url') {
+                    $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
                 }
 
                 $result[] = $entry;
@@ -298,7 +357,7 @@ final class FileService
                 ];
             } else {
                 $ext = strtolower(pathinfo($itemPath, PATHINFO_EXTENSION));
-                if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+                if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
                     continue;
                 }
 
@@ -313,6 +372,8 @@ final class FileService
 
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
+                } elseif ($ext === 'url') {
+                    $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
                 }
 
                 $result[] = $entry;
@@ -368,7 +429,7 @@ final class FileService
         }
     
         $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
+        if (!in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
             return self::FAIL;
         }
     
@@ -403,6 +464,55 @@ final class FileService
     {
         $ext = strtolower(pathinfo($pathOrName, PATHINFO_EXTENSION));
         return in_array($ext, $allowedExtensions, true);
+    }
+
+    private function sanitizeShortcutFileName(string $displayName): string
+    {
+        $name = trim(str_replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|', "\0"], '_', $displayName));
+        if ($name === '') {
+            $name = 'nuoroda';
+        }
+        if (! str_ends_with(strtolower($name), '.url')) {
+            $name .= '.url';
+        }
+
+        return $name;
+    }
+
+    /**
+     * @return array{core: array, custom: array<string, string>}
+     */
+    private function readUrlShortcutMetadata(string $path): array
+    {
+        $url = $this->parseInternetShortcutUrl($path);
+
+        return [
+            'core'   => [],
+            'custom' => [
+                'linkUrl'  => $url,
+                'mimeType' => 'application/internet-shortcut',
+            ],
+        ];
+    }
+
+    private function parseInternetShortcutUrl(string $path): string
+    {
+        $content = @file_get_contents($path);
+        if ($content === false || $content === '') {
+            return '';
+        }
+        $parsed = @parse_ini_string($content, true, INI_SCANNER_RAW);
+        if (! is_array($parsed)) {
+            return '';
+        }
+        if (isset($parsed['InternetShortcut']['URL'])) {
+            return (string) $parsed['InternetShortcut']['URL'];
+        }
+        if (isset($parsed['URL'])) {
+            return (string) $parsed['URL'];
+        }
+
+        return '';
     }
 
     private function readDocxMetadata(string $docxPath): array

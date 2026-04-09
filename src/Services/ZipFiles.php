@@ -11,7 +11,7 @@ use ZipArchive;
 final class ZipFiles
 {
     private const ALLOWED_ROOTS = ['templates', 'generated', 'archive', 'deleted'];
-    private const ALLOWED_FILE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx'];
+    private const ALLOWED_FILE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx', 'url'];
 
     public function __construct(
         private readonly string $projectDir,
