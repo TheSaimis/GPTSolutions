@@ -168,6 +168,96 @@ final class FileController extends AbstractController
         ]);
     }
 
+    #[Route('/create-link', name: 'api_files_create_link', methods: ['POST'])]
+    public function createLink(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data = json_decode($request->getContent(), true);
+        if (! is_array($data)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+        }
+
+        $root      = trim((string) ($data['root'] ?? ''));
+        $directory = trim((string) ($data['directory'] ?? ''));
+        $name      = trim((string) ($data['name'] ?? ''));
+        $urlRaw    = trim((string) ($data['url'] ?? ''));
+
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neleistinas katalogas'], 403);
+        }
+        if (($resp = $this->denyArchiveForNonAdmin($root)) !== null) {
+            return $resp;
+        }
+        if ($name === '' || $urlRaw === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'name and url are required'], 400);
+        }
+
+        $safeName = preg_replace('/[\\\\\\/:\*\?"<>\|\x00-\x1F]/u', '', $name) ?? '';
+        $safeName = trim($safeName);
+        if ($safeName === '') {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid link name'], 400);
+        }
+        if (! str_ends_with(mb_strtolower($safeName), '.url')) {
+            $safeName .= '.url';
+        }
+
+        $url = $this->normalizeWebsiteUrl($urlRaw);
+        if ($url === null) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid URL. Allowed only http/https'], 400);
+        }
+
+        $baseFull = $this->fileService->getBaseFullPath($root);
+        if ($baseFull === null) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Root folder not found'], 404);
+        }
+
+        $relativeDir = trim(str_replace('\\', '/', $directory), '/');
+        if (str_contains($relativeDir, '..')) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid directory'], 400);
+        }
+
+        $targetDir = $relativeDir === '' ? $baseFull : $baseFull . '/' . $relativeDir;
+        if (! is_dir($targetDir) && ! @mkdir($targetDir, 0775, true) && ! is_dir($targetDir)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Cannot create target directory'], 500);
+        }
+        $resolvedTargetDir = realpath($targetDir);
+        if ($resolvedTargetDir === false || ! str_starts_with($resolvedTargetDir, $baseFull)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid directory path'], 400);
+        }
+
+        $fullPath = $resolvedTargetDir . '/' . $safeName;
+        if (file_exists($fullPath)) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'File already exists'], 409);
+        }
+
+        $content = "[InternetShortcut]\nURL={$url}\n";
+        if (@file_put_contents($fullPath, $content) === false) {
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Failed to create link file'], 500);
+        }
+
+        $relativePath = $relativeDir === '' ? $safeName : ($relativeDir . '/' . $safeName);
+        $this->auditLogger->log("Sukurta nuoroda: {$root}/{$relativePath} -> {$url}");
+
+        return new JsonResponse([
+            'status' => 'SUCCESS',
+            'file'   => [
+                'name'       => $safeName,
+                'type'       => 'file',
+                'path'       => $relativePath,
+                'size'       => filesize($fullPath) ?: 0,
+                'createdAt'  => date('Y-m-d H:i:s', filectime($fullPath)),
+                'modifiedAt' => date('Y-m-d H:i:s', filemtime($fullPath)),
+                'metadata'   => [
+                    'custom' => [
+                        'mimeType' => 'application/internet-shortcut',
+                        'linkUrl'  => $url,
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     /**
      * Collects `template`, `templates`, or `templates[]` (and similar keys browsers send).
      *
@@ -392,7 +482,11 @@ final class FileController extends AbstractController
         }
         $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
         if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx', 'url'], true)) {
+<<<<<<< HEAD
             return new JsonResponse(['error' => 'LeidÅ¾iami tik Word ir Excel failai'], 400);
+=======
+            return new JsonResponse(['error' => 'Leidžiami tik Word, Excel ir URL failai'], 400);
+>>>>>>> 35b40c37bb0c4a79047b5c8c8d26f26648dee07c
         }
         $response = new BinaryFileResponse($resolved);
         $response->headers->set('Content-Type', match ($ext) {
@@ -455,6 +549,26 @@ final class FileController extends AbstractController
         }
 
         return null;
+    }
+
+    private function normalizeWebsiteUrl(string $raw): ?string
+    {
+        $url = trim($raw);
+        if ($url === '') {
+            return null;
+        }
+        if (! preg_match('#^[a-z][a-z0-9+\-.]*://#i', $url)) {
+            $url = 'https://' . $url;
+        }
+        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+
+        return $url;
     }
 
 }

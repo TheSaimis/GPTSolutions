@@ -120,6 +120,7 @@ final class CreateFile
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
+        $atliktiDarbai = $this->buildCompanyFolderDataNames($outputDir, $outputPath);
 
         $existingOutputMeta = [];
         if (file_exists($outputPath) && is_readable($outputPath)) {
@@ -247,6 +248,8 @@ final class CreateFile
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
         $this->setValueCaseInsensitive($processor, 'miestas', $miestas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
+        $this->setValueCaseInsensitive($processor, 'atliktiDarbai', $atliktiDarbai);
+        $this->setValueCaseInsensitive($processor, 'companyFolderDataNames', $atliktiDarbai);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
         $this->setValueCaseInsensitive($processor, 'documentDate', $documentDateDisplay);
@@ -347,6 +350,7 @@ final class CreateFile
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
         $outputPath = $outputDir . '/' . $outputName;
+        $atliktiDarbai = $this->buildCompanyFolderDataNames($outputDir, $outputPath);
 
         $existingOutputMeta = [];
         if (file_exists($outputPath) && is_readable($outputPath)) {
@@ -385,6 +389,8 @@ final class CreateFile
             'miestas'      => $miestas,
             'vadovas'      => $vadovas,
             'lytis'        => $lytis,
+            'atliktiDarbai' => $atliktiDarbai,
+            'companyFolderDataNames' => $atliktiDarbai,
         ];
 
         if ($lang === 'LT') {
@@ -715,6 +721,46 @@ final class CreateFile
         $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
         $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
         return $s !== '' ? $s : '';
+    }
+
+    private function buildCompanyFolderDataNames(string $outputDir, ?string $excludePath = null): string
+    {
+        if (! is_dir($outputDir)) {
+            return '';
+        }
+
+        $excludeNorm = $excludePath !== null ? str_replace('\\', '/', $excludePath) : null;
+        $names = [];
+        $entries = scandir($outputDir);
+        if ($entries === false) {
+            return '';
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $fullPath = $outputDir . '/' . $entry;
+            if (! is_file($fullPath)) {
+                continue;
+            }
+
+            $fullNorm = str_replace('\\', '/', $fullPath);
+            if ($excludeNorm !== null && $fullNorm === $excludeNorm) {
+                continue;
+            }
+
+            $names[] = pathinfo($entry, PATHINFO_FILENAME);
+        }
+
+        if ($names === []) {
+            return '';
+        }
+
+        natcasesort($names);
+
+        return implode(', ', $names);
     }
 
     private function formatManagerFullName(?string $firstName, ?string $lastName): string

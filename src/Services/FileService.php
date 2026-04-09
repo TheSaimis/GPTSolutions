@@ -257,7 +257,17 @@ final class FileService
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
                 } elseif ($ext === 'url') {
+<<<<<<< HEAD
                     $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
+=======
+                    $entry['metadata'] = [
+                        'core'   => [],
+                        'custom' => [
+                            'mimeType' => 'application/internet-shortcut',
+                            'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
+                        ],
+                    ];
+>>>>>>> 35b40c37bb0c4a79047b5c8c8d26f26648dee07c
                 }
 
                 $result[] = $entry;
@@ -373,7 +383,17 @@ final class FileService
                 if ($ext === 'docx' || $ext === 'xlsx') {
                     $entry['metadata'] = $this->readDocxMetadata($itemPath);
                 } elseif ($ext === 'url') {
+<<<<<<< HEAD
                     $entry['metadata'] = $this->readUrlShortcutMetadata($itemPath);
+=======
+                    $entry['metadata'] = [
+                        'core'   => [],
+                        'custom' => [
+                            'mimeType' => 'application/internet-shortcut',
+                            'linkUrl'  => $this->readInternetShortcutUrl($itemPath),
+                        ],
+                    ];
+>>>>>>> 35b40c37bb0c4a79047b5c8c8d26f26648dee07c
                 }
 
                 $result[] = $entry;
@@ -616,6 +636,26 @@ final class FileService
         $value = trim($nodes->item(0)?->textContent ?? '');
 
         return $value !== '' ? $value : null;
+    }
+
+    private function readInternetShortcutUrl(string $path): string
+    {
+        $raw = @file_get_contents($path);
+        if (! is_string($raw) || $raw === '') {
+            return '';
+        }
+
+        $lines = preg_split("/\r\n|\n|\r/", $raw) ?: [];
+        foreach ($lines as $line) {
+            $line = trim((string) $line);
+            if (! str_starts_with(strtoupper($line), 'URL=')) {
+                continue;
+            }
+
+            return trim(substr($line, 4));
+        }
+
+        return '';
     }
 }
 
