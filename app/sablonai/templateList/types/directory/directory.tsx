@@ -14,6 +14,7 @@ import { DirectoryStore } from "@/lib/globalVariables/directoriesToSend";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { useDeleteFolder } from "./functions/deleteDirectory";
 import { useCreateFile } from "./functions/createFile";
+import { useCreateLink } from "./functions/createLink";
 import { useDirectoryFileMoveDrop } from "./functions/useDirectoryFileMoveDrop";
 import { CatalougeApi } from "@/lib/api/catalouges";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
@@ -36,6 +37,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
     const { openMenuFromEvent } = useContextMenu();
     const { deleteFolder } = useDeleteFolder();
     const { createFile, createFiles } = useCreateFile();
+    const { openCreateLinkModal, linkModal } = useCreateLink();
     
     const [role] = useState<string | null>(() =>
         typeof window !== "undefined" ? localStorage.getItem("role") : null,
@@ -109,6 +111,13 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
                 },
             },
             {
+                id: "newLink",
+                label: "Nauja nuoroda",
+                onClick: () => {
+                    openCreateLinkModal(path ?? "", fileType);
+                },
+            },
+            {
                 id: "downloadFolder",
                 label: "Atsisiunti aplanką",
                 onClick: () => {
@@ -139,7 +148,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
                 },
             ] : [])
         ],
-        [name, fileType, path, deleteFolder, role, downloadFolder, getTemplatePaths]
+        [name, fileType, path, deleteFolder, role, downloadFolder, getTemplatePaths, openCreateLinkModal]
     );
 
     return (
@@ -183,6 +192,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
                     )}
                 </div>
             </div>
+            {linkModal}
         </DropZone>
     );
 }

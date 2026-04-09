@@ -11,6 +11,7 @@ import InputFieldFile from "@/components/inputFields/inputFieldFile";
 import { Search, FolderPlus, SlidersHorizontal } from "lucide-react";
 import { useCatalogueTree } from "../catalogueTreeContext";
 import { useCreateFile } from "./types/directory/functions/createFile";
+import { useCreateLink } from "./types/directory/functions/createLink";
 import { useContextMenu } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { FILE_TYPES } from "@/lib/types/TemplateList";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
@@ -25,6 +26,7 @@ export default function FileList({ overflow }: FileListProps) {
     const [create, setCreate] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const { createFile, createFiles } = useCreateFile();
+    const { openCreateLinkModal, linkModal } = useCreateLink();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { openMenuFromEvent } = useContextMenu();
 
@@ -67,7 +69,14 @@ export default function FileList({ overflow }: FileListProps) {
                     fileInputRef.current?.click();
                 },
             },
-        ], []);
+            {
+                id: "newLink",
+                label: "Nauja nuoroda",
+                onClick: () => {
+                    openCreateLinkModal("", fileType);
+                },
+            },
+        ], [openCreateLinkModal, fileType]);
 
     return (
         <DropZone accept={FILE_TYPES} onFiles={handleDroppedFiles} className={styles.container}>
@@ -123,6 +132,7 @@ export default function FileList({ overflow }: FileListProps) {
                 </div>
             </div>
             <Filters isOpen={filtersOpen} onClose={() => setFiltersOpen(false)} />
+            {linkModal}
         </DropZone>
     );
 }

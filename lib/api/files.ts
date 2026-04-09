@@ -10,6 +10,12 @@ export type FilesChangeDirectoryResult = {
   error?: string;
 };
 
+export type CreateLinkResponse = {
+  status: "SUCCESS" | "FAIL";
+  file?: TemplateList;
+  error?: string;
+};
+
 export const FilesApi = {
 
 
@@ -61,6 +67,14 @@ export const FilesApi = {
       error: first.error,
     };
   },
+
+  createLink: (name: string, url: string, directory: string, root: string) =>
+    api.post<CreateLinkResponse>("/api/files/create-link", {
+      name,
+      url,
+      directory,
+      root,
+    }),
 
   getFileData: (root: string, path: string) => api.get<TemplateList>(`/api/files/document-data/${root}/${path}`),
 

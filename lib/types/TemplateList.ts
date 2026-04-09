@@ -14,6 +14,7 @@ type CoreMetadata = {
 
 type CustomMetadata = {
     mimeType?: string;
+    linkUrl?: string;
     created?: string;
     createdBy?: string;
     userId?: string;
@@ -85,6 +86,9 @@ export const FILE_TYPE_COLORS = {
     // excel
     ".xlsx": "#16a34a",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "#16a34a",
+
+    // link
+    "application/internet-shortcut": "#7c3aed",
 };
 
 export type AcceptedFileType = typeof FILE_TYPES[number];

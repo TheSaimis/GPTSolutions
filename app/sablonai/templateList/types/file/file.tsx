@@ -50,10 +50,19 @@ export default function Files({ data, fileType }: List) {
     };
   }
   const { name, ext } = splitFileName(data.name);
+  const isLink =
+    ext.toLowerCase() === ".url" ||
+    data.metadata?.custom?.mimeType === "application/internet-shortcut";
+  const linkUrl = String(data.metadata?.custom?.linkUrl ?? "").trim();
   const [newName, setNewName] = useState(name);
   const [extension] = useState<string>(ext);
 
   function clicked() {
+    if (isLink) {
+      if (!linkUrl) return;
+      window.open(linkUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     if (fileType == "generated") {
       if (data.metadata?.custom?.templateId === undefined || data.metadata?.custom?.userId === undefined || data.metadata?.custom?.companyId === undefined) return
       router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${fileType}/${data.path}`);
@@ -152,17 +161,21 @@ export default function Files({ data, fileType }: List) {
           openMenuFromEvent(e, [
             {
               id: "open",
-              label: "Atidaryti",
+              label: isLink ? "Atidaryti nuorodą" : "Atidaryti",
               onClick: clicked,
             },
-            {
-              id: "preview",
-              label: "Peržiūrėti failą",
-              onClick: previewPDF,
-            },
+            ...(!isLink
+              ? [
+                {
+                  id: "preview",
+                  label: "Peržiūrėti failą",
+                  onClick: previewPDF,
+                },
+              ]
+              : []),
             {
               id: "download",
-              label: "Atsisiųsti",
+              label: isLink ? "Atsisiųsti nuorodą (.url)" : "Atsisiųsti",
               onClick: downloadFile,
             },
             ...(fileType === "templates" ? [
@@ -219,9 +232,11 @@ export default function Files({ data, fileType }: List) {
           </div>
 
           <div className={styles.inputContainer}>
-            <button type="button" onClick={previewPDF} className={`${styles.button}`}>
-              <Eye size={16} className={styles.icon} />
-            </button>
+            {!isLink && (
+              <button type="button" onClick={previewPDF} className={`${styles.button}`}>
+                <Eye size={16} className={styles.icon} />
+              </button>
+            )}
 
             {fileType === "templates" && (
               <CheckBox
