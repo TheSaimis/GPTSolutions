@@ -287,22 +287,23 @@ final class CompanyController extends AbstractController
             }
         }
 
-        if (array_key_exists('directory', $data)) {
-            $company->setDirectory(trim((string) $data['directory']) !== '' ? $data['directory'] : null);
-        } elseif (
-            isset($data['companyName'])
+        $directoryFromPathParts = array_key_exists('companyName', $data)
             || array_key_exists('companyType', $data)
             || array_key_exists('companyTypeId', $data)
             || array_key_exists('company_type_id', $data)
             || array_key_exists('categoryId', $data)
             || array_key_exists('catagoryId', $data)
-        ) {
+            || array_key_exists('code', $data);
+
+        if ($directoryFromPathParts) {
             $company->setDirectory($this->buildCompanyDirectory(
                 $company->getCompanyCategory()?->getName() ?? '',
                 $company->getCompanyType() ?? '',
                 $company->getCompanyName() ?? '',
                 $company->getCode() ?? ''
             ));
+        } elseif (array_key_exists('directory', $data)) {
+            $company->setDirectory(trim((string) $data['directory']) !== '' ? trim((string) $data['directory']) : null);
         }
         $errors = $this->validator->validate($company);
         if (\count($errors) > 0) {

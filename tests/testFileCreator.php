@@ -1,12 +1,15 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/bootstrap.php';
 
+use App\Kernel;
 use App\Services\CreateFile;
 
-$projectDir = dirname(__DIR__);
+$kernel = new Kernel($_SERVER['APP_ENV'] ?? 'dev', (bool) ($_SERVER['APP_DEBUG'] ?? true));
+$kernel->boot();
 
-$service = new CreateFile($projectDir);
+/** @var CreateFile $service */
+$service = $kernel->getContainer()->get(CreateFile::class);
 
 $data = [
     'directory'    => '4 Tvarkos',

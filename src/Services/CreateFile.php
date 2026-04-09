@@ -4,7 +4,9 @@ declare (strict_types = 1);
 
 namespace App\Services;
 
+use App\Entity\CompanyRequisite;
 use App\Services\Metadata\DocxMetadataService;
+use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -24,9 +26,12 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - tipasPilnas / category – pilnas pavadinimas; jei tuščia, CreateFile pildo iš mapTipasPilnas(tipas)
  *   - tipasKompaktiskas – kaip tipasPilnas; jei kompanija ilgesnė nei 14 simbolių, naudojamas tipas (trumpesnis)
  *   - adresas / address – adresas
+ *   - companyId – jei > 0, ${companyDirectory} užpildoma iš CompanyRequisite::directory (DB)
+ *   - ${atliktiDarbai} – unikalūs šablonų pavadinimai (be plėtinio), po vieną eilutę, pagal templateId
+ *     failuose po generated/{companyDirectory arba outputDirectory}
  *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *
- * Šablone: ${kompanija}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
+ * Šablone: ${kompanija}, ${companyDirectory} (iš DB, kai companyId), ${atliktiDarbai}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
  * ${tipas}, ${tipasPilnas}, ${tipasKompaktiskas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
  * ${vadovo} (pareigų kilm.), ${vadovui}, ${vadovą}, ${vadovu}, ${vadove} (viet. vyr. pareigai),
  * ${vadovėje}, ${vadovei}, ${vadovę}, ${vadovasNom}, ${vadovasKreip} (šauksm.), ${vadoves} (= vadovo, ASCII),
@@ -44,10 +49,12 @@ final class CreateFile
 {
     public function __construct(
         private readonly string $projectDir,
+        private readonly EntityManagerInterface $em,
         private readonly Namer $namer,
         private readonly DocxMetadataService $docxMetadataService,
         private readonly ConvertDocToDocx $convertDocToDocx,
         private readonly DocxSplitMacroReplacer $docxSplitMacroReplacer,
+        private readonly FindTemplates $findTemplates,
     ) {}
 
     /**
@@ -91,6 +98,11 @@ final class CreateFile
         $userSurname = (string) ($data['userSurname'] ?? $data['lastName'] ?? '');
         $createdBy   = trim($userName . ' ' . $userSurname);
 
+        $companyDirectory = $this->resolveCompanyDirectoryFromRecord($data);
+        $atliktiDarbai      = $this->findTemplates->buildAtliktiDarbaiText(
+            $this->resolveDirectoryForAtliktiDarbai($data, $companyDirectory)
+        );
+
         if ($tipasPilnas === '') {
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
@@ -123,7 +135,6 @@ final class CreateFile
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
         $outputPath = $outputDir . '/' . $outputName;
-        $atliktiDarbai = $this->buildCompanyFolderDataNames($outputDir, $outputPath);
 
         $existingOutputMeta = [];
         if (file_exists($outputPath) && is_readable($outputPath)) {
@@ -255,8 +266,8 @@ final class CreateFile
         $this->setValueCaseInsensitive($processor, 'adresas', $adresas);
         $this->setValueCaseInsensitive($processor, 'miestas', $miestas);
         $this->setValueCaseInsensitive($processor, 'vadovas', $vadovas);
+        $this->setValueCaseInsensitive($processor, 'companyDirectory', $companyDirectory);
         $this->setValueCaseInsensitive($processor, 'atliktiDarbai', $atliktiDarbai);
-        $this->setValueCaseInsensitive($processor, 'companyFolderDataNames', $atliktiDarbai);
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
         $this->setValueCaseInsensitive($processor, 'documentDate', $documentDateDisplay);
@@ -335,6 +346,11 @@ final class CreateFile
         $userSurname = (string) ($data['userSurname'] ?? $data['lastName'] ?? '');
         $createdBy   = trim($userName . ' ' . $userSurname);
 
+        $companyDirectory = $this->resolveCompanyDirectoryFromRecord($data);
+        $atliktiDarbai      = $this->findTemplates->buildAtliktiDarbaiText(
+            $this->resolveDirectoryForAtliktiDarbai($data, $companyDirectory)
+        );
+
         if ($tipasPilnas === '') {
             $tipasPilnas = $this->mapTipasPilnas($tipas);
         }
@@ -361,7 +377,6 @@ final class CreateFile
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
         $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
         $outputPath = $outputDir . '/' . $outputName;
-        $atliktiDarbai = $this->buildCompanyFolderDataNames($outputDir, $outputPath);
 
         $existingOutputMeta = [];
         if (file_exists($outputPath) && is_readable($outputPath)) {
@@ -387,6 +402,8 @@ final class CreateFile
         $replacements = [
             'kompanija'    => $companyName,
             'companyName'  => $companyName,
+            'companyDirectory' => $companyDirectory,
+            'atliktiDarbai'    => $atliktiDarbai,
             'kodas'        => $code,
             'code'         => $code,
             'data'         => $documentDateDisplay,
@@ -401,8 +418,6 @@ final class CreateFile
             'miestas'      => $miestas,
             'vadovas'      => $vadovas,
             'lytis'        => $lytis,
-            'atliktiDarbai' => $atliktiDarbai,
-            'companyFolderDataNames' => $atliktiDarbai,
         ];
 
         if ($lang === 'LT') {
@@ -691,6 +706,53 @@ final class CreateFile
         }
     }
 
+    /**
+     * Įmonės katalogo kelias (generated po juo) iš CompanyRequisite.directory.
+     */
+    private function resolveCompanyDirectoryFromRecord(array $data): string
+    {
+        $raw = $data['companyId'] ?? null;
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+        if (is_int($raw)) {
+            $id = $raw;
+        } elseif (is_string($raw) && ctype_digit($raw)) {
+            $id = (int) $raw;
+        } else {
+            return '';
+        }
+        if ($id <= 0) {
+            return '';
+        }
+
+        $company = $this->em->getRepository(CompanyRequisite::class)->find($id);
+        if (! $company instanceof CompanyRequisite) {
+            return '';
+        }
+
+        $dir = $company->getDirectory();
+        if ($dir === null || trim($dir) === '') {
+            return '';
+        }
+
+        return trim(str_replace('\\', '/', trim($dir)), '/');
+    }
+
+    /**
+     * Kelias po generated/ „atlikti darbai“ sąrašui: DB directory arba outputDirectory iš užklausos.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function resolveDirectoryForAtliktiDarbai(array $data, string $companyDirectory): string
+    {
+        if ($companyDirectory !== '') {
+            return $companyDirectory;
+        }
+
+        return trim(str_replace('\\', '/', (string) ($data['outputDirectory'] ?? '')), '/');
+    }
+
     private function resolveTemplatePath(string $directory, string $templateFile): ?string
     {
         $base = $this->getTemplatesDir();
@@ -735,46 +797,6 @@ final class CreateFile
         $s = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $s) ?? $s;
         $s = preg_replace('/\s+/', '_', trim($s)) ?? $s;
         return $s !== '' ? $s : '';
-    }
-
-    private function buildCompanyFolderDataNames(string $outputDir, ?string $excludePath = null): string
-    {
-        if (! is_dir($outputDir)) {
-            return '';
-        }
-
-        $excludeNorm = $excludePath !== null ? str_replace('\\', '/', $excludePath) : null;
-        $names = [];
-        $entries = scandir($outputDir);
-        if ($entries === false) {
-            return '';
-        }
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-
-            $fullPath = $outputDir . '/' . $entry;
-            if (! is_file($fullPath)) {
-                continue;
-            }
-
-            $fullNorm = str_replace('\\', '/', $fullPath);
-            if ($excludeNorm !== null && $fullNorm === $excludeNorm) {
-                continue;
-            }
-
-            $names[] = pathinfo($entry, PATHINFO_FILENAME);
-        }
-
-        if ($names === []) {
-            return '';
-        }
-
-        natcasesort($names);
-
-        return implode(', ', $names);
     }
 
     private function formatManagerFullName(?string $firstName, ?string $lastName): string

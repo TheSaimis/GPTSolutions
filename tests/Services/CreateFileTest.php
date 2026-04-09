@@ -5,25 +5,20 @@ declare(strict_types=1);
 namespace App\Tests\Services;
 
 use App\Services\CreateFile;
-use App\Services\ManagerGenderResolver;
-use App\Services\Namer;
-use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-final class CreateFileTest extends TestCase
+final class CreateFileTest extends KernelTestCase
 {
-    private string $projectDir;
-
-    private Namer $namer;
-
-    protected function setUp(): void
+    private function createCreateFile(): CreateFile
     {
-        $this->projectDir = \dirname(__DIR__, 2);
-        $this->namer = new Namer(new ManagerGenderResolver());
+        self::bootKernel();
+
+        return self::getContainer()->get(CreateFile::class);
     }
 
     public function testCreateWordDocumentValidatesRequiredFields(): void
     {
-        $service = new CreateFile($this->projectDir, $this->namer);
+        $service = $this->createCreateFile();
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -35,7 +30,7 @@ final class CreateFileTest extends TestCase
 
     public function testCreateWordDocumentThrowsWhenTemplateNotFound(): void
     {
-        $service = new CreateFile($this->projectDir, $this->namer);
+        $service = $this->createCreateFile();
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Šablonas nerastas');
@@ -48,4 +43,3 @@ final class CreateFileTest extends TestCase
         ]);
     }
 }
-
