@@ -20,6 +20,9 @@ use Symfony\Component\Routing\Annotation\Route;
 
 final class TemplateController extends AbstractController
 {
+    /** Katalogas po generated/, kai dokumentai kuriami be įmonės ir nenurodytas outputDirectory. */
+    private const OUTPUT_DIRECTORY_NO_COMPANY = 'Be įmonės dokumentai';
+
     public function __construct(
         private EntityManagerInterface $em,
         private CreateFile $createFile,
@@ -194,7 +197,7 @@ final class TemplateController extends AbstractController
      * POST /api/template/fillFileBulk
      * Body JSON: templates[] (būtina), companyId (nebūtina – jei nėra, naudojami laukai iš body arba numatytos reikšmės).
      * Be įmonės galima nurodyti: companyName/kompanija, code/kodas, documentDate/data, role, companyType/tipas,
-     * category/tipasPilnas, address/adresas, cityOrDistrict/miestas, outputDirectory, managerType,
+     * category/tipasPilnas, address/adresas, cityOrDistrict/miestas, outputDirectory (jei tuščia — „Be įmonės dokumentai“), managerType,
      * managerFirstName/vardas, managerLastName/pavarde.
      * Su companyId: kiekvienam šablono keliui nustatoma kalba (kaip CreateFile – pavadinime ar kelyje EN/RU/LT),
      * ir kompanijos laukai imami iš DB atitinkama kalba (pvz. company_name_en, type_short_en, …), jei tuščia – LT atsarginė reikšmė.
@@ -269,6 +272,11 @@ final class TemplateController extends AbstractController
 
             $code = trim((string) ($data['code'] ?? $data['kodas'] ?? ''));
 
+            $outputDirectory = trim(str_replace('\\', '/', (string) ($data['outputDirectory'] ?? '')), '/');
+            if ($outputDirectory === '') {
+                $outputDirectory = self::OUTPUT_DIRECTORY_NO_COMPANY;
+            }
+
             $companyData = [
                 'kompanija'       => $kompanija,
                 'kodas'           => $code,
@@ -278,7 +286,7 @@ final class TemplateController extends AbstractController
                 'tipasPilnas'     => (string) ($data['category'] ?? $data['tipasPilnas'] ?? ''),
                 'adresas'         => (string) ($data['address'] ?? $data['adresas'] ?? ''),
                 'miestas'         => (string) ($data['cityOrDistrict'] ?? $data['miestas'] ?? ''),
-                'outputDirectory' => trim(str_replace('\\', '/', (string) ($data['outputDirectory'] ?? '')), '/'),
+                'outputDirectory' => $outputDirectory,
                 'managerType'     => (string) ($data['managerType'] ?? ''),
                 'vardas'          => (string) ($data['managerFirstName'] ?? $data['vardas'] ?? ''),
                 'pavarde'         => (string) ($data['managerLastName'] ?? $data['pavarde'] ?? ''),
