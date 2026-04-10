@@ -49,6 +49,30 @@
   align-items: end;
 }
 
+.checkboxRow {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding-top: 4px;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: #d42225;
+  }
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -78,6 +102,48 @@
   cursor: not-allowed;
 }
 
+.equipmentItemRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.equipmentItemMain {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.equipmentUnitSelect {
+  max-width: 280px;
+}
+
+.previewWorker {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.previewEqList {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  color: #475569;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -104,4 +170,72 @@
 .muted {
   margin: 0;
   color: #64748b;
+}
+
+.helpNote {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.subheading {
+  margin: 18px 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mutedSmall {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.assignmentGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.assignmentGroup {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.assignmentGroupTitle {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.assignmentList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assignmentListItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.buttonCompact {
+  padding: 6px 12px;
+  font-size: 13px;
 }

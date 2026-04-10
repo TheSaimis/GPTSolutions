@@ -86,15 +86,9 @@ export default function TemplatePage() {
         </Link>
         <Link
           className={styles.templateNavLink}
-          href="/sablonai/patvirtinimai"
-        >
-          Kenksmingų faktorių nustatymo pažyma
-        </Link>
-        <Link
-          className={styles.templateNavLink}
           href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas"
         >
-          Nemokamai išduodamų AP sąrašas
+          AAP Kortelės+Žiniaraščiai
         </Link>
       </div>
 

@@ -19,16 +19,15 @@ const componentMap = {
 } satisfies Record<EquipmentTab, React.ComponentType>;
 
 function EquipmentPageContent() {
-  const { setEquipment, setWorkerItems, setWorkers } = useEquipment();
+  const { setEquipment, setWorkers } = useEquipment();
   const [activeTab, setActiveTab] = useState<EquipmentTab>("document");
 
   useEffect(() => {
     EquipmentApi.getAll().then(setEquipment).catch(() => undefined);
-    EquipmentApi.getWorkerItems().then(setWorkerItems).catch(() => undefined);
     import("@/lib/api/workers").then(({ WorkersApi }) => {
       WorkersApi.getAll().then(setWorkers).catch(() => undefined);
     });
-  }, [setEquipment, setWorkerItems, setWorkers]);
+  }, [setEquipment, setWorkers]);
 
   const ActiveComponent = componentMap[activeTab];
 
@@ -61,7 +60,7 @@ function EquipmentPageContent() {
         </button>
       </div>
 
-      <h1 className={styles.title}>Nemokamai išduodamų priemonių sąrašas</h1>
+      <h1 className={styles.title}>AAP Kortelės+Žiniaraščiai</h1>
 
       <ActiveComponent />
     </div>

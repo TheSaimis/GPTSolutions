@@ -243,16 +243,13 @@ export default function KaipNaudotiPage() {
                         <p>Tai atskiros formos ir vedliai (ne tik paprastas šablono pasirinkimas):</p>
                         <ul>
                             <li>
-                                <Link href="/sablonai/kiti/AAP">AAP</Link> — darbuotojų rizikų vertinimas.
+                                <Link href="/sablonai/kiti/pazyma">Sveikatos tikrinimo pažymos ir kenksmingų faktorių nustatymo pažyma</Link> — vienas modulis (Word šablonai, rizikos, darbuotojų tipai); ne maišomas su AAP priemonių sąrašu.
                             </li>
                             <li>
-                                <Link href="/sablonai/kiti/pazyma">Sveikatos tikrinimo pažymos</Link>.
+                                <Link href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas">AAP Kortelės+Žiniaraščiai</Link> — Word dokumentai iš jūsų šablonų: sąrašas (pareigybė, priemonė, terminas) ir atskiras kortelių/žiniaraščių šablonas.
                             </li>
                             <li>
-                                <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>.
-                            </li>
-                            <li>
-                                <Link href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas">Nemokamai išduodamų asmeninių apsaugos priemonių sąrašas</Link>.
+                                <Link href="/sablonai/kiti/AAP">AAP</Link> — profesinės rizikos lentelė (Excel).
                             </li>
                         </ul>
                     </div>
@@ -391,13 +388,13 @@ export default function KaipNaudotiPage() {
                 </div>
             </div>
 
-            {/* AAP ir kenksmingų faktorių pažyma */}
+            {/* Kenksmingų faktorių pažyma ir AAP dokumentai */}
             <div className={styles.card}>
                 <div className={styles.cardHeader}>
                     <div className={styles.fileIcon}><FileSpreadsheet size={24} /></div>
                     <div>
-                        <h2 className={styles.title}>AAP ir kenksmingų faktorių pažyma</h2>
-                        <p className={styles.subtitle}>Savo šablonai: Word ir Excel</p>
+                        <h2 className={styles.title}>Kenksmingų faktorių pažyma ir AAP dokumentai</h2>
+                        <p className={styles.subtitle}>Atskirti moduliai: sveikatos rizikos, AAP priemonės, AAP Excel</p>
                     </div>
                 </div>
 
@@ -407,7 +404,7 @@ export default function KaipNaudotiPage() {
                     <div>
                         <h3>Kenksmingų faktorių nustatymo pažyma (Word, .docx)</h3>
                         <p>
-                            Modulis: <Link href="/sablonai/patvirtinimai">Kenksmingų faktorių nustatymo pažyma</Link>. Čia naudojamas <strong>jūsų paruoštas Word šablonas</strong>, įkeltas į šablonų katalogą kaip ir kiti dokumentai. Sistema užpildo įmonės rekvizitus ir lentelę pagal priskirtus darbuotojų tipus bei jų rizikų duomenis.
+                            Modulis: <Link href="/sablonai/kiti/pazyma">Šablonai → sveikatos ir rizikų pažymos</Link> (skiltis „Dokumentų kūrimas“). Tai <strong>ne</strong> AAP asmeninių apsaugos priemonių sąrašas. Naudojamas <strong>jūsų paruoštas Word šablonas</strong> (įskaitant įkėlimą per modulio skirtuką „Šablonas“). Sistema užpildo įmonės rekvizitus ir lentelę pagal priskirtus darbuotojų tipus bei jų rizikų duomenis.
                         </p>
                         <ul>
                             <li>
@@ -421,6 +418,15 @@ export default function KaipNaudotiPage() {
                                 Dokumento pradžioje ir pabaigoje naudokite tuos pačius bendrus kintamuosius kaip ir kituose šablonuose, pvz. <code>${"${Kompanija}"}</code>, <code>${"${TIPAS}"}</code>, <code>${"${kodas}"}</code>, <code>${"${adresas}"}</code>, <code>${"${Miestas}"}</code>, linksnius <code>${"${Vadovo}"}</code>, <code>${"${Vardo}"}</code>, <code>${"${Pavardo}"}</code>, <code>${"${data}"}</code>, apačioje <code>${"${Role}"}</code>, <code>${"${Vadovas}"}</code> ir kt. Tikslų sąrašą žr. aukščiau esančiame kintamųjų kataloge.
                             </li>
                         </ul>
+                    </div>
+                    <div>
+                        <h3>AAP Kortelės+Žiniaraščiai (Word, .docx / .doc)</h3>
+                        <p>
+                            Modulis: <Link href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas">AAP Kortelės+Žiniaraščiai</Link>. Generuojami <strong>du atskiri</strong> Word failai pagal jūsų pasirinkimą: <strong>sąrašas</strong> (lentelėje{" "}
+                            <code>${"${pareigybe}"}</code>, <code>${"${priemones}"}</code>, <code>${"${terminas}"}</code> — duomenys iš įmonės darbuotojų tipų ir jiems priskirtų priemonių) ir <strong>kortelės / žiniaraščiai</strong> (antras šablonas serveryje). Įmonės laukai kaip šablone, pvz.{" "}
+                            <code>${"${kompanija}"}</code>, <code>${"${Kompanija}"}</code>, <code>${"${TIPASKOMPAKTISKAS}"}</code>, <code>${"${kodas}"}</code>, <code>${"${tipas}"}</code>, <code>${"${role}"}</code>, <code>${"${data}"}</code>. Abu šablonai laikomi kataloge{" "}
+                            <code>templates/otherTemplates/aap-korteles-ziniarasciai/</code> (<code>sarasas-aap</code> ir <code>korteles-ziniarasciai</code>).
+                        </p>
                     </div>
                     <div>
                         <h3>AAP — profesinės rizikos lentelė (Excel, .xlsx)</h3>
