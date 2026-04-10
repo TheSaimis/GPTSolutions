@@ -232,16 +232,12 @@ export default function Files({ data, fileType }: List) {
                   const core = data.metadata?.core;
                   const created = custom?.created ?? core?.created;
                   const modified = custom?.modifiedAt ?? core?.modified;
-                  const editor = custom?.createdBy ?? core?.lastModifiedBy;
-                  const tplId = custom?.templateId;
+                  const editor = custom?.createdBy ?? custom?.lastModifiedBy;
+                  const creator = custom?.createdBy;
                   const hasDates = Boolean(created || modified);
                   const extra = [
                     editor ? `Redagavo: ${editor}` : null,
-                    tplId ? (
-                      <span key="tpl" title={String(tplId)}>
-                        Šablonas: {String(tplId).slice(0, 8)}…
-                      </span>
-                    ) : null,
+                    creator ? `Sukūrė: ${creator}` : null,
                   ].filter(Boolean);
                   if (!hasDates && !extra) {
                     return null;

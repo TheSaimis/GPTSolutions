@@ -4,7 +4,12 @@ import { clearCachedCatalogueTree } from "../cache/catalogueTreeCache";
 import { clearWordFileCache } from "../cache/wordFileCache";
 import { resolveTemplateIdsFromCache } from "../functions/resolveTemplateIdsFromCache";
 import { MessageStore } from "../globalVariables/messages";
-import { api } from "./api";
+import { api, type Json } from "./api";
+
+/** Vienas kelias arba kelias + tik tam šablonui skirti makro (bulk). */
+export type BulkTemplateItem =
+  | string
+  | { path: string; custom?: CustomVariable; replacements?: CustomVariable };
 
 export const TemplateApi = {
 
@@ -85,20 +90,47 @@ export const TemplateApi = {
 
   createDocument: (
     companyId: number | null | undefined,
-    templates: string[],
+    templates: string[] | BulkTemplateItem[],
     custom?: CustomVariable,
     name?: string
   ) => {
-    const result = api.postBlob(
-      "/api/template/fillFileBulk",
-      {
-        ...(companyId != null && companyId > 0 ? { companyId } : {}),
-        templates,
-        ...(custom ? { custom } : {}),
-        ...(name ? { name } : {})
-      },
-      { loadingMessage: "Kuriami dokumentai..." }
-    )
+    const normalizedTemplates: BulkTemplateItem[] = templates.map((t) =>
+      typeof t === "string" ? t : { ...t }
+    );
+    const body: Record<string, unknown> = {
+      ...(companyId != null && companyId > 0 ? { companyId } : {}),
+      templates: normalizedTemplates.map((t) => {
+        if (typeof t === "string") {
+          return t;
+        }
+        const per = t.custom ?? t.replacements;
+        const cleaned =
+          per != null
+            ? Object.fromEntries(
+                Object.entries(per).filter(
+                  ([, v]) => typeof v === "string" && v.trim() !== ""
+                )
+              )
+            : {};
+        return Object.keys(cleaned).length > 0
+          ? { path: t.path, custom: cleaned }
+          : t.path;
+      }),
+      ...(name ? { name } : {}),
+    };
+    if (custom != null) {
+      const cleanedGlobal = Object.fromEntries(
+        Object.entries(custom).filter(
+          ([, v]) => typeof v === "string" && v.trim() !== ""
+        )
+      );
+      if (Object.keys(cleanedGlobal).length > 0) {
+        body.custom = cleanedGlobal;
+      }
+    }
+    const result = api.postBlob("/api/template/fillFileBulk", body as Json, {
+      loadingMessage: "Kuriami dokumentai...",
+    });
     // if (!result.ok) return result;
     clearCachedCatalogueTree("generated");
     clearWordFileCache();

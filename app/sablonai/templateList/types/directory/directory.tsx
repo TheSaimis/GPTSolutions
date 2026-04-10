@@ -29,7 +29,7 @@ type DirectoryList = {
 
 export default function Directory({ name, nodes, path, fileType }: DirectoryList) {
 
-    const [collapsed, setCollapsed] = useState<boolean>(false);
+    const [collapsed, setCollapsed] = useState<boolean>(fileType == "generated");
     const [rename, setRename] = useState<boolean>(false);
     const [create, setCreate] = useState<boolean>(false);
     const [file, setFile] = useState<File | null>(null);
