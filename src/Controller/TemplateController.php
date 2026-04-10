@@ -196,6 +196,8 @@ final class TemplateController extends AbstractController
     /**
      * POST /api/template/fillFileBulk
      * Body JSON: templates[] (būtina), companyId (nebūtina – jei nėra, naudojami laukai iš body arba numatytos reikšmės).
+     * templates[] gali būti eilučių masyvas (keliai) arba objektų { path|template, replacements|custom? } –
+     * kiekvienam šablonui savo papildomi makro; su body.custom/replacements sujungiama (įrašo laukai perrašo bendrus).
      * Be įmonės galima nurodyti: companyName/kompanija, code/kodas, documentDate/data, role, companyType/tipas,
      * category/tipasPilnas, address/adresas, cityOrDistrict/miestas, outputDirectory (jei tuščia — „Be įmonės dokumentai“), managerType,
      * managerFirstName/vardas, managerLastName/pavarde.
@@ -298,19 +300,59 @@ final class TemplateController extends AbstractController
             ];
         }
 
-        $replacements = $data['replacements'] ?? $data['custom'] ?? [];
-        if (is_array($replacements)) {
-            $companyData['replacements'] = $replacements;
+        $globalReplacements = $data['replacements'] ?? $data['custom'] ?? [];
+        if (! is_array($globalReplacements)) {
+            $globalReplacements = [];
         }
 
-        $results        = [];
-        $generatedFiles = [];
+        $results         = [];
+        $generatedFiles  = [];
+        $templateJobs    = [];
 
-        foreach ($templates as $tplPath) {
-            if (! is_string($tplPath) || trim($tplPath) === '') {
-                $results[] = ['template' => (string) $tplPath, 'status' => 'FAIL', 'error' => 'Invalid template path'];
+        foreach ($templates as $entry) {
+            if (is_string($entry)) {
+                $templateJobs[] = [
+                    'path'           => $entry,
+                    'replacements'   => $globalReplacements,
+                ];
+
                 continue;
             }
+
+            if (is_array($entry)) {
+                $path = $entry['path'] ?? $entry['template'] ?? null;
+                if (! is_string($path) || trim($path) === '') {
+                    $results[] = [
+                        'template' => '',
+                        'status'   => 'FAIL',
+                        'error'    => 'Template object must include path or template',
+                    ];
+
+                    continue;
+                }
+
+                $per = $entry['replacements'] ?? $entry['custom'] ?? [];
+                if (! is_array($per)) {
+                    $per = [];
+                }
+
+                $templateJobs[] = [
+                    'path'         => $path,
+                    'replacements' => array_merge($globalReplacements, $per),
+                ];
+
+                continue;
+            }
+
+            $results[] = [
+                'template' => 'invalid',
+                'status'   => 'FAIL',
+                'error'    => 'templates[] entries must be string or object with path/template',
+            ];
+        }
+
+        foreach ($templateJobs as $job) {
+            $tplPath = $job['path'];
 
             $tplPath = str_replace('\\', '/', urldecode(trim($tplPath)));
 
@@ -327,6 +369,7 @@ final class TemplateController extends AbstractController
             $template = basename($tplPath);
 
             $payload = $companyData;
+            $payload['replacements'] = $job['replacements'];
             if (($companyData['_fillBulkCompany'] ?? false) === true && $company instanceof CompanyRequisite) {
                 unset($payload['_fillBulkCompany']);
                 $lang = $this->resolveLanguageFromTemplateRelativePath($tplPath);

@@ -27,8 +27,9 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - tipasKompaktiskas – kaip tipasPilnas; jei kompanija ilgesnė nei 14 simbolių, naudojamas tipas (trumpesnis)
  *   - adresas / address – adresas
  *   - companyId – jei > 0, ${companyDirectory} užpildoma iš CompanyRequisite::directory (DB)
- *   - ${atliktiDarbai} – unikalūs šablonų pavadinimai (be plėtinio), po vieną eilutę, pagal templateId
- *     failuose po generated/{companyDirectory arba outputDirectory}
+ *   - ${atliktiDarbai} – unikalūs šablonų pavadinimai (be plėtinio), po vieną eilutę (\n), pagal templateId
+ *     failuose po generated/{companyDirectory arba outputDirectory}; DOCX po generavimo skaidomas į atskiras
+ *     sąrašo pastraipas (DocxMultilineListParagraphSplitter), kad kiekviena eilutė turėtų „-“ kaip Word sąraše
  *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *
  * Šablone: ${kompanija}, ${companyDirectory} (iš DB, kai companyId), ${atliktiDarbai}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
@@ -54,6 +55,7 @@ final class CreateFile
         private readonly DocxMetadataService $docxMetadataService,
         private readonly ConvertDocToDocx $convertDocToDocx,
         private readonly DocxSplitMacroReplacer $docxSplitMacroReplacer,
+        private readonly DocxMultilineListParagraphSplitter $docxMultilineListParagraphSplitter,
         private readonly FindTemplates $findTemplates,
     ) {}
 
@@ -299,6 +301,7 @@ final class CreateFile
             }
         }
         $this->docxSplitMacroReplacer->apply($outputPath, $splitMacros);
+        $this->docxMultilineListParagraphSplitter->expandInDocx($outputPath);
 
         $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($workingTemplatePath);
         $templateId       = (string) ($templateMetadata['templateId'] ?? '');
