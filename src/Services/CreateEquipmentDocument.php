@@ -4,29 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Entity\AapEquipmentGroup;
+use App\Entity\AapEquipmentGroupEquipment;
+use App\Entity\AapEquipmentGroupWorker;
 use App\Entity\CompanyRequisite;
 use App\Entity\CompanyWorker;
+use App\Entity\CompanyWorkerEquipment;
 use App\Entity\Equipment;
 use App\Entity\Worker;
 use App\Entity\WorkerItem;
 use Doctrine\ORM\EntityManagerInterface;
-use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\SimpleType\JcTable;
-use PhpOffice\PhpWord\Style\Language;
-use PhpOffice\PhpWord\IOFactory;
 
 /**
- * Generuoja AAP saraso dokumenta:
- * - Is companyId paima imones rekvizitus
- * - Is company_worker paima visus imones darbuotojus
- * - Is worker_item paima visus equipment pagal darbuotoja
- * - Kiekvienam darbuotojui sukuria atskira lentele naujame puslapyje
+ * Rinkti įmonės darbuotojų tipų ir jiems priskirtų apsaugos priemonių duomenis
+ * Word šablonų užpildymui (žr. AapEquipmentWordDocumentService).
  */
 final class CreateEquipmentDocument
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly string $projectDir,
     ) {}
 
     /**
@@ -35,7 +31,13 @@ final class CreateEquipmentDocument
      *   workers: array<int, array{
      *      workerId:int,
      *      workerName:string,
-     *      equipment: array<int, array{id:int,name:string,expirationDate:string}>
+     *      equipment: array<int, array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     *   }>,
+     *   groups: array<int, array{
+     *      groupId:int,
+     *      groupName:string,
+     *      workers: array<int, array{workerId:int,workerName:string}>,
+     *      equipment: array<int, array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
      *   }>
      * }
      */
@@ -64,34 +66,7 @@ final class CreateEquipmentDocument
                 continue;
             }
 
-            $workerItems = $this->em->getRepository(WorkerItem::class)
-                ->createQueryBuilder('wi')
-                ->join('wi.equipment', 'e')
-                ->where('wi.worker = :worker')
-                ->setParameter('worker', $worker)
-                ->addOrderBy('e.name', 'ASC')
-                ->getQuery()
-                ->getResult();
-
-            $equipment = [];
-            $seen = [];
-            /** @var WorkerItem $wi */
-            foreach ($workerItems as $wi) {
-                $eq = $wi->getEquipment();
-                if (! $eq instanceof Equipment || $eq->getId() === null) {
-                    continue;
-                }
-                if (isset($seen[$eq->getId()])) {
-                    continue; // UNIQUE pagal worker + equipment
-                }
-                $seen[$eq->getId()] = true;
-
-                $equipment[] = [
-                    'id'             => (int) $eq->getId(),
-                    'name'           => $eq->getName(),
-                    'expirationDate' => $eq->getExpirationDate(),
-                ];
-            }
+            $equipment = $this->resolveEquipmentRowsForCompanyWorker($company, $worker);
 
             $workersData[] = [
                 'workerId'   => (int) $worker->getId(),
@@ -109,80 +84,158 @@ final class CreateEquipmentDocument
                 'cityOrDistrict' => $company->getCityOrDistrict(),
             ],
             'workers' => $workersData,
+            'groups'  => $this->buildGroupsPayload($company),
         ];
     }
 
     /**
-     * Sugeneruoja DOCX su lentelemis, po viena darbuotojui (kiekvienas naujame puslapyje).
+     * Grupės su nariais — jei masyvas ne tuščias, AAP Word generuojamas po vieną lentelės eilutę grupei.
+     *
+     * @return list<array{
+     *   groupId:int,
+     *   groupName:string,
+     *   workers: list<array{workerId:int,workerName:string}>,
+     *   equipment: list<array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     * }>
      */
-    public function createByCompanyId(int $companyId): string
+    private function buildGroupsPayload(CompanyRequisite $company): array
     {
-        $payload = $this->buildDataByCompanyId($companyId);
-        $company = $payload['company'];
-        $workers = $payload['workers'];
+        /** @var list<AapEquipmentGroup> $groups */
+        $groups = $this->em->getRepository(AapEquipmentGroup::class)->findBy(
+            ['companyRequisite' => $company],
+            ['sortOrder' => 'ASC', 'id' => 'ASC']
+        );
 
-        $phpWord = new PhpWord();
-        $phpWord->getSettings()->setThemeFontLang(new Language(Language::LT_LT));
+        if ($groups === []) {
+            return [];
+        }
 
-        $section = $phpWord->addSection();
-        $isFirst = true;
-
-        foreach ($workers as $workerData) {
-            if (! $isFirst) {
-                $section->addPageBreak();
-            }
-            $isFirst = false;
-
-            $section->addText('Asmeniniu apsaugos priemoniu sarasas', ['bold' => true, 'size' => 13], ['alignment' => 'center']);
-            $section->addText('Imone: ' . (string) ($company['companyName'] ?? ''), ['size' => 11]);
-            $section->addText('Kodas: ' . (string) ($company['code'] ?? ''), ['size' => 11]);
-            $section->addText('Darbuotojas: ' . (string) $workerData['workerName'], ['size' => 11, 'bold' => true]);
-            $section->addTextBreak(1);
-
-            $table = $section->addTable([
-                'borderSize' => 6,
-                'borderColor' => '000000',
-                'cellMargin' => 80,
-                'alignment' => JcTable::CENTER,
-            ]);
-
-            // Header
-            $table->addRow();
-            $table->addCell(3000)->addText('Darbuotojas', ['bold' => true], ['alignment' => 'center']);
-            $table->addCell(5000)->addText('Priemone', ['bold' => true], ['alignment' => 'center']);
-            $table->addCell(3000)->addText('Tinkamumo periodas', ['bold' => true], ['alignment' => 'center']);
-
-            $equipmentRows = $workerData['equipment'];
-            if ($equipmentRows === []) {
-                $table->addRow();
-                $table->addCell(3000)->addText((string) $workerData['workerName']);
-                $table->addCell(5000)->addText('-');
-                $table->addCell(3000)->addText('-');
-            } else {
-                foreach ($equipmentRows as $eq) {
-                    $table->addRow();
-                    $table->addCell(3000)->addText((string) $workerData['workerName']);
-                    $table->addCell(5000)->addText((string) $eq['name']);
-                    $table->addCell(3000)->addText((string) $eq['expirationDate']);
+        $out = [];
+        foreach ($groups as $g) {
+            $workers = [];
+            $gwRows = $g->getGroupWorkers()->toArray();
+            usort(
+                $gwRows,
+                static fn (AapEquipmentGroupWorker $a, AapEquipmentGroupWorker $b): int =>
+                    strcmp($a->getWorker()?->getName() ?? '', $b->getWorker()?->getName() ?? '')
+            );
+            foreach ($gwRows as $gw) {
+                $w = $gw->getWorker();
+                if (! $w instanceof Worker || $w->getId() === null) {
+                    continue;
                 }
+                $workers[] = [
+                    'workerId'   => (int) $w->getId(),
+                    'workerName' => $w->getName(),
+                ];
             }
+
+            $equipment = [];
+            $geRows = $g->getGroupEquipment()->toArray();
+            usort(
+                $geRows,
+                static fn (AapEquipmentGroupEquipment $a, AapEquipmentGroupEquipment $b): int =>
+                    strcmp($a->getEquipment()?->getName() ?? '', $b->getEquipment()?->getName() ?? '')
+            );
+            foreach ($geRows as $ge) {
+                $eq = $ge->getEquipment();
+                if (! $eq instanceof Equipment || $eq->getId() === null) {
+                    continue;
+                }
+                $equipment[] = [
+                    'id'                => (int) $eq->getId(),
+                    'name'              => $eq->getName(),
+                    'expirationDate'    => $eq->getExpirationDate(),
+                    'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
+                ];
+            }
+
+            $out[] = [
+                'groupId'   => (int) $g->getId(),
+                'groupName' => $g->getName(),
+                'workers'   => $workers,
+                'equipment' => $equipment,
+            ];
         }
 
-        if ($workers === []) {
-            $section->addText('Imonei nepriskirta darbuotoju.', ['size' => 11]);
+        return $out;
+    }
+
+    /**
+     * Jei įmonei yra bent viena eilutė company_worker_equipment šiam darbuotojų tipui —
+     * naudojamas tik tas sąrašas. Kitu atveju – bendras worker_item šablonas.
+     *
+     * @return list<array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     */
+    private function resolveEquipmentRowsForCompanyWorker(CompanyRequisite $company, Worker $worker): array
+    {
+        $companySpecific = $this->em->getRepository(CompanyWorkerEquipment::class)
+            ->createQueryBuilder('cwe')
+            ->join('cwe.equipment', 'e')
+            ->where('cwe.companyRequisite = :company')
+            ->andWhere('cwe.worker = :worker')
+            ->setParameter('company', $company)
+            ->setParameter('worker', $worker)
+            ->addOrderBy('e.name', 'ASC')
+            ->addOrderBy('cwe.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        if ($companySpecific !== []) {
+            $equipment = [];
+            $seen = [];
+            /** @var CompanyWorkerEquipment $row */
+            foreach ($companySpecific as $row) {
+                $eq = $row->getEquipment();
+                if (! $eq instanceof Equipment || $eq->getId() === null) {
+                    continue;
+                }
+                if (isset($seen[$eq->getId()])) {
+                    continue;
+                }
+                $seen[$eq->getId()] = true;
+                $equipment[] = [
+                    'id'                => (int) $eq->getId(),
+                    'name'              => $eq->getName(),
+                    'expirationDate'    => $eq->getExpirationDate(),
+                    'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
+                ];
+            }
+
+            return $equipment;
         }
 
-        $slug = preg_replace('/[^\w]+/', '_', (string) ($company['companyName'] ?? 'imone')) ?: 'imone';
-        $outDir = $this->projectDir . '/generated/equipment/' . $slug;
-        if (! is_dir($outDir)) {
-            mkdir($outDir, 0775, true);
+        $workerItems = $this->em->getRepository(WorkerItem::class)
+            ->createQueryBuilder('wi')
+            ->join('wi.equipment', 'e')
+            ->where('wi.worker = :worker')
+            ->setParameter('worker', $worker)
+            ->addOrderBy('e.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $equipment = [];
+        $seen = [];
+        /** @var WorkerItem $wi */
+        foreach ($workerItems as $wi) {
+            $eq = $wi->getEquipment();
+            if (! $eq instanceof Equipment || $eq->getId() === null) {
+                continue;
+            }
+            if (isset($seen[$eq->getId()])) {
+                continue;
+            }
+            $seen[$eq->getId()] = true;
+
+            $equipment[] = [
+                'id'                => (int) $eq->getId(),
+                'name'              => $eq->getName(),
+                'expirationDate'    => $eq->getExpirationDate(),
+                'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
+            ];
         }
 
-        $filePath = $outDir . '/AAP_sarasas_' . $slug . '_' . date('Ymd_His') . '.docx';
-        $writer = IOFactory::createWriter($phpWord, 'Word2007');
-        $writer->save($filePath);
-
-        return $filePath;
+        return $equipment;
     }
 }
 

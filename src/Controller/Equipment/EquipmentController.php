@@ -62,9 +62,12 @@ final class EquipmentController extends AbstractController
             return $this->json(['message' => 'Fields "name" and "expirationDate" are required'], 400);
         }
 
+        $unitRaw = (string) ($payload['unitOfMeasurement'] ?? $payload['unit'] ?? 'vnt');
+
         $item = new Equipment();
         $item->setName($name);
         $item->setExpirationDate($expirationDate);
+        $item->setUnitOfMeasurement($unitRaw);
 
         $this->em->persist($item);
         $this->em->flush();
@@ -101,6 +104,11 @@ final class EquipmentController extends AbstractController
             $item->setExpirationDate($expirationDate);
         }
 
+        if (array_key_exists('unitOfMeasurement', $payload) || array_key_exists('unit', $payload)) {
+            $unitRaw = (string) ($payload['unitOfMeasurement'] ?? $payload['unit'] ?? 'vnt');
+            $item->setUnitOfMeasurement($unitRaw);
+        }
+
         $this->em->flush();
         return $this->json(self::serializeItem($item));
     }
@@ -125,9 +133,10 @@ final class EquipmentController extends AbstractController
     private static function serializeItem(Equipment $item): array
     {
         return [
-            'id'         => $item->getId(),
-            'name'       => $item->getName(),
-            'expirationDate' => $item->getExpirationDate(),
+            'id'                 => $item->getId(),
+            'name'               => $item->getName(),
+            'expirationDate'     => $item->getExpirationDate(),
+            'unitOfMeasurement'  => $item->getUnitOfMeasurement(),
         ];
     }
 }

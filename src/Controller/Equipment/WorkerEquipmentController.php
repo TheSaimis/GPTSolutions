@@ -256,6 +256,7 @@ final class WorkerEquipmentController extends AbstractController
                 'id' => $equipment->getId(),
                 'name' => $equipment->getName(),
                 'expirationDate' => $equipment->getExpirationDate(),
+                'unitOfMeasurement' => $equipment->getUnitOfMeasurement(),
             ] : null,
         ];
     }

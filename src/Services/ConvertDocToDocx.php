@@ -102,6 +102,40 @@ final class ConvertDocToDocx
         return $outPath;
     }
 
+    /**
+     * Laikinai išsaugo .doc baitus diske, konvertuoja į .docx ir grąžina OOXML turinį (į DB saugoti kaip .docx).
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
+     */
+    public function convertDocBinaryToDocxBinary(string $docBinary): string
+    {
+        if ($docBinary === '') {
+            throw new \InvalidArgumentException('Tuščias .doc failas');
+        }
+
+        $dir = $this->projectDir . '/var/aap-upload-tmp';
+        if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
+            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $dir);
+        }
+
+        $docPath = $dir . '/upload_' . bin2hex(random_bytes(8)) . '.doc';
+        if (file_put_contents($docPath, $docBinary) === false) {
+            throw new \RuntimeException('Nepavyko išsaugoti laikino .doc failo');
+        }
+
+        try {
+            $docxPath = $this->ensureDocxForTemplate($docPath);
+            $bytes = file_get_contents($docxPath);
+            if ($bytes === false) {
+                throw new \RuntimeException('Nepavyko perskaityti konvertuoto .docx');
+            }
+
+            return $bytes;
+        } finally {
+            @unlink($docPath);
+        }
+    }
+
     private function removeDirectory(string $dir): void
     {
         if (! is_dir($dir)) {
