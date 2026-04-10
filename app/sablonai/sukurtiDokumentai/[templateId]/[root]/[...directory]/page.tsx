@@ -37,33 +37,80 @@ export default function Page({ params }: PageProps) {
   const [templatePath, setTemplatePath] = useState<string>();
   const [user, setUser] = useState<User | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  /** Iš OOXML custom, kai nėra userId arba API negrąžina naudotojo */
+  const [editorFromMetadata, setEditorFromMetadata] = useState("");
   const fullPath = decodeURIComponent(directory.join("/"));
 
-  useEffect(() => {
-    async function getItems() {
-      const res = await FilesApi.getFileData(root, fullPath)
-      setModifiedDate(res.metadata?.custom?.modifiedAt || "");
-      setCompanyId(res.metadata?.custom?.companyId || "");
-      setUserId(res.metadata?.custom?.userId || "");
-      setCustomVariables(res.metadata?.custom?.customVariables || null);
+  const hasCompany =
+    companyId != null &&
+    companyId !== "" &&
+    Number.isFinite(Number(companyId)) &&
+    Number(companyId) > 0;
+
+  /** Skaitinį 0 JSON neprarandame (0 || "" būtų "") */
+  function metaString(v: unknown): string {
+    if (v === undefined || v === null) {
+      return "";
     }
-    getItems();
-  }, [templateId, root, fullPath]);
+    return String(v).trim();
+  }
 
   useEffect(() => {
     async function getItems() {
-      if (!templateId || !companyId || !userId) return;
-      const [templateRes, companyRes, userRes] = await Promise.all([
-        TemplateApi.getById([templateId]),
-        CompanyApi.getById(Number(companyId)),
-        UsersApi.getById(Number(userId)),
-      ]);
-      setTemplatePath(templateRes[0].path);
-      setCompany(companyRes ?? null);
-      setUser(userRes);
+      const res = await FilesApi.getFileData(root, fullPath);
+      const custom = res.metadata?.custom ?? {};
+      const core = res.metadata?.core ?? {};
+      setModifiedDate(
+        metaString(custom.modifiedAt) ||
+          metaString(core.modified) ||
+          metaString(core.created) ||
+          ""
+      );
+      setCompanyId(metaString(custom.companyId));
+      setUserId(metaString(custom.userId));
+      setCustomVariables(custom.customVariables ?? null);
+      setEditorFromMetadata(
+        metaString(custom.createdBy) || metaString(core.lastModifiedBy) || ""
+      );
     }
-    getItems();
-  }, [templateId, companyId, userId]);
+    void getItems();
+  }, [root, fullPath]);
+
+  useEffect(() => {
+    if (!templateId) {
+      return;
+    }
+    void (async () => {
+      try {
+        const templateRes = await TemplateApi.getById([templateId]);
+        setTemplatePath(templateRes[0]?.path);
+      } catch {
+        setTemplatePath(undefined);
+      }
+    })();
+  }, [templateId]);
+
+  useEffect(() => {
+    const id = Number(companyId);
+    if (!companyId || !Number.isFinite(id) || id <= 0) {
+      setCompany(null);
+      return;
+    }
+    void CompanyApi.getById(id)
+      .then((c) => setCompany(c ?? null))
+      .catch(() => setCompany(null));
+  }, [companyId]);
+
+  useEffect(() => {
+    const id = Number(userId);
+    if (!userId || !Number.isFinite(id) || id <= 0) {
+      setUser(null);
+      return;
+    }
+    void UsersApi.getById(id)
+      .then((u) => setUser(u))
+      .catch(() => setUser(null));
+  }, [userId]);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -90,7 +137,11 @@ export default function Page({ params }: PageProps) {
       Object.entries(customVariables || {}).filter(([, value]) => value.trim() !== "")
     );
 
-    const res = await TemplateApi.createDocument(Number(companyId), [templatePath], cleanedCustomVariables, fullPath.split("/").pop());
+    const cid =
+      companyId && Number.isFinite(Number(companyId)) && Number(companyId) > 0
+        ? Number(companyId)
+        : undefined;
+    const res = await TemplateApi.createDocument(cid, [templatePath], cleanedCustomVariables, fullPath.split("/").pop());
     const today = nowSqlDate();
     setUser(currentUser);
     if (res) setModifiedDate(today);
@@ -124,7 +175,9 @@ export default function Page({ params }: PageProps) {
     <div className={style.page}>
       <div className={style.pageColumn}>
         <PageBackBar />
-        <div className={style.wrapper}>
+        <div
+          className={`${style.wrapper} ${!hasCompany ? style.wrapperWithoutCompany : ""}`}
+        >
           <div className={style.main}>
             <div className={style.header}>
               <div className={style.iconBox}>
@@ -159,14 +212,20 @@ export default function Page({ params }: PageProps) {
               ) : (
                 <div className={style.infoRow}>
                   <span className={style.label}>Dokumentą redagavo</span>
-                  <span className={style.value}>—</span>
+                  <span className={style.value}>
+                    {editorFromMetadata.trim() !== "" ? editorFromMetadata : "—"}
+                  </span>
                 </div>
               )}
 
-              <div className={style.infoRow}>
-                <span className={style.label}>Įmonė</span>
-                <span className={style.value}>{company?.companyName}</span>
-              </div>
+              {hasCompany && (
+                <div className={style.infoRow}>
+                  <span className={style.label}>Įmonė</span>
+                  <span className={style.value}>
+                    {company?.companyName?.trim() || "—"}
+                  </span>
+                </div>
+              )}
 
               <div className={style.infoRow}>
                 <span className={style.label}>Dokumentas</span>
@@ -205,14 +264,14 @@ export default function Page({ params }: PageProps) {
             </div>
           </div>
 
-          <div className={style.side}>
-            <h2 className={style.sideTitle}>Įmonės informacija</h2>
-            <div className={style.sideBody}>
-              {companyId && (
+          {hasCompany && (
+            <div className={style.side}>
+              <h2 className={style.sideTitle}>Įmonės informacija</h2>
+              <div className={style.sideBody}>
                 <CompanyCard id={Number(companyId)} company={company ?? undefined} />
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

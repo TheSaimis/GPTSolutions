@@ -64,8 +64,11 @@ export default function Files({ data, fileType }: List) {
       return;
     }
     if (fileType == "generated") {
-      if (data.metadata?.custom?.templateId === undefined || data.metadata?.custom?.userId === undefined || data.metadata?.custom?.companyId === undefined) return
-      router.push(`/sablonai/sukurtiDokumentai/${data.metadata.custom.templateId}/${fileType}/${data.path}`);
+      const tid = data.metadata?.custom?.templateId;
+      if (tid === undefined || tid === null || String(tid).trim() === "") {
+        return;
+      }
+      router.push(`/sablonai/sukurtiDokumentai/${String(tid).trim()}/${fileType}/${data.path}`);
     } else if (fileType == "templates") {
       router.push(`/sablonai/kurtiDokumenta/${data.path}`);
     }
@@ -224,9 +227,49 @@ export default function Files({ data, fileType }: List) {
             ) : (
               <div className={styles.header}>
                 <p className={styles.name}>{data.name}</p>
-                {data.metadata?.custom?.created &&
-                  <p className={styles.date}>Sukurta {formatDate(data.metadata?.custom?.created)} | Redaguota {formatDate(data.metadata?.custom?.modifiedAt)}  | {formatFileSize(data.size || 0)}</p>
-                }
+                {(() => {
+                  const custom = data.metadata?.custom;
+                  const core = data.metadata?.core;
+                  const created = custom?.created ?? core?.created;
+                  const modified = custom?.modifiedAt ?? core?.modified;
+                  const editor = custom?.createdBy ?? core?.lastModifiedBy;
+                  const tplId = custom?.templateId;
+                  const hasDates = Boolean(created || modified);
+                  const extra = [
+                    editor ? `Redagavo: ${editor}` : null,
+                    tplId ? (
+                      <span key="tpl" title={String(tplId)}>
+                        Šablonas: {String(tplId).slice(0, 8)}…
+                      </span>
+                    ) : null,
+                  ].filter(Boolean);
+                  if (!hasDates && !extra) {
+                    return null;
+                  }
+                  return (
+                    <p className={styles.date}>
+                      {hasDates ? (
+                        <>
+                          {created ? <>Sukurta {formatDate(created)}</> : null}
+                          {created && modified ? " | " : null}
+                          {modified ? <>Redaguota {formatDate(modified)}</> : null}
+                          {hasDates ? <> | {formatFileSize(data.size || 0)}</> : null}
+                        </>
+                      ) : null}
+                      {extra.length > 0 ? (
+                        <>
+                          {hasDates ? <br /> : null}
+                          {extra.map((el, i) => (
+                            <span key={i}>
+                              {i > 0 ? " · " : null}
+                              {el}
+                            </span>
+                          ))}
+                        </>
+                      ) : null}
+                    </p>
+                  );
+                })()}
               </div>
             )}
           </div>

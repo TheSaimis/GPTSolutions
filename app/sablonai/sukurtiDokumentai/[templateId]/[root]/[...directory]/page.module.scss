@@ -35,6 +35,11 @@ $card: #FFFFFF;
   }
 }
 
+.wrapperWithoutCompany {
+  grid-template-columns: 1fr;
+  max-width: 640px;
+}
+
 .main {
   background: $card;
   border: 1px solid $border;

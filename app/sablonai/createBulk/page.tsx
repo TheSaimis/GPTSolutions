@@ -57,7 +57,11 @@ export default function TemplatePage() {
     }
 
     async function createDocument() {
-        const { blob, filename } = await TemplateApi.createDocument(Number(company), directory);
+        const companyId =
+            company.trim() !== "" && Number.isFinite(Number(company)) && Number(company) > 0
+                ? Number(company)
+                : undefined;
+        const { blob, filename } = await TemplateApi.createDocument(companyId, directory);
         downloadBlob(blob, filename);
     }
 
@@ -85,10 +89,18 @@ export default function TemplatePage() {
                 <div className={styles.divider} />
 
                 <div className={styles.form}>
-                    <InputFieldSelect placeholder="Įmonė" onChange={setCompany} options={companies.map(c => ({
-                        value: String(c.id),
-                        label: `${c.companyType} ${c.companyName}`
-                    }))} />
+                    <InputFieldSelect
+                        placeholder="Įmonė (neprivaloma)"
+                        selected={company}
+                        onChange={setCompany}
+                        options={[
+                            { value: "", label: "Be įmonės" },
+                            ...companies.map((c) => ({
+                                value: String(c.id),
+                                label: `${c.companyType} ${c.companyName}`,
+                            })),
+                        ]}
+                    />
                 </div>
 
                 <button className={styles.submitButton} onClick={createDocument}>

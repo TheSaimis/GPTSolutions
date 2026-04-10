@@ -72,8 +72,12 @@ export default function TemplatePage() {
         const cleanedCustomVariables = Object.fromEntries(
             Object.entries(customVariables).filter(([, value]) => value.trim() !== "")
         );
+        const companyId =
+            company.trim() !== "" && Number.isFinite(Number(company)) && Number(company) > 0
+                ? Number(company)
+                : undefined;
         const { blob, filename } = await TemplateApi.createDocument(
-            Number(company),
+            companyId,
             [directory],
             cleanedCustomVariables
         );
@@ -95,7 +99,9 @@ export default function TemplatePage() {
                             </div>
                             <div>
                                 <h1 className={styles.title}>{documentName}</h1>
-                                <p className={styles.subtitle}>Pasirinkite Įmonę ir sugeneruokite dokumentą</p>
+                                <p className={styles.subtitle}>
+                                    Įmonė neprivaloma — be jos dokumentai saugomi kataloge „Be įmonės dokumentai“
+                                </p>
                             </div>
                         </div>
                         <button onClick={viewPDF} className="buttons">
@@ -107,14 +113,17 @@ export default function TemplatePage() {
 
                     <div className={styles.form}>
                         <InputFieldSelect
-                            placeholder="Įmonė"
+                            placeholder="Įmonė (neprivaloma)"
                             selected={company}
                             search={true}
                             onChange={setCompany}
-                            options={companies.map((c) => ({
-                                value: String(c.id),
-                                label: `${c.companyType} ${c.companyName}`,
-                            }))}
+                            options={[
+                                { value: "", label: "Be įmonės" },
+                                ...companies.map((c) => ({
+                                    value: String(c.id),
+                                    label: `${c.companyType} ${c.companyName}`,
+                                })),
+                            ]}
                         />
                     </div>
 
