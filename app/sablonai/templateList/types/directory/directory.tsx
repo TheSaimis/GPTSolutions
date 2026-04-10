@@ -152,7 +152,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
     );
 
     return (
-        <DropZone onFiles={handleDroppedFiles} accept={[".docx", ".xlsx"]} className={styles.directory} >
+        <DropZone onFiles={handleDroppedFiles} accept={[".doc", ".docx", ".xlsx", ".zip"]} className={styles.directory} >
             <div
                 onDragOver={onDirectoryDragOver}
                 onDrop={onDirectoryDrop}
@@ -174,7 +174,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
                         <div onClick={(e) => { fileInputRef.current?.click(); e.stopPropagation(); }}>
                             <ArrowUpToLine size={16} />
                             <div style={{ display: "none" }}>
-                                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".docx", ".xlsx"]} />
+                                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".doc", ".docx", ".xlsx", ".zip"]} />
                             </div>
                         </div>
                     </div>

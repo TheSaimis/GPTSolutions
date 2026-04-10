@@ -81,7 +81,7 @@ export default function FileList({ overflow }: FileListProps) {
     return (
         <DropZone accept={FILE_TYPES} onFiles={handleDroppedFiles} className={styles.container}>
             <div style={{ display: "none" }}>
-                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={".docx"} />
+                <InputFieldFile ref={fileInputRef} onChange={setFile} value={file} accept={[".doc", ".docx", ".xlsx", ".zip"]} />
             </div>
             <div className={styles.templateList} onContextMenu={(e) => openMenuFromEvent(e, menuItems)}>
                 <div className={styles.card}>

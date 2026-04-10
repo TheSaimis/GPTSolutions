@@ -31,10 +31,57 @@ function findFileByTemplateId(
 export function useCreateFile() {
   const { setCatalogueTree, catalogueTree, setFilters } = useCatalogueTree();
 
+  async function createFromZipUpload(zip: File, path: string, fileType: string) {
+    const res = await FilesApi.createFromZip(zip, path ?? "", fileType);
+
+    if (res.error && (res.results?.length ?? 0) === 0) {
+      MessageStore.push({
+        title: "ZIP įkėlimas nepavyko",
+        message: res.error,
+        backgroundColor: "#e53e3e",
+      });
+      return;
+    }
+
+    for (const item of res.results ?? []) {
+      if (item.status === "SUCCESS" && item.file) {
+        setCatalogueTree((prev) => addFileToTree(prev, path ?? "", { ...item.file }));
+      }
+    }
+
+    const skipped = res.skipped?.length ?? 0;
+    if (skipped > 0) {
+      MessageStore.push({
+        title: "Archyvas išfiltruotas",
+        message: `Praleista ${skipped} failų (ne Word/Excel arba sisteminiai / nesaugūs keliai).`,
+        backgroundColor: "#3182ce",
+      });
+    }
+
+    const failed = (res.results ?? []).filter((r) => r.status === "FAIL");
+    if (failed.length > 0) {
+      MessageStore.push({
+        title: res.status === "FAIL" ? "ZIP įkėlimas nepavyko" : "Dalį ZIP failų nepavyko įkelti",
+        message: failed
+          .map((r) => r.error ?? r.source ?? "Nežinoma klaida")
+          .slice(0, 5)
+          .join("; "),
+        backgroundColor: "#e53e3e",
+      });
+    }
+  }
+
   async function createFiles(files: File[], path: string, fileType: string) {
+    const zips = files.filter((f) => f.name.toLowerCase().endsWith(".zip"));
+    const nonZips = files.filter((f) => !f.name.toLowerCase().endsWith(".zip"));
+
+    for (const zip of zips) {
+      await createFromZipUpload(zip, path, fileType);
+    }
+
     const toUpload: File[] = [];
 
-    for (const file of files) {
+    for (const file of nonZips) {
       if (
         !file?.name ||
         !(FILE_TYPES as readonly string[]).includes(file.type) ||

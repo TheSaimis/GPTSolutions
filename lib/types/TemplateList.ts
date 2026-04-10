@@ -50,6 +50,21 @@ export type CreateFilesResponse = {
   results: CreateFileResponse[];
 };
 
+/** POST /api/files/create-from-zip — ZIP su Word/Excel šablonais. */
+export type ZipImportRow = {
+  source?: string;
+  status: "SUCCESS" | "FAIL";
+  file?: TemplateList;
+  error?: string;
+};
+
+export type CreateFromZipResponse = {
+  status: "SUCCESS" | "PARTIAL" | "FAIL";
+  results: ZipImportRow[];
+  skipped?: { name: string; reason: string }[];
+  error?: string;
+};
+
 export type TemplateList = {
     name: string;
     type: "file" | "directory";
@@ -71,10 +86,15 @@ export type Document = {
 };
 
 export const FILE_TYPES = [
+    ".doc",
     ".docx",
     ".xlsx",
+    ".zip",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/msword",
+    "application/zip",
+    "application/x-zip-compressed",
 ] as const;
 
 export const FILE_TYPE_COLORS = {

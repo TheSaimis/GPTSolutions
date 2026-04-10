@@ -1,5 +1,10 @@
 import { api, DownloadResult } from "./api";
-import { CreateFileResponse, CreateFilesResponse, TemplateList } from "../types/TemplateList";
+import {
+    CreateFileResponse,
+    CreateFilesResponse,
+    CreateFromZipResponse,
+    TemplateList,
+} from "../types/TemplateList";
 import { getEquipmentCache, addEquipmentToCache, removeEquipmentFromCache, clearEquipmentCache, setEquipmentCache } from "../cache/equipmentCache";
 import { Equipment } from "../types/equipment/equipment";
 import { WorkerItem } from "../types/entities";
@@ -80,6 +85,14 @@ export const EquipmentApi = {
             }
         }
         return res;
+    },
+
+    createFromZip: async (file: File, directory: string, root: string): Promise<CreateFromZipResponse> => {
+        const form = new FormData();
+        form.append("archive", file);
+        form.append("directory", directory);
+        form.append("root", root);
+        return api.post<CreateFromZipResponse>("/api/files/create-from-zip", form);
     },
 
     createFile: async (file: File, directory: string, root: string): Promise<CreateFileResponse> => {

@@ -1,5 +1,10 @@
 import { api, DownloadResult } from "./api";
-import { CreateFileResponse, CreateFilesResponse, TemplateList } from "../types/TemplateList";
+import {
+  CreateFileResponse,
+  CreateFilesResponse,
+  CreateFromZipResponse,
+  TemplateList,
+} from "../types/TemplateList";
 import { setCachedWordFile, getCachedWordFile, clearWordFileCache } from "../cache/wordFileCache";
 
 /** Matches POST /api/files/change-directory (move file within the same baseDir). */
@@ -55,6 +60,17 @@ export const FilesApi = {
       }
     }
     return res;
+  },
+
+  /**
+   * Įkelia vieną .zip archyvą: serveris palieka tik .doc/.docx/.xls/.xlsx ir užpildo OOXML metaduomenis.
+   */
+  createFromZip: async (file: File, directory: string, root: string): Promise<CreateFromZipResponse> => {
+    const form = new FormData();
+    form.append("archive", file);
+    form.append("directory", directory);
+    form.append("root", root);
+    return api.post<CreateFromZipResponse>("/api/files/create-from-zip", form);
   },
 
   /** Single-file upload; uses the same endpoint as {@link createFiles} with one file. */
