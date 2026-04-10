@@ -5,6 +5,7 @@ use App\Services\AddWordDocument;
 use App\Services\AuditLogger;
 use App\Services\FileService;
 use App\Services\GetPDF;
+use App\Services\ZipTemplateImportService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -23,6 +24,7 @@ final class FileController extends AbstractController
         private AddWordDocument $addWordDocument,
         private GetPDF $getPDF,
         private AuditLogger $auditLogger,
+        private ZipTemplateImportService $zipTemplateImportService,
     ) {}
 
     #[Route('/change-directory', name: 'api_files_change_directory', methods: ['POST'])]
@@ -116,6 +118,49 @@ final class FileController extends AbstractController
             'status'  => $overall,
             'results' => $results,
         ]);
+    }
+
+    /**
+     * POST /api/files/create-from-zip
+     * multipart: root, directory, archive (vienas .zip failas).
+     * Iš archyvo ištraukiami tik .doc/.docx/.xls/.xlsx; OOXML gauna custom metaduomenis kaip įprastas įkėlimas.
+     */
+    #[Route('/create-from-zip', name: 'api_files_create_from_zip', methods: ['POST'])]
+    public function createFromZip(Request $request): JsonResponse
+    {
+        $root = trim((string) $request->request->get('root', ''));
+        $path = trim((string) $request->request->get('directory', ''));
+        $file = $request->files->get('archive');
+        if (! $file instanceof UploadedFile) {
+            $file = $request->files->get('zip');
+        }
+        if (! $file instanceof UploadedFile) {
+            return new JsonResponse(['error' => 'Trūksta lauko „archive“ (.zip failas)'], 400);
+        }
+        if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
+            return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
+        }
+        if (($resp = $this->denyArchiveForNonAdmin($root)) !== null) {
+            return $resp;
+        }
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, $root . '/')) {
+            $path = substr($path, strlen($root) + 1);
+        }
+
+        $payload = $this->zipTemplateImportService->import($file, $path, $root);
+
+        if (isset($payload['error']) && ($payload['results'] ?? []) === []) {
+            $this->auditLogger->log("ZIP įkėlimas į {$root}/{$path} nepavyko: " . (string) $payload['error']);
+
+            return new JsonResponse($payload, 400);
+        }
+
+        $ok = count(array_filter($payload['results'] ?? [], static fn (array $r): bool => ($r['status'] ?? '') === 'SUCCESS'));
+        $this->auditLogger->log("Iš ZIP į {$root}/{$path} įkelta failų: {$ok}");
+
+        return new JsonResponse($payload);
     }
 
     /**

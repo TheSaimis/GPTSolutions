@@ -68,14 +68,11 @@ final class AddWordDocument
             }
 
             $filename   = str_replace(['\\', '/'], '_', $originalFilename);
-            $targetPath = $targetDir . '/' . $filename;
-
-            $file->move($targetDir, $filename);
-
-            if (! file_exists($targetPath) || ! is_readable($targetPath)) {
+            $targetPath = $this->persistUploadedFile($file, $targetDir, $filename);
+            if ($targetPath === null) {
                 return [
                     'status' => self::FAIL,
-                    'error'  => 'Saved file is not readable.',
+                    'error'  => 'Failed to save uploaded file.',
                 ];
             }
         } catch (\Throwable $e) {
@@ -194,6 +191,40 @@ final class AddWordDocument
             'status'  => $allSuccess ? self::SUCCESS : self::FAIL,
             'results' => $results,
         ];
+    }
+
+    /**
+     * Įrašo įkeltą failą į diską. Windows + OneDrive dažnai grąžina neteisingą is_writable(),
+     * todėl Symfony UploadedFile::move() meta „Unable to write in the directory“ — naudojame copy + unlink.
+     */
+    private function persistUploadedFile(UploadedFile $file, string $targetDir, string $filename): ?string
+    {
+        $targetPath = rtrim(str_replace('\\', '/', $targetDir), '/') . '/' . $filename;
+
+        if (is_file($targetPath) && ! @unlink($targetPath)) {
+            return null;
+        }
+
+        $sourcePath = $file->getRealPath();
+        if ($sourcePath === false || $sourcePath === '') {
+            $sourcePath = $file->getPathname();
+        }
+
+        if (! is_readable($sourcePath)) {
+            return null;
+        }
+
+        if (! @copy($sourcePath, $targetPath)) {
+            return null;
+        }
+
+        @unlink($sourcePath);
+
+        if (! is_file($targetPath) || ! is_readable($targetPath)) {
+            return null;
+        }
+
+        return $targetPath;
     }
 
     /**
