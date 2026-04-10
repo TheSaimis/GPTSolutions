@@ -261,4 +261,13 @@ export const api = {
       responseType: "json",
       ...options,
     }),
+
+  patch: <T>(path: string, body?: Json, options?: RequestOptions) =>
+    request<T>({
+      method: "PATCH",
+      path,
+      body,
+      responseType: "json",
+      ...options,
+    }),
 };

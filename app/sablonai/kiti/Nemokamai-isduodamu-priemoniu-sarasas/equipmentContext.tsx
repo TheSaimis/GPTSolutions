@@ -3,20 +3,12 @@
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 import { Equipment } from "@/lib/types/equipment/equipment";
 import { Worker } from "@/lib/types/Worker";
-import { WorkerItem } from "@/lib/types/entities";
-
 type EquipmentContextType = {
     equipment: Equipment[];
     setEquipment: (equipment: Equipment[]) => void;
     addEquipment: (item: Equipment) => void;
     removeEquipment: (item: Equipment) => void;
     clearEquipment: () => void;
-
-    workerItems: WorkerItem[];
-    setWorkerItems: (workerItems: WorkerItem[]) => void;
-    addWorkerItem: (item: WorkerItem) => void;
-    removeWorkerItem: (item: WorkerItem) => void;
-    clearWorkerItems: () => void;
 
     workers: Worker[];
     setWorkers: (workers: Worker[]) => void;
@@ -32,12 +24,6 @@ const EquipmentContext = createContext<EquipmentContextType>({
     removeEquipment: () => { },
     clearEquipment: () => { },
 
-    workerItems: [],
-    setWorkerItems: () => { },
-    addWorkerItem: () => { },
-    removeWorkerItem: () => { },
-    clearWorkerItems: () => { },
-
     workers: [],
     setWorkers: () => { },
     addWorker: () => { },
@@ -48,7 +34,6 @@ const EquipmentContext = createContext<EquipmentContextType>({
 export function EquipmentProvider({ children }: { children: ReactNode }) {
 
     const [equipment, setEquipment] = useState<Equipment[]>([]);
-    const [workerItems, setWorkerItems] = useState<WorkerItem[]>([]);
     const [workers, setWorkers] = useState<Worker[]>([]);
 
     const addEquipment = (item: Equipment) => {
@@ -59,16 +44,6 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     };
     const clearEquipment = () => {
         setEquipment([]);
-    };
-
-    const addWorkerItem = (item: WorkerItem) => {
-        setWorkerItems((prev) => [...prev, item]);
-    };
-    const removeWorkerItem = (item: WorkerItem) => {
-        setWorkerItems((prev) => prev.filter((e) => e.id !== item.id));
-    };
-    const clearWorkerItems = () => {
-        setWorkerItems([]);
     };
 
     const addWorker = (item: Worker) => {
@@ -89,19 +64,13 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
             removeEquipment,
             clearEquipment,
 
-            workerItems,
-            setWorkerItems,
-            addWorkerItem,
-            removeWorkerItem,
-            clearWorkerItems,
-
             workers,
             setWorkers,
             addWorker,
             removeWorker,
             clearWorkers
         }),
-        [equipment, workerItems, workers]
+        [equipment, workers]
     );
 
     return (
