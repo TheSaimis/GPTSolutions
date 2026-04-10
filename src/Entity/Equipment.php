@@ -25,6 +25,10 @@ class Equipment
     #[ORM\Column(length: 120)]
     private string $expirationDate = '';
 
+    /** Matavimo vienetas dokumente (${vnt}): „vnt“, „poros“ ir pan. */
+    #[ORM\Column(name: 'unit_of_measurement', length: 32)]
+    private string $unitOfMeasurement = 'vnt';
+
     /** @var Collection<int, WorkerItem> */
     #[ORM\OneToMany(targetEntity: WorkerItem::class, mappedBy: 'equipment')]
     private Collection $workerItems;
@@ -59,6 +63,35 @@ class Equipment
     {
         $this->expirationDate = $expirationDate;
         return $this;
+    }
+
+    public function getUnitOfMeasurement(): string
+    {
+        return $this->unitOfMeasurement;
+    }
+
+    public function setUnitOfMeasurement(string $unitOfMeasurement): static
+    {
+        $this->unitOfMeasurement = self::normalizeUnitOfMeasurement($unitOfMeasurement);
+
+        return $this;
+    }
+
+    /** Normalizuoja iš API: leidžiama „vnt“ arba „poros“. */
+    public static function normalizeUnitOfMeasurement(string $raw): string
+    {
+        $u = strtolower(trim($raw));
+        if ($u === 'poros' || $u === 'pora' || $u === 'porų') {
+            return 'poros';
+        }
+
+        return 'vnt';
+    }
+
+    /** Tekstas Word šablono stulpeliui (${vnt}). */
+    public static function documentUnitLabel(string $stored): string
+    {
+        return self::normalizeUnitOfMeasurement($stored) === 'poros' ? 'Poros' : 'Vnt';
     }
 
     /** @return Collection<int, WorkerItem> */
