@@ -179,7 +179,7 @@ export default function KaipNaudotiPage() {
                         <div className={styles.stepNumber}>2</div>
                         <div>
                             <h3>Įterpkite kintamuosius</h3>
-                            <p>Ten, kur turi atsirasti įmonės duomenys, įrašykite kintamuosius formatu <code>${"${...}"}</code>, pvz.: <code>${"${kompanija}"}</code>, <code>${"${kodas}"}</code>, <code>${"${data}"}</code>.</p>
+                            <p>Ten, kur turi atsirasti įmonės duomenys, įrašykite kintamuosius formatu <code>{"${...}"}</code>, pvz.: <code>{"${kompanija}"}</code>, <code>{"${kodas}"}</code>, <code>{"${data}"}</code>.</p>
                         </div>
                     </div>
                     <div className={styles.step}>

@@ -14,5 +14,9 @@ export type {
 
 export type {
   HealthCertificateCreateInput,
+  HealthCertificateDocumentDataFillPayload,
+  HealthCertificateDocumentDataPayload,
+  HealthCertificateLegacyDocumentDataExtras,
   HealthCertificateWorkerPeriodRow,
+  HealthCertificateWorkerSnapshotRow,
 } from "./Certificate";

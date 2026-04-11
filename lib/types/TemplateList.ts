@@ -1,5 +1,18 @@
 import { CustomVariable } from "./Company";
 
+/**
+ * Values written into OOXML custom properties by specialized generators (`documentData`, `templateType`, etc.).
+ * Prefer setting these in the service that creates the document, not inferring from path alone.
+ */
+export const DOCUMENT_TYPES = {
+    healthCertificate: "healthCertificate",
+    standard: "standard",
+    workerEquipment: "workerEquipment",
+    aapTable: "aapTable",
+} as const;
+
+export type DocumentTypeId = (typeof DOCUMENT_TYPES)[keyof typeof DOCUMENT_TYPES];
+
 type CoreMetadata = {
     title?: string | null;
     subject?: string | null;
@@ -25,6 +38,13 @@ type CustomMetadata = {
     documentId?: string;
     modifiedAt?: string;
     customVariables?: CustomVariable | undefined;
+    documentData?: string;
+    /** Pažyma / health-certificate flow: `DOCUMENT_TYPES.healthCertificate` in its own property (not inside `documentData`). */
+    templateType?: DocumentTypeId | string;
+    /** Resolved `.docx` path under `templates/` for replay (not inside `documentData`). */
+    templatePath?: string;
+    /** Coarse kind of generator / workflow; see `DOCUMENT_TYPES`. */
+    documentType?: DocumentTypeId | string;
     [key: string]: string | number | boolean | null | undefined | CustomVariable;
 };
 

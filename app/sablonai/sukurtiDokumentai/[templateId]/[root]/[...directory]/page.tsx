@@ -4,6 +4,8 @@
 
 import { TemplateApi } from "@/lib/api/templates";
 import { GeneratedFilesApi } from "@/lib/api/generatedFiles";
+import { HealthCertificateApi } from "@/lib/api/healthCertificate/certificate";
+import { DOCUMENT_TYPES, Metadata } from "@/lib/types/TemplateList";
 import { FilesApi } from "@/lib/api/files";
 import { CompanyApi } from "@/lib/api/companies";
 import { UsersApi } from "@/lib/api/users";
@@ -12,7 +14,7 @@ import type { User } from "@/lib/types/User";
 import { useEffect, useState, use } from "react";
 import CompanyCard from "@/components/companyCard/companyCard";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
-import { downloadBlob } from "@/lib/functions/downloadBlob";
+import { downloadBlob, DownloadResult } from "@/lib/functions/downloadBlob";
 import { FileText } from "lucide-react";
 import style from "./page.module.scss";
 import Link from "next/link";
@@ -37,6 +39,7 @@ export default function Page({ params }: PageProps) {
   const [templatePath, setTemplatePath] = useState<string>();
   const [user, setUser] = useState<User | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [metadata, setMetadata] = useState<Metadata | null>(null);
   /** Iš OOXML custom, kai nėra userId arba API negrąžina naudotojo */
   const [editorFromMetadata, setEditorFromMetadata] = useState("");
   const fullPath = decodeURIComponent(directory.join("/"));
@@ -60,6 +63,7 @@ export default function Page({ params }: PageProps) {
       const res = await FilesApi.getFileData(root, fullPath);
       const custom = res.metadata?.custom ?? {};
       const core = res.metadata?.core ?? {};
+      setMetadata(res.metadata ?? null);
       setModifiedDate(
         metaString(custom.modifiedAt) ||
           metaString(core.modified) ||
@@ -130,21 +134,34 @@ export default function Page({ params }: PageProps) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
+  /** `templateType` custom property, or legacy `documentData.documentType`. */
+  function isHealthCertificateMetadata(meta: Metadata | null): boolean {
+    const custom = meta?.custom;
+    if (!custom) return false;
+    if (custom.templateType === DOCUMENT_TYPES.healthCertificate) return true;
+    const raw = custom.documentData;
+    if (typeof raw !== "string" || raw.trim() === "") return false;
+    try {
+      const o = JSON.parse(raw) as { documentType?: string };
+      return o.documentType === DOCUMENT_TYPES.healthCertificate;
+    } catch {
+      return false;
+    }
+  }
+
   async function updateDocument() {
-    if (!templatePath) return;
 
-    const cleanedCustomVariables = Object.fromEntries(
-      Object.entries(customVariables || {}).filter(([, value]) => value.trim() !== "")
-    );
-
-    const cid =
-      companyId && Number.isFinite(Number(companyId)) && Number(companyId) > 0
-        ? Number(companyId)
-        : undefined;
-    const res = await TemplateApi.createDocument(cid, [templatePath], cleanedCustomVariables, fullPath.split("/").pop());
-    const today = nowSqlDate();
-    setUser(currentUser);
-    if (res) setModifiedDate(today);
+    let res: DownloadResult | undefined;
+    if (isHealthCertificateMetadata(metadata)) {
+      res = await HealthCertificateApi.createDocumentFromMetadata(
+        Number(companyId),
+        metadata?.custom?.documentData as string,
+      );
+    } else if (templatePath) {
+      res = await TemplateApi.createDocument(Number(companyId), [templatePath], {}, fullPath.split("/").pop());
+    }
+      if (res) setModifiedDate(nowSqlDate());
+      setUser(currentUser);
   }
 
   async function downloadDocument() {
@@ -242,7 +259,9 @@ export default function Page({ params }: PageProps) {
               modifiedDate &&
               new Date(modifiedDate.replace(" ", "T")) < new Date(company.modifiedAt.replace(" ", "T")) && (
                 <div className={style.warning}>
-                  Dokumentas yra senesnis už įmonės duomenis.
+                  <p>Dokumentas yra senesnis už įmonės duomenis, atnaujinkite dokumentą</p>
+                  <p>Jeigu atnaujinote įmonės pavadinima, tipą ar kategoriją, šis dokumentas bus irašomas kitame kataloge.</p>
+                  <p>Tokiu atveju atnaujintą dokumentą matysite tik naujame kataloge.</p>
                 </div>
               )}
 

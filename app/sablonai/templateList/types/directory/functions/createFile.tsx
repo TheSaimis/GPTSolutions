@@ -1,7 +1,10 @@
 "use client";
 
 import { readDocxMetadataFromBlob } from "@/lib/functions/metadataParser";
-import { addFileToTree } from "@/app/sablonai/components/utilities/addFile";
+import {
+  addFileToTree,
+  addFileToTreeByFullPath,
+} from "@/app/sablonai/components/utilities/addFile";
 import { useCatalogueTree } from "@/app/sablonai/catalogueTreeContext";
 import { FilesApi } from "@/lib/api/files";
 import { FILE_TYPES, type TemplateList } from "@/lib/types/TemplateList";
@@ -32,6 +35,14 @@ export function useCreateFile() {
   const { setCatalogueTree, catalogueTree, setFilters } = useCatalogueTree();
 
   async function createFromZipUpload(zip: File, path: string, fileType: string) {
+    if (!zip?.size) {
+      MessageStore.push({
+        title: "ZIP įkėlimas nepavyko",
+        message: "Archyvas tuščias arba naršyklė jo neperdavė. Bandykite dar kartą arba mažesnį failą.",
+        backgroundColor: "#e53e3e",
+      });
+      return;
+    }
     const res = await FilesApi.createFromZip(zip, path ?? "", fileType);
 
     if (res.error && (res.results?.length ?? 0) === 0) {
@@ -43,10 +54,17 @@ export function useCreateFile() {
       return;
     }
 
-    for (const item of res.results ?? []) {
-      if (item.status === "SUCCESS" && item.file) {
-        setCatalogueTree((prev) => addFileToTree(prev, path ?? "", { ...item.file }));
-      }
+    const zipSuccesses = (res.results ?? []).filter(
+      (item): item is typeof item & { file: TemplateList } =>
+        item.status === "SUCCESS" && item.file != null,
+    );
+    if (zipSuccesses.length > 0) {
+      setCatalogueTree((prev) =>
+        zipSuccesses.reduce(
+          (acc, item) => addFileToTreeByFullPath(acc, { ...item.file }),
+          prev,
+        ),
+      );
     }
 
     const skipped = res.skipped?.length ?? 0;
