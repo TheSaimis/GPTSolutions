@@ -6,7 +6,14 @@ namespace App\Services\Metadata;
 
 final class DocxMetadataService
 {
-    private const ALWAYS_OVERWRITE = ['modifiedat', 'createdby', 'lastmodifiedby'];
+    private const ALWAYS_OVERWRITE = [
+        'modifiedat',
+        'createdby',
+        'lastmodifiedby',
+        'documentdata',
+        'templatetype',
+        'templatepath',
+    ];
 
     /**
      * Prideda custom metaduomenis į OOXML (DOCX / XLSX) failą.

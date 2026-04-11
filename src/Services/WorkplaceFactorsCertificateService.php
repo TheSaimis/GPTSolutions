@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Entity\CompanyRequisite;
 use App\Entity\Worker;
 use App\Entity\WorkerRisk;
+use App\Services\Metadata\DocxMetadataService;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -15,17 +16,44 @@ use PhpOffice\PhpWord\TemplateProcessor;
  * Atskiro dokumento:
  * "DARBUOTOJU DARBO VIETU KENKSMINGU FAKTORIU NUSTATYMO PAZYMA"
  * generavimo logika.
+ *
+ * Custom property `documentData` stores only values used to fill template placeholders (check periods,
+ * user context, name, custom replacements, `workerRows`). Kind is `templateType`; template file path is
+ * `templatePath` — both separate OOXML properties. Company letterhead still comes from {@see CompanyRequisite}.
  */
 final class WorkplaceFactorsCertificateService
 {
+    /** Stored in custom property `templateType` (not inside `documentData` JSON). */
+    public const TEMPLATE_TYPE = 'healthCertificate';
+
+    /** @deprecated Use {@see TEMPLATE_TYPE} */
+    public const DOCUMENT_TYPE = self::TEMPLATE_TYPE;
+
+    private const HEALTH_ROW_MARKER_KEYS = [
+        'eilNr',
+        'pareigybe',
+        'veiksniai',
+        'sifrai',
+        'veiksniaiSuSifrais',
+        'periodiskumas',
+        'workerType',
+        'riskFactors',
+        'riskCodes',
+        'riskFactorsWithCodes',
+        'checkPeriod',
+    ];
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CreateFile $createFile,
+        private readonly DocxMetadataService $docxMetadataService,
     ) {}
 
     /**
      * @param array<string, mixed> $userContext
      * @param array<string, mixed> $customReplacements
+     * @param array<string, mixed>|null $documentDataOverride Optional fill-only replay JSON. Non-empty `workerRows`
+     *        skips WorkerRisk queries. Older blobs may still include `companyId` / `templatePath` / `documentType`; those are respected.
      */
     public function createDocument(
         int $companyId,
@@ -34,37 +62,258 @@ final class WorkplaceFactorsCertificateService
         array $userContext = [],
         ?string $name = null,
         array $customReplacements = [],
+        ?array $documentDataOverride = null,
     ): string {
+        $effective = $this->resolveEffectiveCertificateArguments(
+            $companyId,
+            $templatePath,
+            $checkPeriodsByWorkerId,
+            $userContext,
+            $name,
+            $customReplacements,
+            $documentDataOverride
+        );
+
         /** @var CompanyRequisite|null $company */
-        $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
+        $company = $this->em->getRepository(CompanyRequisite::class)->find($effective['companyId']);
         if (! $company instanceof CompanyRequisite) {
             throw new \InvalidArgumentException('Company not found');
         }
 
-        $templatePath = str_replace('\\', '/', urldecode(trim($templatePath)));
-        if ($templatePath === '' || str_contains($templatePath, '..') || str_starts_with($templatePath, '/')) {
+        $templatePathNorm = str_replace('\\', '/', urldecode(trim((string) $effective['templatePath'])));
+        if ($templatePathNorm === '' || str_contains($templatePathNorm, '..') || str_starts_with($templatePathNorm, '/')) {
             throw new \InvalidArgumentException('Invalid template path');
         }
 
-        $directory = dirname($templatePath);
+        $directory = dirname($templatePathNorm);
         if ($directory === '.') {
             $directory = '';
         }
-        $template = basename($templatePath);
-        $workerRows  = $this->buildWorkerRows($company, $checkPeriodsByWorkerId);
+        $template = basename($templatePathNorm);
 
-        $numberedRows = [];
-        foreach ($workerRows as $index => $row) {
-            $numberedRows[] = [
-                'eilNr' => (string) ($index + 1),
+        $workerRowsDb = null;
+        if ($effective['useWorkerSnapshot']) {
+            $numberedRows = $this->numberedRowsFromWorkerSnapshot($effective['workerRowsSnapshot']);
+        } else {
+            $workerRowsDb = $this->buildWorkerRows($company, $effective['checkPeriodsByWorkerId']);
+            $numberedRows = [];
+            foreach ($workerRowsDb as $index => $row) {
+                $numberedRows[] = [
+                    'eilNr' => (string) ($index + 1),
+                    'workerName' => $row['workerName'],
+                    'riskNames' => $row['riskNames'],
+                    'riskCodes' => $row['riskCodes'],
+                    'riskWithCodes' => $row['riskWithCodes'],
+                    'checkPeriod' => $row['checkPeriod'],
+                ];
+            }
+        }
+
+        $healthReplacements = $this->buildHealthReplacementsFromNumberedRows($numberedRows);
+        $createFileReplacements = array_diff_key($healthReplacements, array_flip(self::HEALTH_ROW_MARKER_KEYS));
+
+        $companyData = $this->buildCompanyData($company, $effective['userContext']);
+        $companyData['directory'] = $directory;
+        $companyData['template'] = $template;
+        $companyData['replacements'] = array_merge($createFileReplacements, $effective['customReplacements']);
+
+        $documentDataPayload = [
+            'checkPeriodsByWorkerId' => $effective['checkPeriodsByWorkerId'],
+            'userContext' => $effective['userContext'],
+            'name' => $effective['name'],
+            'customReplacements' => $effective['customReplacements'],
+            'workerRows' => $effective['useWorkerSnapshot']
+                ? $effective['workerRowsSnapshot']
+                : $this->workerDbRowsToSnapshotRows($workerRowsDb ?? []),
+        ];
+
+        $outputPath = $this->createFile->createWordDocument($companyData, $effective['name']);
+        $this->applyWorkerRowsToOutput($outputPath, $numberedRows, $healthReplacements);
+        $this->appendWorkerRiskTablePage($outputPath, $numberedRows);
+
+        $documentDataJson = json_encode(
+            $documentDataPayload,
+            JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION
+        );
+        $this->docxMetadataService->setDocxCustomProperties($outputPath, [
+            'documentData' => $documentDataJson,
+            'templateType' => self::TEMPLATE_TYPE,
+            'templatePath' => $effective['templatePath'],
+        ]);
+
+        return $outputPath;
+    }
+
+    /**
+     * @return array{
+     *   companyId:int,
+     *   templatePath:string,
+     *   checkPeriodsByWorkerId:array<int, string>,
+     *   userContext:array<string, mixed>,
+     *   name:?string,
+     *   customReplacements:array<string, mixed>,
+     *   useWorkerSnapshot:bool,
+     *   workerRowsSnapshot:array<int, array<string, mixed>>|null
+     * }
+     */
+    private function resolveEffectiveCertificateArguments(
+        int $companyId,
+        string $templatePath,
+        array $checkPeriodsByWorkerId,
+        array $userContext,
+        ?string $name,
+        array $customReplacements,
+        ?array $documentDataOverride,
+    ): array {
+        if ($documentDataOverride === null) {
+            return [
+                'companyId' => $companyId,
+                'templatePath' => $templatePath,
+                'checkPeriodsByWorkerId' => $this->normalizeWorkerIdStringMap($checkPeriodsByWorkerId),
+                'userContext' => $userContext,
+                'name' => $name,
+                'customReplacements' => $customReplacements,
+                'useWorkerSnapshot' => false,
+                'workerRowsSnapshot' => null,
+            ];
+        }
+
+        $o = $documentDataOverride;
+        $effCompanyId = isset($o['companyId']) ? (int) $o['companyId'] : $companyId;
+        if ($effCompanyId !== $companyId) {
+            throw new \InvalidArgumentException('documentData.companyId must match the request companyId');
+        }
+
+        $workerRowsRaw = $o['workerRows'] ?? null;
+        $useWorkerSnapshot = is_array($workerRowsRaw) && $workerRowsRaw !== [];
+
+        $effName = $name;
+        if (array_key_exists('name', $o)) {
+            $n = $o['name'];
+            $effName = ($n === null || is_string($n)) ? $n : $name;
+        }
+
+        return [
+            'companyId' => $effCompanyId,
+            'templatePath' => isset($o['templatePath']) ? (string) $o['templatePath'] : $templatePath,
+            'checkPeriodsByWorkerId' => isset($o['checkPeriodsByWorkerId']) && is_array($o['checkPeriodsByWorkerId'])
+                ? $this->normalizeWorkerIdStringMap($o['checkPeriodsByWorkerId'])
+                : $this->normalizeWorkerIdStringMap($checkPeriodsByWorkerId),
+            'userContext' => isset($o['userContext']) && is_array($o['userContext'])
+                ? $o['userContext']
+                : $userContext,
+            'name' => $effName,
+            'customReplacements' => isset($o['customReplacements']) && is_array($o['customReplacements'])
+                ? $o['customReplacements']
+                : $customReplacements,
+            'useWorkerSnapshot' => $useWorkerSnapshot,
+            'workerRowsSnapshot' => $useWorkerSnapshot ? array_values($workerRowsRaw) : null,
+        ];
+    }
+
+    /**
+     * @param array<int|string, mixed> $raw
+     * @return array<int, string>
+     */
+    private function normalizeWorkerIdStringMap(array $raw): array
+    {
+        $out = [];
+        foreach ($raw as $k => $v) {
+            if (! is_numeric((string) $k)) {
+                continue;
+            }
+            $out[(int) $k] = trim((string) $v);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function workerDbRowsToSnapshotRows(array $rows): array
+    {
+        return array_values(array_map(static function (array $row): array {
+            return [
+                'workerId' => $row['workerId'] ?? null,
                 'workerName' => $row['workerName'],
                 'riskNames' => $row['riskNames'],
                 'riskCodes' => $row['riskCodes'],
                 'riskWithCodes' => $row['riskWithCodes'],
                 'checkPeriod' => $row['checkPeriod'],
             ];
+        }, $rows));
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array{
+     *   eilNr:string,
+     *   workerName:string,
+     *   riskNames:string,
+     *   riskCodes:string,
+     *   riskWithCodes:string,
+     *   checkPeriod:string
+     * }>
+     */
+    private function numberedRowsFromWorkerSnapshot(array $rows): array
+    {
+        $numberedRows = [];
+        foreach (array_values($rows) as $index => $row) {
+            if (! is_array($row)) {
+                throw new \InvalidArgumentException('Each documentData.workerRows entry must be an object');
+            }
+
+            $workerName = trim((string) ($row['workerName'] ?? $row['pareigybe'] ?? $row['pareigybė'] ?? ''));
+            if ($workerName === '') {
+                throw new \InvalidArgumentException('Each workerRows entry must include workerName');
+            }
+
+            $riskNames = trim((string) ($row['riskNames'] ?? $row['veiksniai'] ?? ''));
+            $riskCodes = trim((string) ($row['riskCodes'] ?? $row['sifrai'] ?? ''));
+            $riskWithCodes = trim((string) ($row['riskWithCodes'] ?? $row['veiksniaiSuSifrais'] ?? ''));
+            $checkPeriod = trim((string) ($row['checkPeriod'] ?? $row['periodiskumas'] ?? ''));
+
+            if ($riskNames === '') {
+                $riskNames = '-';
+            }
+            if ($riskCodes === '') {
+                $riskCodes = '-';
+            }
+            if ($riskWithCodes === '') {
+                $riskWithCodes = '-';
+            }
+            if ($checkPeriod === '') {
+                throw new \InvalidArgumentException('Each workerRows entry must include checkPeriod');
+            }
+
+            $numberedRows[] = [
+                'eilNr' => (string) ($index + 1),
+                'workerName' => $workerName,
+                'riskNames' => $riskNames,
+                'riskCodes' => $riskCodes,
+                'riskWithCodes' => $riskWithCodes,
+                'checkPeriod' => $checkPeriod,
+            ];
         }
 
+        return $numberedRows;
+    }
+
+    /**
+     * @param array<int, array{
+     *   eilNr:string,
+     *   workerName:string,
+     *   riskNames:string,
+     *   riskCodes:string,
+     *   riskWithCodes:string,
+     *   checkPeriod:string
+     * }> $numberedRows
+     * @return array<string, string>
+     */
+    private function buildHealthReplacementsFromNumberedRows(array $numberedRows): array
+    {
         $eilNrLines = array_map(
             static fn (array $row): string => (string) $row['eilNr'],
             $numberedRows
@@ -114,8 +363,7 @@ final class WorkplaceFactorsCertificateService
             $numberedRows
         );
 
-        $healthReplacements = [
-            // New requested placeholders
+        return [
             'eilNr'                     => implode("\n", $eilNrLines),
             'pareigybe'                 => implode("\n", $pareigybeLines),
             'veiksniai'                 => implode("\n", $veiksniaiLines),
@@ -123,7 +371,6 @@ final class WorkplaceFactorsCertificateService
             'veiksniaiSuSifrais'        => implode("\n", $veiksniaiSuSifraisLines),
             'periodiskumas'             => implode("\n", $periodiskumasLines),
 
-            // Backward compatibility placeholders
             'workerType'                => implode("\n", $pareigybeLines),
             'riskFactors'               => implode("\n", $veiksniaiLines),
             'riskCodes'                 => implode("\n", $sifraiLines),
@@ -148,32 +395,6 @@ final class WorkplaceFactorsCertificateService
             'workerRiskCiphersByType'    => implode("\n", $codesPerWorker),
             'workerCheckPeriodsByType'   => implode("\n", $periodsPerWorker),
         ];
-
-        $rowMarkerKeys = [
-            'eilNr',
-            'pareigybe',
-            'veiksniai',
-            'sifrai',
-            'veiksniaiSuSifrais',
-            'periodiskumas',
-            'workerType',
-            'riskFactors',
-            'riskCodes',
-            'riskFactorsWithCodes',
-            'checkPeriod',
-        ];
-        $createFileReplacements = array_diff_key($healthReplacements, array_flip($rowMarkerKeys));
-
-        $companyData = $this->buildCompanyData($company, $userContext);
-        $companyData['directory'] = $directory;
-        $companyData['template'] = $template;
-        $companyData['replacements'] = array_merge($createFileReplacements, $customReplacements);
-
-        $outputPath = $this->createFile->createWordDocument($companyData, $name);
-        $this->applyWorkerRowsToOutput($outputPath, $numberedRows, $healthReplacements);
-        $this->appendWorkerRiskTablePage($outputPath, $numberedRows);
-
-        return $outputPath;
     }
 
     /**
@@ -340,6 +561,7 @@ final class WorkplaceFactorsCertificateService
             static fn (array $row): array => [
                 'eilNr' => $row['eilNr'],
                 'pareigybe' => $row['workerName'],
+                'pareigybė' => $row['workerName'],
                 'veiksniai' => $row['riskNames'],
                 'sifrai' => $row['riskCodes'],
                 'veiksniaiSuSifrais' => $row['riskWithCodes'],
@@ -362,8 +584,13 @@ final class WorkplaceFactorsCertificateService
                     $processor->cloneRowAndSetValues('pareigybe', $rows);
                     $cloned = true;
                 } catch (\Throwable) {
-                    $processor->cloneRowAndSetValues('workerType', $rows);
-                    $cloned = true;
+                    try {
+                        $processor->cloneRowAndSetValues('pareigybė', $rows);
+                        $cloned = true;
+                    } catch (\Throwable) {
+                        $processor->cloneRowAndSetValues('workerType', $rows);
+                        $cloned = true;
+                    }
                 }
             } else {
                 try {
@@ -371,7 +598,7 @@ final class WorkplaceFactorsCertificateService
                     $index = 1;
                     foreach ($rows as $row) {
                         $processor->setValue('eilNr#' . $index, $row['eilNr']);
-                        $processor->setValue('pareigybe#' . $index, $row['pareigybe']);
+                        $this->setPareigybePair($processor, '#' . (string) $index, $row['pareigybe']);
                         $processor->setValue('veiksniai#' . $index, $row['veiksniai']);
                         $processor->setValue('sifrai#' . $index, $row['sifrai']);
                         $processor->setValue('periodiskumas#' . $index, $row['periodiskumas']);
@@ -379,16 +606,30 @@ final class WorkplaceFactorsCertificateService
                     }
                     $cloned = true;
                 } catch (\Throwable) {
-                    $processor->cloneRow('workerType', count($rows));
-                    $index = 1;
-                    foreach ($rows as $row) {
-                        $processor->setValue('workerType#' . $index, $row['workerType']);
-                        $processor->setValue('riskFactors#' . $index, $row['riskFactors']);
-                        $processor->setValue('riskCodes#' . $index, $row['riskCodes']);
-                        $processor->setValue('checkPeriod#' . $index, $row['checkPeriod']);
-                        $index++;
+                    try {
+                        $processor->cloneRow('pareigybė', count($rows));
+                        $index = 1;
+                        foreach ($rows as $row) {
+                            $processor->setValue('eilNr#' . $index, $row['eilNr']);
+                            $this->setPareigybePair($processor, '#' . (string) $index, $row['pareigybe']);
+                            $processor->setValue('veiksniai#' . $index, $row['veiksniai']);
+                            $processor->setValue('sifrai#' . $index, $row['sifrai']);
+                            $processor->setValue('periodiskumas#' . $index, $row['periodiskumas']);
+                            $index++;
+                        }
+                        $cloned = true;
+                    } catch (\Throwable) {
+                        $processor->cloneRow('workerType', count($rows));
+                        $index = 1;
+                        foreach ($rows as $row) {
+                            $processor->setValue('workerType#' . $index, $row['workerType']);
+                            $processor->setValue('riskFactors#' . $index, $row['riskFactors']);
+                            $processor->setValue('riskCodes#' . $index, $row['riskCodes']);
+                            $processor->setValue('checkPeriod#' . $index, $row['checkPeriod']);
+                            $index++;
+                        }
+                        $cloned = true;
                     }
-                    $cloned = true;
                 }
             }
         } catch (\Throwable) {
@@ -397,7 +638,7 @@ final class WorkplaceFactorsCertificateService
 
         if (! $cloned) {
             $processor->setValue('eilNr', $fallbackReplacements['eilNr'] ?? '');
-            $processor->setValue('pareigybe', $fallbackReplacements['pareigybe'] ?? '');
+            $this->setPareigybePair($processor, '', $fallbackReplacements['pareigybe'] ?? '');
             $processor->setValue('veiksniai', $fallbackReplacements['veiksniai'] ?? '');
             $processor->setValue('sifrai', $fallbackReplacements['sifrai'] ?? '');
             $processor->setValue('veiksniaiSuSifrais', $fallbackReplacements['veiksniaiSuSifrais'] ?? '');
@@ -410,6 +651,12 @@ final class WorkplaceFactorsCertificateService
         }
 
         $processor->saveAs($outputPath);
+    }
+
+    private function setPareigybePair(TemplateProcessor $processor, string $suffix, string $value): void
+    {
+        $processor->setValue('pareigybe' . $suffix, $value);
+        $processor->setValue('pareigybė' . $suffix, $value);
     }
 
     /**

@@ -30,7 +30,9 @@ final class WorkplaceFactorsCertificateController extends AbstractController
      * {
      *   "companyId": 1,
      *   "checkPeriods": { "1": "1 metai", "2": "2 metai" },
-     *   "replacements": { ... papildomi custom laukai ... }
+     *   "replacements": { ... papildomi custom laukai ... },
+     *   "templatePath": "otherTemplates/pazyma/pazyma.docx",  // optional; overrides default template file
+     *   "documentData": { "workerRows": [...], ... } | "json string"  // optional fill-only replay; company still from DB
      * }
      */
     #[Route('/create', name: 'api_workplace_factors_certificate_create', methods: ['POST'])]
@@ -41,13 +43,28 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             return new JsonResponse(['error' => 'Invalid JSON body'], 400);
         }
 
+        $documentDataOverride = null;
+        $rawDocumentData = $data['documentData'] ?? null;
+        if ($rawDocumentData !== null && $rawDocumentData !== '') {
+            if (is_string($rawDocumentData)) {
+                $documentDataOverride = json_decode($rawDocumentData, true);
+            } elseif (is_array($rawDocumentData)) {
+                $documentDataOverride = $rawDocumentData;
+            }
+            if (! is_array($documentDataOverride)) {
+                return new JsonResponse(['error' => 'documentData must be a JSON object or a JSON string'], 400);
+            }
+        }
+
         $companyId = $data['companyId'] ?? null;
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
             return new JsonResponse(['error' => 'companyId is required'], 400);
         }
 
-        $templatePath = self::TEMPLATE_PATH;
-        $absoluteTemplatePath = (string) $this->getParameter('kernel.project_dir') . '/templates/' . $templatePath;
+        $templatePath = self::resolveCertificateTemplatePath($data, $documentDataOverride);
+
+        $projectDir = (string) $this->getParameter('kernel.project_dir');
+        $absoluteTemplatePath = $projectDir . '/templates/' . $templatePath;
         if (! is_file($absoluteTemplatePath)) {
             return new JsonResponse([
                 'error' => 'Nerastas pažymos šablonas. Įkelkite jį per /api/workplace-factors-certificate/template/upload',
@@ -90,6 +107,9 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             'firstName' => method_exists($user, 'getFirstName') ? $user->getFirstName() : null,
             'lastName'  => method_exists($user, 'getLastName') ? $user->getLastName() : null,
         ];
+        if (is_array($documentDataOverride) && isset($documentDataOverride['userContext']) && is_array($documentDataOverride['userContext'])) {
+            $userContext = $documentDataOverride['userContext'];
+        }
 
         try {
             $outputPath = $this->certificateService->createDocument(
@@ -98,7 +118,8 @@ final class WorkplaceFactorsCertificateController extends AbstractController
                 $checkPeriods,
                 $userContext,
                 null,
-                $custom
+                $custom,
+                $documentDataOverride,
             );
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
@@ -164,5 +185,32 @@ final class WorkplaceFactorsCertificateController extends AbstractController
             'status' => 'SUCCESS',
             'template' => self::TEMPLATE_PATH,
         ]);
+    }
+
+    /**
+     * Prefer explicit API fields, then legacy `documentData.templatePath` from older Word files.
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, mixed>|null $documentDataOverride
+     */
+    private function resolveCertificateTemplatePath(array $data, ?array $documentDataOverride): string
+    {
+        foreach (['templatePath', 'template'] as $key) {
+            if (isset($data[$key]) && is_string($data[$key])) {
+                $tp = trim(str_replace('\\', '/', $data[$key]));
+                if ($tp !== '' && ! str_contains($tp, '..')) {
+                    return $tp;
+                }
+            }
+        }
+
+        if (is_array($documentDataOverride) && isset($documentDataOverride['templatePath']) && is_string($documentDataOverride['templatePath'])) {
+            $tp = trim(str_replace('\\', '/', $documentDataOverride['templatePath']));
+            if ($tp !== '') {
+                return $tp;
+            }
+        }
+
+        return self::TEMPLATE_PATH;
     }
 }

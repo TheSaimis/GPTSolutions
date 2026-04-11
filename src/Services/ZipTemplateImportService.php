@@ -46,8 +46,18 @@ final class ZipTemplateImportService
             ];
         }
 
-        $zipPath = $zip->getRealPath();
-        if ($zipPath === false || ! is_readable($zipPath)) {
+        if (! $zip->isValid()) {
+            return [
+                'status'  => 'FAIL',
+                'error'   => 'ZIP įkėlimas nepavyko: ' . $zip->getErrorMessage(),
+                'results' => [],
+                'skipped' => [],
+            ];
+        }
+
+        // getRealPath() can fail on some Windows temp paths; pathname is always set for uploads.
+        $zipPath = $zip->getRealPath() ?: $zip->getPathname();
+        if ($zipPath === '' || ! is_readable($zipPath)) {
             return [
                 'status'  => 'FAIL',
                 'error'   => 'ZIP failas neprieinamas.',
@@ -56,11 +66,40 @@ final class ZipTemplateImportService
             ];
         }
 
-        $archive = new \ZipArchive();
-        if ($archive->open($zipPath) !== true) {
+        $byteSize = @filesize($zipPath);
+        if ($byteSize === false || $byteSize === 0) {
             return [
                 'status'  => 'FAIL',
-                'error'   => 'Nepavyko atidaryti ZIP archyvo.',
+                'error'   => 'ZIP failas tuščias arba nepilnai gautas. Patikrinkite php.ini: upload_max_filesize ir post_max_size (turi būti didesni už archyvą).',
+                'results' => [],
+                'skipped' => [],
+            ];
+        }
+
+        $archive    = new \ZipArchive();
+        $openedPath = $zipPath;
+        $tmpCopy    = null;
+
+        $openOk = $archive->open($openedPath);
+        if ($openOk !== true) {
+            // Kartais ZipArchive blogai atidaro įkelto failo kelią (pvz. Windows) — bandom kopiją į sys_get_temp_dir().
+            $tmpCopy = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'zip_upload_' . bin2hex(random_bytes(12)) . '.zip';
+            if (@copy($zipPath, $tmpCopy)) {
+                $archive = new \ZipArchive();
+                $openOk  = $archive->open($tmpCopy);
+                if ($openOk === true) {
+                    $openedPath = $tmpCopy;
+                } else {
+                    @unlink($tmpCopy);
+                    $tmpCopy = null;
+                }
+            }
+        }
+
+        if ($openOk !== true) {
+            return [
+                'status'  => 'FAIL',
+                'error'   => 'Nepavyko atidaryti ZIP archyvo (failas sugadintas arba ne ZIP).',
                 'results' => [],
                 'skipped' => [],
             ];
@@ -68,6 +107,9 @@ final class ZipTemplateImportService
 
         if ($archive->numFiles > self::MAX_ENTRIES) {
             $archive->close();
+            if ($tmpCopy !== null && is_file($tmpCopy)) {
+                @unlink($tmpCopy);
+            }
 
             return [
                 'status'  => 'FAIL',
@@ -196,6 +238,9 @@ final class ZipTemplateImportService
         }
 
         $archive->close();
+        if ($tmpCopy !== null && is_file($tmpCopy)) {
+            @unlink($tmpCopy);
+        }
 
         $successCount = 0;
         $failCount    = 0;
