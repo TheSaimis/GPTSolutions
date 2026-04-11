@@ -76,7 +76,7 @@ final class DeleteCatalogue
             $parentDir = dirname($deletedBase);
 
             if (!is_dir($parentDir) && !mkdir($parentDir, 0775, true) && !is_dir($parentDir)) {
-                return "Failed to create $parentDir";
+                return "Nepavyko sukurti katalogo: $parentDir";
             }
 
             // if same deleted folder already exists, remove it first
@@ -86,7 +86,7 @@ final class DeleteCatalogue
 
             return rename($resolvedTarget, $deletedBase)
                 ? self::SUCCESS
-                : "Failed to rename $resolvedTarget to $deletedBase";
+                : "Nepavyko pervadinti/perkelti: $resolvedTarget → $deletedBase";
         } catch (\Throwable $e) {
             return $e->getMessage();
         }

@@ -25,7 +25,7 @@ final class CompanyWorkerController extends AbstractController
     {
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $items = $this->em->getRepository(CompanyWorker::class)
@@ -53,24 +53,24 @@ final class CompanyWorkerController extends AbstractController
     {
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $companyId = isset($payload['companyId']) ? (int) $payload['companyId'] : 0;
         $workerId = isset($payload['workerId']) ? (int) $payload['workerId'] : 0;
 
         if ($companyId <= 0 || $workerId <= 0) {
-            return $this->json(['message' => 'Fields "companyId" and "workerId" are required'], 400);
+            return $this->json(['message' => 'Būtini laukai „companyId“ ir „workerId“'], 400);
         }
 
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $existing = $this->em->getRepository(CompanyWorker::class)
@@ -83,7 +83,7 @@ final class CompanyWorkerController extends AbstractController
             ->getOneOrNullResult();
 
         if ($existing instanceof CompanyWorker) {
-            return $this->json(['message' => 'CompanyWorker already exists'], 409);
+            return $this->json(['message' => 'Darbuotojo tipas jau priskirtas šiai įmonei'], 409);
         }
 
         $item = new CompanyWorker();
@@ -101,7 +101,7 @@ final class CompanyWorkerController extends AbstractController
     {
         $item = $this->em->getRepository(CompanyWorker::class)->find($id);
         if (! $item instanceof CompanyWorker) {
-            return $this->json(['message' => 'CompanyWorker not found'], 404);
+            return $this->json(['message' => 'Įmonės ir darbuotojo tipo ryšys nerastas'], 404);
         }
 
         $this->em->remove($item);

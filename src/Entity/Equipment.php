@@ -29,6 +29,18 @@ class Equipment
     #[ORM\Column(name: 'unit_of_measurement', length: 32)]
     private string $unitOfMeasurement = 'vnt';
 
+    #[ORM\Column(name: 'name_en', length: 255, nullable: true)]
+    private ?string $nameEn = null;
+
+    #[ORM\Column(name: 'name_ru', length: 255, nullable: true)]
+    private ?string $nameRu = null;
+
+    #[ORM\Column(name: 'expiration_date_en', length: 120, nullable: true)]
+    private ?string $expirationDateEn = null;
+
+    #[ORM\Column(name: 'expiration_date_ru', length: 120, nullable: true)]
+    private ?string $expirationDateRu = null;
+
     /** @var Collection<int, WorkerItem> */
     #[ORM\OneToMany(targetEntity: WorkerItem::class, mappedBy: 'equipment')]
     private Collection $workerItems;
@@ -77,6 +89,91 @@ class Equipment
         return $this;
     }
 
+    public function getNameEn(): ?string
+    {
+        return $this->nameEn;
+    }
+
+    public function setNameEn(?string $nameEn): static
+    {
+        $this->nameEn = $nameEn;
+
+        return $this;
+    }
+
+    public function getNameRu(): ?string
+    {
+        return $this->nameRu;
+    }
+
+    public function setNameRu(?string $nameRu): static
+    {
+        $this->nameRu = $nameRu;
+
+        return $this;
+    }
+
+    public function getExpirationDateEn(): ?string
+    {
+        return $this->expirationDateEn;
+    }
+
+    public function setExpirationDateEn(?string $expirationDateEn): static
+    {
+        $this->expirationDateEn = $expirationDateEn;
+
+        return $this;
+    }
+
+    public function getExpirationDateRu(): ?string
+    {
+        return $this->expirationDateRu;
+    }
+
+    public function setExpirationDateRu(?string $expirationDateRu): static
+    {
+        $this->expirationDateRu = $expirationDateRu;
+
+        return $this;
+    }
+
+    /**
+     * Dokumento kalba: lt | en | ru (žemiajame registre).
+     */
+    public function resolveNameForDocument(string $locale): string
+    {
+        $l = mb_strtolower(trim($locale));
+        if ($l === 'en') {
+            $t = trim((string) ($this->nameEn ?? ''));
+
+            return $t !== '' ? $t : $this->name;
+        }
+        if ($l === 'ru') {
+            $t = trim((string) ($this->nameRu ?? ''));
+
+            return $t !== '' ? $t : $this->name;
+        }
+
+        return $this->name;
+    }
+
+    public function resolveExpirationDateForDocument(string $locale): string
+    {
+        $l = mb_strtolower(trim($locale));
+        if ($l === 'en') {
+            $t = trim((string) ($this->expirationDateEn ?? ''));
+
+            return $t !== '' ? $t : $this->expirationDate;
+        }
+        if ($l === 'ru') {
+            $t = trim((string) ($this->expirationDateRu ?? ''));
+
+            return $t !== '' ? $t : $this->expirationDate;
+        }
+
+        return $this->expirationDate;
+    }
+
     /** Normalizuoja iš API: leidžiama „vnt“ arba „poros“. */
     public static function normalizeUnitOfMeasurement(string $raw): string
     {
@@ -89,9 +186,33 @@ class Equipment
     }
 
     /** Tekstas Word šablono stulpeliui (${vnt}). */
-    public static function documentUnitLabel(string $stored): string
+    public static function documentUnitLabel(string $stored, string $documentLanguage = 'LT'): string
     {
-        return self::normalizeUnitOfMeasurement($stored) === 'poros' ? 'Poros' : 'Vnt';
+        $isPoros = self::normalizeUnitOfMeasurement($stored) === 'poros';
+        $lang = mb_strtoupper(trim($documentLanguage));
+
+        return match ($lang) {
+            'EN' => $isPoros ? 'Pairs' : 'Pcs.',
+            'RU' => $isPoros ? 'Пары' : 'шт.',
+            default => $isPoros ? 'Poros' : 'Vnt',
+        };
+    }
+
+    /** Dokumento ${kiekis}: sveikasis skaičius ≥ 1. */
+    public static function normalizeDocumentQuantity(mixed $raw): int
+    {
+        if (is_bool($raw)) {
+            return 1;
+        }
+        $n = (int) (is_string($raw) ? trim($raw) : $raw);
+        if ($n < 1) {
+            return 1;
+        }
+        if ($n > 99999) {
+            return 99999;
+        }
+
+        return $n;
     }
 
     /** @return Collection<int, WorkerItem> */

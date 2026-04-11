@@ -48,7 +48,7 @@ final class ImportAapXlsCommand extends Command
         $io   = new SymfonyStyle($input, $output);
         $path = (string) $input->getArgument('path');
         if (! is_file($path)) {
-            $io->error(sprintf('File not found: %s', $path));
+            $io->error(sprintf('Failas nerastas: %s', $path));
             return Command::FAILURE;
         }
         if (! (bool) $input->getOption('reset')) {

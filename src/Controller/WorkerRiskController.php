@@ -25,7 +25,7 @@ final class WorkerRiskController extends AbstractController
     {
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $items = $this->em->getRepository(WorkerRisk::class)
@@ -54,24 +54,24 @@ final class WorkerRiskController extends AbstractController
     {
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $workerId = isset($payload['workerId']) ? (int) $payload['workerId'] : 0;
         $riskFactorId = isset($payload['riskFactorId']) ? (int) $payload['riskFactorId'] : 0;
 
         if ($workerId <= 0 || $riskFactorId <= 0) {
-            return $this->json(['message' => 'Fields "workerId" and "riskFactorId" are required'], 400);
+            return $this->json(['message' => 'Būtini laukai „workerId“ ir „riskFactorId“'], 400);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $riskFactor = $this->em->getRepository(HealthRiskFactor::class)->find($riskFactorId);
         if (! $riskFactor instanceof HealthRiskFactor) {
-            return $this->json(['message' => 'Risk factor not found'], 404);
+            return $this->json(['message' => 'Rizikos veiksnys nerastas'], 404);
         }
 
         $existing = $this->em->getRepository(WorkerRisk::class)
@@ -84,7 +84,7 @@ final class WorkerRiskController extends AbstractController
             ->getOneOrNullResult();
 
         if ($existing instanceof WorkerRisk) {
-            return $this->json(['message' => 'WorkerRisk already exists'], 409);
+            return $this->json(['message' => 'Toks darbuotojo rizikos įrašas jau egzistuoja'], 409);
         }
 
         $item = new WorkerRisk();
@@ -102,7 +102,7 @@ final class WorkerRiskController extends AbstractController
     {
         $item = $this->em->getRepository(WorkerRisk::class)->find($id);
         if (! $item instanceof WorkerRisk) {
-            return $this->json(['message' => 'WorkerRisk not found'], 404);
+            return $this->json(['message' => 'Darbuotojo rizikos įrašas nerastas'], 404);
         }
 
         $this->em->remove($item);

@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\CompanyRequisiteRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -82,6 +83,10 @@ class CompanyRequisite
 
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $documentDate = null;
+
+    /** Word žyma ${pagrindas} — „Pagrindas išduoti“ tekstas AAP kortelių lentelėje. */
+    #[ORM\Column(name: 'aap_korteles_pagrindas', type: Types::TEXT, nullable: true)]
+    private ?string $aapKortelesPagrindas = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $role = null;
@@ -381,6 +386,28 @@ class CompanyRequisite
     {
         $this->documentDate = $v;
         return $this;
+    }
+
+    public function getAapKortelesPagrindas(): ?string
+    {
+        return $this->aapKortelesPagrindas;
+    }
+
+    public function setAapKortelesPagrindas(?string $v): static
+    {
+        $this->aapKortelesPagrindas = $v;
+
+        return $this;
+    }
+
+    /**
+     * Tekstas šablono žymei ${pagrindas}; jei DB tuščia — numatytasis sakinys.
+     */
+    public function resolveAapKortelesPagrindas(): string
+    {
+        $t = trim((string) ($this->aapKortelesPagrindas ?? ''));
+
+        return $t !== '' ? $t : 'Vadovaujantis nemokamai išduodamų AAP sąrašu';
     }
 
     public function getRole(): ?string

@@ -29,12 +29,12 @@ final class AapEquipmentGroupController extends AbstractController
     {
         $companyIdParam = $request->query->get('companyId');
         if (! is_numeric((string) $companyIdParam) || (int) $companyIdParam <= 0) {
-            return $this->json(['message' => 'Query parameter companyId is required'], 400);
+            return $this->json(['message' => 'Būtinas užklausos parametras companyId'], 400);
         }
 
         $company = $this->em->getRepository(CompanyRequisite::class)->find((int) $companyIdParam);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $groups = $this->em->getRepository(AapEquipmentGroup::class)->findBy(
@@ -52,18 +52,18 @@ final class AapEquipmentGroupController extends AbstractController
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $companyId = isset($payload['companyId']) ? (int) $payload['companyId'] : 0;
         $name = trim((string) ($payload['name'] ?? ''));
         if ($companyId <= 0 || $name === '') {
-            return $this->json(['message' => 'companyId and name are required'], 400);
+            return $this->json(['message' => 'Būtini laukai companyId ir name'], 400);
         }
 
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $group = new AapEquipmentGroup();
@@ -83,18 +83,18 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($id);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Not found'], 404);
+            return $this->json(['message' => 'Nerasta'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'name cannot be empty'], 400);
+                return $this->json(['message' => 'Pavadinimas negali būti tuščias'], 400);
             }
             $group->setName($name);
         }
@@ -114,7 +114,7 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($id);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Not found'], 404);
+            return $this->json(['message' => 'Nerasta'], 404);
         }
 
         $this->em->remove($group);
@@ -130,26 +130,26 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($id);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Group not found'], 404);
+            return $this->json(['message' => 'Grupė nerasta'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
         $workerId = isset($payload['workerId']) ? (int) $payload['workerId'] : 0;
         if ($workerId <= 0) {
-            return $this->json(['message' => 'workerId is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas workerId'], 400);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $company = $group->getCompanyRequisite();
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Invalid group'], 500);
+            return $this->json(['message' => 'Netinkama grupė'], 500);
         }
 
         if (! $this->isWorkerOnCompany($company, $worker)) {
@@ -161,7 +161,7 @@ final class AapEquipmentGroupController extends AbstractController
             'worker' => $worker,
         ]);
         if ($existing instanceof AapEquipmentGroupWorker) {
-            return $this->json(['message' => 'Already in group'], 409);
+            return $this->json(['message' => 'Jau yra grupėje'], 409);
         }
 
         $link = new AapEquipmentGroupWorker();
@@ -180,12 +180,12 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($groupId);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Group not found'], 404);
+            return $this->json(['message' => 'Grupė nerasta'], 404);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $link = $this->em->getRepository(AapEquipmentGroupWorker::class)->findOneBy([
@@ -193,7 +193,7 @@ final class AapEquipmentGroupController extends AbstractController
             'worker' => $worker,
         ]);
         if (! $link instanceof AapEquipmentGroupWorker) {
-            return $this->json(['message' => 'Not found'], 404);
+            return $this->json(['message' => 'Nerasta'], 404);
         }
 
         $this->em->remove($link);
@@ -209,21 +209,21 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($id);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Group not found'], 404);
+            return $this->json(['message' => 'Grupė nerasta'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
         $equipmentId = isset($payload['equipmentId']) ? (int) $payload['equipmentId'] : 0;
         if ($equipmentId <= 0) {
-            return $this->json(['message' => 'equipmentId is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas equipmentId'], 400);
         }
 
         $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
         if (! $equipment instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $existing = $this->em->getRepository(AapEquipmentGroupEquipment::class)->findOneBy([
@@ -231,16 +231,56 @@ final class AapEquipmentGroupController extends AbstractController
             'equipment' => $equipment,
         ]);
         if ($existing instanceof AapEquipmentGroupEquipment) {
-            return $this->json(['message' => 'Already in group'], 409);
+            return $this->json(['message' => 'Jau yra grupėje'], 409);
         }
 
         $link = new AapEquipmentGroupEquipment();
         $link->setEquipmentGroup($group);
         $link->setEquipment($equipment);
+        if (array_key_exists('quantity', $payload)) {
+            $link->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
+        }
         $this->em->persist($link);
         $this->em->flush();
 
         return $this->json($this->serializeGroup($group), 201);
+    }
+
+    #[Route('/{groupId}/equipment/{equipmentId}', name: 'aap_equipment_groups_patch_equipment', methods: ['PATCH'])]
+    public function patchEquipment(int $groupId, int $equipmentId, Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $group = $this->em->getRepository(AapEquipmentGroup::class)->find($groupId);
+        if (! $group instanceof AapEquipmentGroup) {
+            return $this->json(['message' => 'Grupė nerasta'], 404);
+        }
+
+        $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
+        if (! $equipment instanceof Equipment) {
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
+        }
+
+        $link = $this->em->getRepository(AapEquipmentGroupEquipment::class)->findOneBy([
+            'equipmentGroup' => $group,
+            'equipment' => $equipment,
+        ]);
+        if (! $link instanceof AapEquipmentGroupEquipment) {
+            return $this->json(['message' => 'Nerasta'], 404);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (! is_array($payload)) {
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
+        }
+
+        if (array_key_exists('quantity', $payload)) {
+            $link->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
+        }
+
+        $this->em->flush();
+
+        return $this->json($this->serializeGroup($group));
     }
 
     #[Route('/{groupId}/equipment/{equipmentId}', name: 'aap_equipment_groups_remove_equipment', methods: ['DELETE'])]
@@ -250,12 +290,12 @@ final class AapEquipmentGroupController extends AbstractController
 
         $group = $this->em->getRepository(AapEquipmentGroup::class)->find($groupId);
         if (! $group instanceof AapEquipmentGroup) {
-            return $this->json(['message' => 'Group not found'], 404);
+            return $this->json(['message' => 'Grupė nerasta'], 404);
         }
 
         $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
         if (! $equipment instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $link = $this->em->getRepository(AapEquipmentGroupEquipment::class)->findOneBy([
@@ -263,7 +303,7 @@ final class AapEquipmentGroupController extends AbstractController
             'equipment' => $equipment,
         ]);
         if (! $link instanceof AapEquipmentGroupEquipment) {
-            return $this->json(['message' => 'Not found'], 404);
+            return $this->json(['message' => 'Nerasta'], 404);
         }
 
         $this->em->remove($link);
@@ -319,6 +359,7 @@ final class AapEquipmentGroupController extends AbstractController
             }
             $equipment[] = [
                 'id' => $ge->getId(),
+                'quantity' => $ge->getQuantity(),
                 'equipment' => [
                     'id' => $e->getId(),
                     'name' => $e->getName(),

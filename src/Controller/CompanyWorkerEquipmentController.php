@@ -27,13 +27,13 @@ final class CompanyWorkerEquipmentController extends AbstractController
     {
         $companyIdParam = $request->query->get('companyId');
         if (! is_numeric((string) $companyIdParam) || (int) $companyIdParam <= 0) {
-            return $this->json(['message' => 'Query parameter companyId is required'], 400);
+            return $this->json(['message' => 'Būtinas užklausos parametras companyId'], 400);
         }
 
         $companyId = (int) $companyIdParam;
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $items = $this->em->getRepository(CompanyWorkerEquipment::class)
@@ -65,7 +65,7 @@ final class CompanyWorkerEquipmentController extends AbstractController
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $companyId = isset($payload['companyId']) ? (int) $payload['companyId'] : 0;
@@ -73,22 +73,22 @@ final class CompanyWorkerEquipmentController extends AbstractController
         $equipmentId = isset($payload['equipmentId']) ? (int) $payload['equipmentId'] : 0;
 
         if ($companyId <= 0 || $workerId <= 0 || $equipmentId <= 0) {
-            return $this->json(['message' => 'companyId, workerId and equipmentId are required'], 400);
+            return $this->json(['message' => 'Būtini laukai companyId, workerId ir equipmentId'], 400);
         }
 
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if (! $company instanceof CompanyRequisite) {
-            return $this->json(['message' => 'Company not found'], 404);
+            return $this->json(['message' => 'Įmonė nerasta'], 404);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
         if (! $equipment instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $cw = $this->em->getRepository(CompanyWorker::class)
@@ -116,17 +116,44 @@ final class CompanyWorkerEquipmentController extends AbstractController
             ->getOneOrNullResult();
 
         if ($existing instanceof CompanyWorkerEquipment) {
-            return $this->json(['message' => 'Assignment already exists'], 409);
+            return $this->json(['message' => 'Toks priskyrimas jau egzistuoja'], 409);
         }
 
         $item = new CompanyWorkerEquipment();
         $item->setCompanyRequisite($company);
         $item->setWorker($worker);
         $item->setEquipment($equipment);
+        if (array_key_exists('quantity', $payload)) {
+            $item->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
+        }
         $this->em->persist($item);
         $this->em->flush();
 
         return $this->json(self::serializeItem($item), 201);
+    }
+
+    #[Route('/{id}', name: 'company_worker_equipment_patch', methods: ['PATCH'])]
+    public function patch(int $id, Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $item = $this->em->getRepository(CompanyWorkerEquipment::class)->find($id);
+        if (! $item instanceof CompanyWorkerEquipment) {
+            return $this->json(['message' => 'Nerasta'], 404);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (! is_array($payload)) {
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
+        }
+
+        if (array_key_exists('quantity', $payload)) {
+            $item->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
+        }
+
+        $this->em->flush();
+
+        return $this->json(self::serializeItem($item));
     }
 
     #[Route('/{id}', name: 'company_worker_equipment_delete', methods: ['DELETE'])]
@@ -136,7 +163,7 @@ final class CompanyWorkerEquipmentController extends AbstractController
 
         $item = $this->em->getRepository(CompanyWorkerEquipment::class)->find($id);
         if (! $item instanceof CompanyWorkerEquipment) {
-            return $this->json(['message' => 'Not found'], 404);
+            return $this->json(['message' => 'Nerasta'], 404);
         }
 
         $this->em->remove($item);
@@ -153,6 +180,7 @@ final class CompanyWorkerEquipmentController extends AbstractController
 
         return [
             'id' => $item->getId(),
+            'quantity' => $item->getQuantity(),
             'company' => $company !== null ? [
                 'id' => $company->getId(),
                 'companyName' => $company->getCompanyName(),

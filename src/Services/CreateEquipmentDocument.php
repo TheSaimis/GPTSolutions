@@ -27,17 +27,17 @@ final class CreateEquipmentDocument
 
     /**
      * @return array{
-     *   company: array{id:int,companyName:?string,code:?string,address:?string,cityOrDistrict:?string},
+     *   company: array{id:int,companyName:?string,code:?string,address:?string,cityOrDistrict:?string,pagrindas:string,aapKortelesPagrindas:?string},
      *   workers: array<int, array{
      *      workerId:int,
      *      workerName:string,
-     *      equipment: array<int, array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     *      equipment: array<int, array{id:int,name:string,nameEn:?string,nameRu:?string,expirationDate:string,expirationDateEn:?string,expirationDateRu:?string,unitOfMeasurement:string,quantity:int}>
      *   }>,
      *   groups: array<int, array{
      *      groupId:int,
      *      groupName:string,
      *      workers: array<int, array{workerId:int,workerName:string}>,
-     *      equipment: array<int, array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     *      equipment: array<int, array{id:int,name:string,nameEn:?string,nameRu:?string,expirationDate:string,expirationDateEn:?string,expirationDateRu:?string,unitOfMeasurement:string,quantity:int}>
      *   }>
      * }
      */
@@ -77,11 +77,13 @@ final class CreateEquipmentDocument
 
         return [
             'company' => [
-                'id'             => (int) $company->getId(),
-                'companyName'    => $company->getCompanyName(),
-                'code'           => $company->getCode(),
-                'address'        => $company->getAddress(),
-                'cityOrDistrict' => $company->getCityOrDistrict(),
+                'id'                    => (int) $company->getId(),
+                'companyName'           => $company->getCompanyName(),
+                'code'                  => $company->getCode(),
+                'address'               => $company->getAddress(),
+                'cityOrDistrict'        => $company->getCityOrDistrict(),
+                'pagrindas'             => $company->resolveAapKortelesPagrindas(),
+                'aapKortelesPagrindas' => $company->getAapKortelesPagrindas(),
             ],
             'workers' => $workersData,
             'groups'  => $this->buildGroupsPayload($company),
@@ -95,7 +97,7 @@ final class CreateEquipmentDocument
      *   groupId:int,
      *   groupName:string,
      *   workers: list<array{workerId:int,workerName:string}>,
-     *   equipment: list<array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     *   equipment: list<array{id:int,name:string,nameEn:?string,nameRu:?string,expirationDate:string,expirationDateEn:?string,expirationDateRu:?string,unitOfMeasurement:string,quantity:int}>
      * }>
      */
     private function buildGroupsPayload(CompanyRequisite $company): array
@@ -142,12 +144,7 @@ final class CreateEquipmentDocument
                 if (! $eq instanceof Equipment || $eq->getId() === null) {
                     continue;
                 }
-                $equipment[] = [
-                    'id'                => (int) $eq->getId(),
-                    'name'              => $eq->getName(),
-                    'expirationDate'    => $eq->getExpirationDate(),
-                    'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
-                ];
+                $equipment[] = self::serializeEquipmentRow($eq, $ge->getQuantity());
             }
 
             $out[] = [
@@ -165,7 +162,7 @@ final class CreateEquipmentDocument
      * Jei įmonei yra bent viena eilutė company_worker_equipment šiam darbuotojų tipui —
      * naudojamas tik tas sąrašas. Kitu atveju – bendras worker_item šablonas.
      *
-     * @return list<array{id:int,name:string,expirationDate:string,unitOfMeasurement:string}>
+     * @return list<array{id:int,name:string,nameEn:?string,nameRu:?string,expirationDate:string,expirationDateEn:?string,expirationDateRu:?string,unitOfMeasurement:string,quantity:int}>
      */
     private function resolveEquipmentRowsForCompanyWorker(CompanyRequisite $company, Worker $worker): array
     {
@@ -194,12 +191,7 @@ final class CreateEquipmentDocument
                     continue;
                 }
                 $seen[$eq->getId()] = true;
-                $equipment[] = [
-                    'id'                => (int) $eq->getId(),
-                    'name'              => $eq->getName(),
-                    'expirationDate'    => $eq->getExpirationDate(),
-                    'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
-                ];
+                $equipment[] = self::serializeEquipmentRow($eq, $row->getQuantity());
             }
 
             return $equipment;
@@ -227,15 +219,33 @@ final class CreateEquipmentDocument
             }
             $seen[$eq->getId()] = true;
 
-            $equipment[] = [
-                'id'                => (int) $eq->getId(),
-                'name'              => $eq->getName(),
-                'expirationDate'    => $eq->getExpirationDate(),
-                'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
-            ];
+            $equipment[] = self::serializeEquipmentRow($eq, $wi->getQuantity());
         }
 
         return $equipment;
+    }
+
+    /**
+     * @return array{id:int,name:string,nameEn:?string,nameRu:?string,expirationDate:string,expirationDateEn:?string,expirationDateRu:?string,unitOfMeasurement:string,quantity:int}
+     */
+    private static function serializeEquipmentRow(Equipment $eq, int $quantity): array
+    {
+        $nameEn = $eq->getNameEn();
+        $nameRu = $eq->getNameRu();
+        $expEn = $eq->getExpirationDateEn();
+        $expRu = $eq->getExpirationDateRu();
+
+        return [
+            'id'                => (int) $eq->getId(),
+            'name'              => $eq->getName(),
+            'nameEn'            => $nameEn !== null && trim($nameEn) !== '' ? $nameEn : null,
+            'nameRu'            => $nameRu !== null && trim($nameRu) !== '' ? $nameRu : null,
+            'expirationDate'    => $eq->getExpirationDate(),
+            'expirationDateEn'  => $expEn !== null && trim($expEn) !== '' ? $expEn : null,
+            'expirationDateRu'  => $expRu !== null && trim($expRu) !== '' ? $expRu : null,
+            'unitOfMeasurement' => $eq->getUnitOfMeasurement(),
+            'quantity'          => $quantity,
+        ];
     }
 }
 

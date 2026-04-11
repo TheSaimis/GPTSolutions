@@ -174,24 +174,24 @@ final class FileService
 
         $directory = trim(str_replace('\\', '/', $directory), '/');
         if (str_contains($directory, '..')) {
-            return ['status' => self::FAIL, 'error' => 'Invalid directory'];
+            return ['status' => self::FAIL, 'error' => 'Netinkamas katalogas'];
         }
 
         $filename = $this->sanitizeShortcutFileName($displayName);
         $targetDir = $directory !== '' ? $baseFull . '/' . $directory : $baseFull;
         $resolved = realpath($targetDir);
         if ($resolved === false || ! is_dir($resolved) || ! str_starts_with($resolved, $baseFull)) {
-            return ['status' => self::FAIL, 'error' => 'Target directory not found'];
+            return ['status' => self::FAIL, 'error' => 'Paskirties katalogas nerastas'];
         }
 
         $fullPath = $resolved . '/' . $filename;
         if (file_exists($fullPath)) {
-            return ['status' => self::FAIL, 'error' => 'Shortcut already exists'];
+            return ['status' => self::FAIL, 'error' => 'Nuoroda tokiu pavadinimu jau yra'];
         }
 
         $ini = "[InternetShortcut]\r\nURL=" . $targetUrl . "\r\n";
         if (file_put_contents($fullPath, $ini, LOCK_EX) === false) {
-            return ['status' => self::FAIL, 'error' => 'Failed to write shortcut'];
+            return ['status' => self::FAIL, 'error' => 'Nepavyko įrašyti nuorodos failo'];
         }
 
         $relPath = $directory !== '' ? $directory . '/' . $filename : $filename;

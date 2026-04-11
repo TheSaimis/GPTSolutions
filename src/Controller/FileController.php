@@ -32,7 +32,7 @@ final class FileController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         $baseDir      = (string) ($data['baseDir'] ?? 'templates');
@@ -40,20 +40,20 @@ final class FileController extends AbstractController
         $newDirectory = (string) ($data['newDirectory'] ?? '');
 
         if (! in_array($baseDir, self::ALLOWED_BASE_DIRS, true)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid baseDir. Allowed: ' . implode(', ', self::ALLOWED_BASE_DIRS)], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas baseDir. Leidžiama: ' . implode(', ', self::ALLOWED_BASE_DIRS)], 400);
         }
         if (($resp = $this->denyArchiveForNonAdmin($baseDir)) !== null) {
             return $resp;
         }
 
         if ($directory === '' || $newDirectory === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'directory and newDirectory are required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtini laukai directory ir newDirectory'], 400);
         }
 
         $result = $this->fileService->move($baseDir, $directory, $newDirectory);
 
         if ($result === 'FAIL') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Failed to move file'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nepavyko perkelti failo'], 400);
         }
 
         $fileName = basename($directory);
@@ -82,7 +82,7 @@ final class FileController extends AbstractController
         $path = trim((string) $request->request->get('directory', ''));
         $uploadedFiles = $this->collectUploadedFiles($request);
         if ($uploadedFiles === []) {
-            return new JsonResponse(['error' => 'Missing file field "template" or "templates"'], 400);
+            return new JsonResponse(['error' => 'Trūksta failo lauko „template“ arba „templates“'], 400);
         }
         if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
@@ -174,7 +174,7 @@ final class FileController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         $root      = trim((string) ($data['root'] ?? ''));
@@ -189,13 +189,13 @@ final class FileController extends AbstractController
             return $resp;
         }
         if ($name === '' || $urlRaw === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'name and url are required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtini laukai name ir url'], 400);
         }
 
         $safeName = preg_replace('/[\\\\\\/:\*\?"<>\|\x00-\x1F]/u', '', $name) ?? '';
         $safeName = trim($safeName);
         if ($safeName === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid link name'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas nuorodos pavadinimas'], 400);
         }
         if (! str_ends_with(mb_strtolower($safeName), '.url')) {
             $safeName .= '.url';
@@ -203,12 +203,12 @@ final class FileController extends AbstractController
 
         $url = $this->normalizeWebsiteUrl($urlRaw);
         if ($url === null) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid URL. Allowed only http/https'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas URL. Leidžiama tik http arba https'], 400);
         }
 
         $baseFull = $this->fileService->getBaseFullPath($root);
         if ($baseFull === null) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Root folder not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Šakninis katalogas nerastas'], 404);
         }
 
         $relativeDir = trim(str_replace('\\', '/', $directory), '/');
@@ -216,26 +216,26 @@ final class FileController extends AbstractController
             $relativeDir = substr($relativeDir, strlen($root) + 1);
         }
         if (str_contains($relativeDir, '..')) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid directory'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas katalogas'], 400);
         }
 
         $targetDir = $relativeDir === '' ? $baseFull : $baseFull . '/' . $relativeDir;
         if (! is_dir($targetDir) && ! @mkdir($targetDir, 0775, true) && ! is_dir($targetDir)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Cannot create target directory'], 500);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nepavyko sukurti paskirties katalogo'], 500);
         }
         $resolvedTargetDir = realpath($targetDir);
         if ($resolvedTargetDir === false || ! str_starts_with($resolvedTargetDir, $baseFull)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid directory path'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas katalogo kelias'], 400);
         }
 
         $fullPath = $resolvedTargetDir . '/' . $safeName;
         if (file_exists($fullPath)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'File already exists'], 409);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Failas jau egzistuoja'], 409);
         }
 
         $content = "[InternetShortcut]\nURL={$url}\n";
         if (@file_put_contents($fullPath, $content) === false) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Failed to create link file'], 500);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nepavyko sukurti nuorodos failo'], 500);
         }
 
         $relativePath = $relativeDir === '' ? $safeName : ($relativeDir . '/' . $safeName);
@@ -314,7 +314,7 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
         if ($path === '' || $newName === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtini laukai path ir newName'], 400);
         }
         $path = str_replace('\\', '/', $path);
         $path = ltrim($path, '/');
@@ -348,7 +348,7 @@ final class FileController extends AbstractController
             return new JsonResponse(['error' => 'Neleistinas katalogas'], 403);
         }
         if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtinas laukas path'], 400);
         }
         $path = str_replace('\\', '/', $path);
         $path = ltrim($path, '/');
@@ -384,7 +384,7 @@ final class FileController extends AbstractController
         $root = trim((string) $request->query->get('root', ''));
 
         if ($root !== '' && ! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
-            return new JsonResponse(['error' => 'Neleistinas root. LeidÅ¾iami: templates, generated, archive'], 400);
+            return new JsonResponse(['error' => 'Neleistinas root. Leidžiami: templates, generated, archive'], 400);
         }
         if ($root === '') {
             if ($this->isGranted('ROLE_ADMIN')) {
@@ -415,13 +415,13 @@ final class FileController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         $path = trim((string) ($data['path'] ?? $data['directory'] ?? ''));
 
         if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtinas laukas path'], 400);
         }
 
         $path = str_replace('\\', '/', $path);
@@ -441,7 +441,7 @@ final class FileController extends AbstractController
     public function getDocumentData(string $root, string $path): JsonResponse
     {
         if (! in_array($root, self::ALLOWED_BASE_DIRS, true)) {
-            return new JsonResponse(['error' => 'Neleistinas katalogas. LeidÅ¾iami: templates, generated, archive'], 403);
+            return new JsonResponse(['error' => 'Neleistinas katalogas. Leidžiami: templates, generated, archive'], 403);
         }
         if (($resp = $this->denyArchiveForNonAdmin($root)) !== null) {
             return $resp;

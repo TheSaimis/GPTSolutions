@@ -43,13 +43,13 @@ final class CategoryController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         $name = (string) ($data['name'] ?? $data['category'] ?? $data['catagory'] ?? '');
         $name = trim($name);
         if ($name === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Category name is required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtinas kategorijos pavadinimas'], 400);
         }
 
         $existing = $repo->createQueryBuilder('c')

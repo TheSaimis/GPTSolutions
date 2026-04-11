@@ -40,7 +40,7 @@ final class HealthRiskFactorController extends AbstractController
     {
         $item = $this->em->getRepository(HealthRiskFactor::class)->find($id);
         if (! $item instanceof HealthRiskFactor) {
-            return $this->json(['message' => 'Risk factor not found'], 404);
+            return $this->json(['message' => 'Rizikos veiksnys nerastas'], 404);
         }
 
         return $this->json(self::serializeItem($item));
@@ -51,7 +51,7 @@ final class HealthRiskFactorController extends AbstractController
     {
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name = trim((string) ($payload['name'] ?? ''));
@@ -59,7 +59,7 @@ final class HealthRiskFactorController extends AbstractController
         $lineNumber = (int) ($payload['lineNumber'] ?? 0);
 
         if ($name === '' || $code === '') {
-            return $this->json(['message' => 'Fields "name" and "code/cipher" are required'], 400);
+            return $this->json(['message' => 'Būtini laukai „name“ ir „code“ / „cipher“'], 400);
         }
 
         $item = new HealthRiskFactor();
@@ -78,18 +78,18 @@ final class HealthRiskFactorController extends AbstractController
     {
         $item = $this->em->getRepository(HealthRiskFactor::class)->find($id);
         if (! $item instanceof HealthRiskFactor) {
-            return $this->json(['message' => 'Risk factor not found'], 404);
+            return $this->json(['message' => 'Rizikos veiksnys nerastas'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'Field "name" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
             $item->setName($name);
         }
@@ -97,7 +97,7 @@ final class HealthRiskFactorController extends AbstractController
         if (array_key_exists('code', $payload) || array_key_exists('cipher', $payload)) {
             $code = trim((string) ($payload['code'] ?? $payload['cipher']));
             if ($code === '') {
-                return $this->json(['message' => 'Field "code/cipher" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „code“ / „cipher“ negali būti tuščias'], 400);
             }
             $item->setCode($code);
         }
@@ -116,7 +116,7 @@ final class HealthRiskFactorController extends AbstractController
     {
         $item = $this->em->getRepository(HealthRiskFactor::class)->find($id);
         if (! $item instanceof HealthRiskFactor) {
-            return $this->json(['message' => 'Risk factor not found'], 404);
+            return $this->json(['message' => 'Rizikos veiksnys nerastas'], 404);
         }
 
         $this->em->remove($item);

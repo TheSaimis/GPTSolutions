@@ -34,7 +34,7 @@ final class CompanyController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         $company = new CompanyRequisite();
@@ -59,6 +59,9 @@ final class CompanyController extends AbstractController
         $company->setManagerLastNameEn($data['managerLastNameEn'] ?? null);
         $company->setManagerLastNameRu($data['managerLastNameRu'] ?? null);
         $company->setDocumentDate($data['documentDate'] ?? null);
+        if (array_key_exists('aapKortelesPagrindas', $data)) {
+            $company->setAapKortelesPagrindas($this->normalizeAapKortelesPagrindasPayload($data['aapKortelesPagrindas']));
+        }
         $company->setRole($data['role'] ?? null);
         $company->setRoleEn($data['roleEn'] ?? null);
         $company->setRoleRu($data['roleRu'] ?? null);
@@ -142,7 +145,7 @@ final class CompanyController extends AbstractController
     {
         $company = $repo->find($id);
         if (! $company) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Įmonė nerasta'], 404);
         }
 
         return new JsonResponse($this->toArray($company));
@@ -155,12 +158,12 @@ final class CompanyController extends AbstractController
 
         $company = $repo->find($id);
         if (! $company) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Įmonė nerasta'], 404);
         }
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         if (isset($data['companyName'])) {
@@ -259,6 +262,10 @@ final class CompanyController extends AbstractController
             $company->setDocumentDate($data['documentDate']);
         }
 
+        if (array_key_exists('aapKortelesPagrindas', $data)) {
+            $company->setAapKortelesPagrindas($this->normalizeAapKortelesPagrindasPayload($data['aapKortelesPagrindas']));
+        }
+
         if (array_key_exists('role', $data)) {
             $company->setRole($data['role']);
         }
@@ -332,7 +339,7 @@ final class CompanyController extends AbstractController
 
         $company = $repo->find($id);
         if (! $company) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Company not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Įmonė nerasta'], 404);
         }
 
         $company->setDeleted(true);
@@ -402,6 +409,16 @@ final class CompanyController extends AbstractController
         ];
     }
 
+    private function normalizeAapKortelesPagrindasPayload(mixed $v): ?string
+    {
+        if ($v === null) {
+            return null;
+        }
+        $s = trim((string) $v);
+
+        return $s === '' ? null : $s;
+    }
+
     private function sanitizeForFilename(string $name): string
     {
         $s = trim($name);
@@ -444,7 +461,8 @@ final class CompanyController extends AbstractController
             'managerLastName'    => $c->getManagerLastName(),
             'managerLastNameEn'  => $c->getManagerLastNameEn(),
             'managerLastNameRu'  => $c->getManagerLastNameRu(),
-            'documentDate'       => $c->getDocumentDate(),
+            'documentDate'          => $c->getDocumentDate(),
+            'aapKortelesPagrindas' => $c->getAapKortelesPagrindas(),
             'role'               => $c->getRole(),
             'roleEn'             => $c->getRoleEn(),
             'roleRu'             => $c->getRoleRu(),

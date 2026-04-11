@@ -17,4 +17,21 @@ class AapEquipmentWordTemplateRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, AapEquipmentWordTemplate::class);
     }
+
+    /**
+     * Randa šabloną pagal rūšį ir kalbą (LOWER — sutampa su skirtinga DB reikšmių registracija).
+     */
+    public function findOneByKindAndLocale(string $kind, string $locale): ?AapEquipmentWordTemplate
+    {
+        $loc = mb_strtolower(trim($locale));
+
+        return $this->createQueryBuilder('t')
+            ->where('t.templateKind = :kind')
+            ->andWhere('LOWER(t.templateLocale) = :loc')
+            ->setParameter('kind', $kind)
+            ->setParameter('loc', $loc)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

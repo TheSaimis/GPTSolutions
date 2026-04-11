@@ -77,7 +77,7 @@ final class WorkplaceFactorsCertificateService
         /** @var CompanyRequisite|null $company */
         $company = $this->em->getRepository(CompanyRequisite::class)->find($effective['companyId']);
         if (! $company instanceof CompanyRequisite) {
-            throw new \InvalidArgumentException('Company not found');
+            throw new \InvalidArgumentException('Įmonė nerasta');
         }
 
         $templatePathNorm = str_replace('\\', '/', urldecode(trim((string) $effective['templatePath'])));
@@ -419,7 +419,7 @@ final class WorkplaceFactorsCertificateService
         }
 
         if ($workers === []) {
-            throw new \InvalidArgumentException('Company has no worker types assigned');
+            throw new \InvalidArgumentException('Įmonei nepriskirti darbuotojų tipai');
         }
 
         $missingPeriods = [];
@@ -435,7 +435,7 @@ final class WorkplaceFactorsCertificateService
 
         if ($missingPeriods !== []) {
             throw new \InvalidArgumentException(
-                'Missing check period for worker types: ' . implode(', ', $missingPeriods)
+                'Trūksta tikrinimo periodo šiems darbuotojų tipams: ' . implode(', ', $missingPeriods)
             );
         }
 

@@ -25,6 +25,9 @@ class AapEquipmentGroupEquipment
     #[ORM\JoinColumn(name: 'equipment_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?Equipment $equipment = null;
 
+    #[ORM\Column(options: ['default' => 1])]
+    private int $quantity = 1;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -50,6 +53,18 @@ class AapEquipmentGroupEquipment
     public function setEquipment(?Equipment $equipment): static
     {
         $this->equipment = $equipment;
+
+        return $this;
+    }
+
+    public function getQuantity(): int
+    {
+        return $this->quantity;
+    }
+
+    public function setQuantity(int $quantity): static
+    {
+        $this->quantity = Equipment::normalizeDocumentQuantity($quantity);
 
         return $this;
     }

@@ -41,7 +41,7 @@ final class AddWordDocument
         if (! in_array($ext, ['doc', 'docx', 'xls', 'xlsx'], true)) {
             return [
                 'status' => self::FAIL,
-                'error'  => 'Invalid file type. Only .doc, .docx, .xls, .xlsx are allowed.',
+                'error'  => 'Netinkamas failo tipas. Leidžiama tik .doc, .docx, .xls, .xlsx.',
             ];
         }
 
@@ -58,7 +58,7 @@ final class AddWordDocument
             if (! is_dir($targetDir) && ! mkdir($targetDir, 0775, true) && ! is_dir($targetDir)) {
                 return [
                     'status' => self::FAIL,
-                    'error'  => 'Failed to create target directory.',
+                    'error'  => 'Nepavyko sukurti paskirties katalogo.',
                 ];
             }
 
@@ -72,7 +72,7 @@ final class AddWordDocument
             if ($targetPath === null) {
                 return [
                     'status' => self::FAIL,
-                    'error'  => 'Failed to save uploaded file.',
+                    'error'  => 'Nepavyko išsaugoti įkelto failo.',
                 ];
             }
         } catch (\Throwable $e) {

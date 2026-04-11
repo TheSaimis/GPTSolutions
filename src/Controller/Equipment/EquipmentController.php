@@ -40,7 +40,7 @@ final class EquipmentController extends AbstractController
     {
         $item = $this->em->getRepository(Equipment::class)->find($id);
         if (! $item instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
         return $this->json(self::serializeItem($item));
     }
@@ -52,22 +52,34 @@ final class EquipmentController extends AbstractController
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name = trim((string) ($payload['name'] ?? ''));
+        $nameEn = trim((string) ($payload['nameEn'] ?? ''));
+        $nameRu = trim((string) ($payload['nameRu'] ?? ''));
         $expirationDate = trim((string) ($payload['expirationDate'] ?? ''));
+        $expirationDateEn = trim((string) ($payload['expirationDateEn'] ?? ''));
+        $expirationDateRu = trim((string) ($payload['expirationDateRu'] ?? ''));
 
-        if ($name === '' || $expirationDate === '') {
-            return $this->json(['message' => 'Fields "name" and "expirationDate" are required'], 400);
+        $nameLt = $name !== '' ? $name : ($nameEn !== '' ? $nameEn : $nameRu);
+        $expLt = $expirationDate !== '' ? $expirationDate : ($expirationDateEn !== '' ? $expirationDateEn : $expirationDateRu);
+        if ($nameLt === '' || $expLt === '') {
+            return $this->json([
+                'message' => 'Būtinas bent vienos kalbos pavadinimas ir tinkamumo terminas',
+            ], 400);
         }
 
         $unitRaw = (string) ($payload['unitOfMeasurement'] ?? $payload['unit'] ?? 'vnt');
 
         $item = new Equipment();
-        $item->setName($name);
-        $item->setExpirationDate($expirationDate);
+        $item->setName($nameLt);
+        $item->setExpirationDate($expLt);
         $item->setUnitOfMeasurement($unitRaw);
+        $item->setNameEn($nameEn !== '' ? $nameEn : null);
+        $item->setNameRu($nameRu !== '' ? $nameRu : null);
+        $item->setExpirationDateEn($expirationDateEn !== '' ? $expirationDateEn : null);
+        $item->setExpirationDateRu($expirationDateRu !== '' ? $expirationDateRu : null);
 
         $this->em->persist($item);
         $this->em->flush();
@@ -86,12 +98,12 @@ final class EquipmentController extends AbstractController
         }
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'Field "name" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
             $item->setName($name);
         }
@@ -99,7 +111,7 @@ final class EquipmentController extends AbstractController
         if (array_key_exists('expirationDate', $payload)) {
             $expirationDate = trim((string) $payload['expirationDate']);
             if ($expirationDate === '') {
-                return $this->json(['message' => 'Field "expirationDate" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „expirationDate“ negali būti tuščias'], 400);
             }
             $item->setExpirationDate($expirationDate);
         }
@@ -107,6 +119,23 @@ final class EquipmentController extends AbstractController
         if (array_key_exists('unitOfMeasurement', $payload) || array_key_exists('unit', $payload)) {
             $unitRaw = (string) ($payload['unitOfMeasurement'] ?? $payload['unit'] ?? 'vnt');
             $item->setUnitOfMeasurement($unitRaw);
+        }
+
+        if (array_key_exists('nameEn', $payload)) {
+            $v = trim((string) $payload['nameEn']);
+            $item->setNameEn($v !== '' ? $v : null);
+        }
+        if (array_key_exists('nameRu', $payload)) {
+            $v = trim((string) $payload['nameRu']);
+            $item->setNameRu($v !== '' ? $v : null);
+        }
+        if (array_key_exists('expirationDateEn', $payload)) {
+            $v = trim((string) $payload['expirationDateEn']);
+            $item->setExpirationDateEn($v !== '' ? $v : null);
+        }
+        if (array_key_exists('expirationDateRu', $payload)) {
+            $v = trim((string) $payload['expirationDateRu']);
+            $item->setExpirationDateRu($v !== '' ? $v : null);
         }
 
         $this->em->flush();
@@ -121,7 +150,7 @@ final class EquipmentController extends AbstractController
 
         $item = $this->em->getRepository(Equipment::class)->find($id);
         if (! $item instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $this->em->remove($item);
@@ -133,10 +162,14 @@ final class EquipmentController extends AbstractController
     private static function serializeItem(Equipment $item): array
     {
         return [
-            'id'                 => $item->getId(),
-            'name'               => $item->getName(),
-            'expirationDate'     => $item->getExpirationDate(),
-            'unitOfMeasurement'  => $item->getUnitOfMeasurement(),
+            'id'                  => $item->getId(),
+            'name'                => $item->getName(),
+            'expirationDate'      => $item->getExpirationDate(),
+            'unitOfMeasurement'   => $item->getUnitOfMeasurement(),
+            'nameEn'              => $item->getNameEn(),
+            'nameRu'              => $item->getNameRu(),
+            'expirationDateEn'    => $item->getExpirationDateEn(),
+            'expirationDateRu'    => $item->getExpirationDateRu(),
         ];
     }
 }

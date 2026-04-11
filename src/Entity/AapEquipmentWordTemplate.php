@@ -13,7 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: AapEquipmentWordTemplateRepository::class)]
 #[ORM\Table(name: 'aap_equipment_word_template')]
-#[ORM\UniqueConstraint(name: 'uniq_aap_template_kind', columns: ['template_kind'])]
+#[ORM\UniqueConstraint(name: 'uniq_aap_template_kind_locale', columns: ['template_kind', 'template_locale'])]
 #[ORM\HasLifecycleCallbacks]
 class AapEquipmentWordTemplate
 {
@@ -25,6 +25,10 @@ class AapEquipmentWordTemplate
     /** „sarasas“ arba „korteles“ */
     #[ORM\Column(name: 'template_kind', length: 20)]
     private string $templateKind = '';
+
+    /** lt | en | ru */
+    #[ORM\Column(name: 'template_locale', length: 8)]
+    private string $templateLocale = 'lt';
 
     #[ORM\Column(length: 255)]
     private string $originalFilename = '';
@@ -61,6 +65,18 @@ class AapEquipmentWordTemplate
     public function setTemplateKind(string $templateKind): static
     {
         $this->templateKind = $templateKind;
+
+        return $this;
+    }
+
+    public function getTemplateLocale(): string
+    {
+        return $this->templateLocale;
+    }
+
+    public function setTemplateLocale(string $templateLocale): static
+    {
+        $this->templateLocale = $templateLocale;
 
         return $this;
     }

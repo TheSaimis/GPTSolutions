@@ -49,7 +49,7 @@ final class RiskListController extends AbstractController
     {
         $item = $this->em->getRepository(RiskList::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskList not found'], 404);
+            return $this->json(['message' => 'Rizikos sąrašas nerastas'], 404);
         }
 
         return $this->json($this->serializeRiskList($item));
@@ -61,7 +61,7 @@ final class RiskListController extends AbstractController
         $payload = json_decode($request->getContent(), true);
 
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $bodyPartId = $payload['bodyPartId'] ?? null;
@@ -70,23 +70,23 @@ final class RiskListController extends AbstractController
 
         if ($bodyPartId === null || $riskSubcategoryId === null || $workerId === null) {
             return $this->json([
-                'message' => 'Fields "bodyPartId", "riskSubcategoryId", and "workerId" are required',
+                'message' => 'Būtini laukai „bodyPartId“, „riskSubcategoryId“ ir „workerId“',
             ], 400);
         }
 
         $bodyPart = $this->em->getRepository(BodyPart::class)->find((int) $bodyPartId);
         if ($bodyPart === null) {
-            return $this->json(['message' => 'BodyPart not found'], 404);
+            return $this->json(['message' => 'Kūno dalis nerasta'], 404);
         }
 
         $riskSubcategory = $this->em->getRepository(RiskSubcategory::class)->find((int) $riskSubcategoryId);
         if ($riskSubcategory === null) {
-            return $this->json(['message' => 'RiskSubcategory not found'], 404);
+            return $this->json(['message' => 'Rizikos potipis nerastas'], 404);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find((int) $workerId);
         if ($worker === null) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $existing = $this->em->getRepository(RiskList::class)
@@ -101,7 +101,7 @@ final class RiskListController extends AbstractController
             ->getOneOrNullResult();
 
         if ($existing !== null) {
-            return $this->json(['message' => 'RiskList already exists'], 409);
+            return $this->json(['message' => 'Toks rizikos sąrašo įrašas jau egzistuoja'], 409);
         }
 
         $item = new RiskList();
@@ -120,18 +120,18 @@ final class RiskListController extends AbstractController
     {
         $item = $this->em->getRepository(RiskList::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskList not found'], 404);
+            return $this->json(['message' => 'Rizikos sąrašas nerastas'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('bodyPartId', $payload)) {
             $bodyPart = $this->em->getRepository(BodyPart::class)->find((int) $payload['bodyPartId']);
             if ($bodyPart === null) {
-                return $this->json(['message' => 'BodyPart not found'], 404);
+                return $this->json(['message' => 'Kūno dalis nerasta'], 404);
             }
             $item->setBodyPart($bodyPart);
         }
@@ -139,7 +139,7 @@ final class RiskListController extends AbstractController
         if (array_key_exists('riskSubcategoryId', $payload)) {
             $riskSubcategory = $this->em->getRepository(RiskSubcategory::class)->find((int) $payload['riskSubcategoryId']);
             if ($riskSubcategory === null) {
-                return $this->json(['message' => 'RiskSubcategory not found'], 404);
+                return $this->json(['message' => 'Rizikos potipis nerastas'], 404);
             }
             $item->setRiskSubcategory($riskSubcategory);
         }
@@ -147,7 +147,7 @@ final class RiskListController extends AbstractController
         if (array_key_exists('workerId', $payload)) {
             $worker = $this->em->getRepository(Worker::class)->find((int) $payload['workerId']);
             if ($worker === null) {
-                return $this->json(['message' => 'Worker not found'], 404);
+                return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
             }
             $item->setWorker($worker);
         }
@@ -166,7 +166,7 @@ final class RiskListController extends AbstractController
             ->getOneOrNullResult();
 
         if ($duplicate !== null) {
-            return $this->json(['message' => 'RiskList already exists'], 409);
+            return $this->json(['message' => 'Toks rizikos sąrašo įrašas jau egzistuoja'], 409);
         }
 
         $this->em->flush();
@@ -179,7 +179,7 @@ final class RiskListController extends AbstractController
     {
         $item = $this->em->getRepository(RiskList::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskList not found'], 404);
+            return $this->json(['message' => 'Rizikos sąrašas nerastas'], 404);
         }
 
         $this->em->remove($item);

@@ -90,7 +90,7 @@ final class CompanyControllerTest extends ApiWebTestCase
         self::assertResponseStatusCodeSame(404);
         $data = json_decode($client->getResponse()->getContent(), true);
         self::assertSame('FAIL', $data['status']);
-        self::assertSame('Company not found', $data['error']);
+        self::assertSame('Įmonė nerasta', $data['error']);
     }
 
     public function testGetOneCompanySuccess(): void

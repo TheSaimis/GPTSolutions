@@ -62,7 +62,7 @@ final class WorkerEquipmentController extends AbstractController
     {
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $items = $this->em->getRepository(WorkerItem::class)
@@ -90,7 +90,7 @@ final class WorkerEquipmentController extends AbstractController
     {
         $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
         if (! $equipment instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $items = $this->em->getRepository(WorkerItem::class)
@@ -118,7 +118,7 @@ final class WorkerEquipmentController extends AbstractController
     {
         $item = $this->em->getRepository(WorkerItem::class)->find($id);
         if (! $item instanceof WorkerItem) {
-            return $this->json(['message' => 'Worker item not found'], 404);
+            return $this->json(['message' => 'Darbuotojo įrašas nerastas'], 404);
         }
 
         return $this->json(self::serializeItem($item));
@@ -131,24 +131,24 @@ final class WorkerEquipmentController extends AbstractController
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $workerId = isset($payload['workerId']) ? (int) $payload['workerId'] : 0;
         $equipmentId = isset($payload['equipmentId']) ? (int) $payload['equipmentId'] : 0;
 
         if ($workerId <= 0 || $equipmentId <= 0) {
-            return $this->json(['message' => 'Fields "workerId" and "equipmentId" are required'], 400);
+            return $this->json(['message' => 'Būtini laukai „workerId“ ir „equipmentId“'], 400);
         }
 
         $worker = $this->em->getRepository(Worker::class)->find($workerId);
         if (! $worker instanceof Worker) {
-            return $this->json(['message' => 'Worker not found'], 404);
+            return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
         }
 
         $equipment = $this->em->getRepository(Equipment::class)->find($equipmentId);
         if (! $equipment instanceof Equipment) {
-            return $this->json(['message' => 'Equipment not found'], 404);
+            return $this->json(['message' => 'Priemonė nerasta'], 404);
         }
 
         $existing = $this->em->getRepository(WorkerItem::class)
@@ -161,12 +161,15 @@ final class WorkerEquipmentController extends AbstractController
             ->getOneOrNullResult();
 
         if ($existing instanceof WorkerItem) {
-            return $this->json(['message' => 'WorkerItem already exists'], 409);
+            return $this->json(['message' => 'Toks darbuotojo ir priemonės ryšys jau egzistuoja'], 409);
         }
 
         $item = new WorkerItem();
         $item->setWorker($worker);
         $item->setEquipment($equipment);
+        if (array_key_exists('quantity', $payload)) {
+            $item->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
+        }
 
         $this->em->persist($item);
         $this->em->flush();
@@ -181,18 +184,18 @@ final class WorkerEquipmentController extends AbstractController
 
         $item = $this->em->getRepository(WorkerItem::class)->find($id);
         if (! $item instanceof WorkerItem) {
-            return $this->json(['message' => 'Worker item not found'], 404);
+            return $this->json(['message' => 'Darbuotojo įrašas nerastas'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('workerId', $payload)) {
             $worker = $this->em->getRepository(Worker::class)->find((int) $payload['workerId']);
             if (! $worker instanceof Worker) {
-                return $this->json(['message' => 'Worker not found'], 404);
+                return $this->json(['message' => 'Darbuotojo tipas nerastas'], 404);
             }
             $item->setWorker($worker);
         }
@@ -200,7 +203,7 @@ final class WorkerEquipmentController extends AbstractController
         if (array_key_exists('equipmentId', $payload)) {
             $equipment = $this->em->getRepository(Equipment::class)->find((int) $payload['equipmentId']);
             if (! $equipment instanceof Equipment) {
-                return $this->json(['message' => 'Equipment not found'], 404);
+                return $this->json(['message' => 'Priemonė nerasta'], 404);
             }
             $item->setEquipment($equipment);
         }
@@ -217,7 +220,11 @@ final class WorkerEquipmentController extends AbstractController
             ->getOneOrNullResult();
 
         if ($duplicate instanceof WorkerItem) {
-            return $this->json(['message' => 'WorkerItem already exists'], 409);
+            return $this->json(['message' => 'Toks darbuotojo ir priemonės ryšys jau egzistuoja'], 409);
+        }
+
+        if (array_key_exists('quantity', $payload)) {
+            $item->setQuantity(Equipment::normalizeDocumentQuantity($payload['quantity']));
         }
 
         $this->em->flush();
@@ -232,7 +239,7 @@ final class WorkerEquipmentController extends AbstractController
 
         $item = $this->em->getRepository(WorkerItem::class)->find($id);
         if (! $item instanceof WorkerItem) {
-            return $this->json(['message' => 'Worker item not found'], 404);
+            return $this->json(['message' => 'Darbuotojo įrašas nerastas'], 404);
         }
 
         $this->em->remove($item);
@@ -248,6 +255,7 @@ final class WorkerEquipmentController extends AbstractController
 
         return [
             'id' => $item->getId(),
+            'quantity' => $item->getQuantity(),
             'worker' => $worker !== null ? [
                 'id' => $worker->getId(),
                 'name' => $worker->getName(),

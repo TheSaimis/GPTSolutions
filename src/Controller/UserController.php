@@ -26,31 +26,31 @@ final class UserController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         if (empty($data['firstName']) || !is_string($data['firstName']) || strlen($data['firstName']) < 0) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nenustatyas vardas'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nenustatytas vardas'], 400);
         }
 
         if (empty($data['lastName']) || !is_string($data['lastName']) || strlen($data['lastName']) < 0) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nenustatya parardė'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Nenustatyta pavardė'], 400);
         }
 
         if (empty($data['password']) || !is_string($data['password']) || strlen($data['password']) < 6) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Password must be at least 6 characters'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Slaptažodis turi būti bent 6 simbolių'], 400);
         }
 
         $allowedRoles = ['ROLE_USER', 'ROLE_ADMIN'];
         if (!isset($data['role']) || !in_array($data['role'], $allowedRoles, true)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid role'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Netinkamas naudotojo vaidmuo'], 400);
         }
 
         $email = isset($data['email']) ? trim((string) $data['email']) : null;
         if ($email !== null && $email !== '') {
             $existingEmail = $repo->findOneBy(['email' => $email]);
             if ($existingEmail) {
-                return new JsonResponse(['status' => 'FAIL', 'error' => 'Email already exists'], 409);
+                return new JsonResponse(['status' => 'FAIL', 'error' => 'Toks el. paštas jau naudojamas'], 409);
             }
         }
 
@@ -125,7 +125,7 @@ final class UserController extends AbstractController
     {
         $user = $repo->find($id);
         if (!$user) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'User not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Naudotojas nerastas'], 404);
         }
 
         return new JsonResponse([
@@ -146,12 +146,12 @@ final class UserController extends AbstractController
 
         $user = $repo->find($id);
         if (!$user) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'User not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Naudotojas nerastas'], 404);
         }
 
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'Invalid JSON'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Neteisingas JSON'], 400);
         }
 
         if (isset($data['email'])) {
@@ -159,7 +159,7 @@ final class UserController extends AbstractController
             if ($email !== null) {
                 $existingEmail = $repo->findOneBy(['email' => $email]);
                 if ($existingEmail && $existingEmail->getId() !== $id) {
-                    return new JsonResponse(['status' => 'FAIL', 'error' => 'Email already exists'], 409);
+                    return new JsonResponse(['status' => 'FAIL', 'error' => 'Toks el. paštas jau naudojamas'], 409);
                 }
             }
             $user->setEmail($email);
@@ -204,7 +204,7 @@ final class UserController extends AbstractController
 
         $user = $repo->find($id);
         if (!$user) {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'User not found'], 404);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Naudotojas nerastas'], 404);
         }
 
         $user->setDeleted(true);

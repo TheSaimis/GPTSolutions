@@ -40,7 +40,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+            return new JsonResponse(['error' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $documentDataOverride = null;
@@ -58,7 +58,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
 
         $companyId = $data['companyId'] ?? null;
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
-            return new JsonResponse(['error' => 'companyId is required'], 400);
+            return new JsonResponse(['error' => 'Būtinas laukas companyId'], 400);
         }
 
         $templatePath = self::resolveCertificateTemplatePath($data, $documentDataOverride);
@@ -158,7 +158,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
     {
         $file = $request->files->get('template') ?? $request->files->get('file');
         if (! $file instanceof UploadedFile) {
-            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
+            return new JsonResponse(['error' => 'Trūksta failo lauko „template“'], 400);
         }
 
         $extension = strtolower((string) $file->getClientOriginalExtension());

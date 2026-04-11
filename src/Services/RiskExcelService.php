@@ -342,7 +342,7 @@ final class RiskExcelService
             return $fallback;
         }
 
-        throw new \RuntimeException('AAP template file not found.');
+        throw new \RuntimeException('AAP šablono failas nerastas.');
     }
 
     /**

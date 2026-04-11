@@ -14,6 +14,7 @@ use App\Services\AuditLogger;
 use App\Services\ConvertDocToDocx;
 use App\Services\CreateEquipmentDocument;
 use App\Services\GetPDF;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -36,22 +37,44 @@ final class EquipmentTemplate extends AbstractController
         private readonly GetPDF $getPDF,
     ) {}
 
+    private function normalizeAapLocaleParam(mixed $raw): string
+    {
+        $l = mb_strtolower(trim((string) $raw));
+
+        return in_array($l, ['en', 'ru', 'lt'], true) ? $l : 'lt';
+    }
+
+    private function isUniqueConstraintViolation(\Throwable $e): bool
+    {
+        $current = $e;
+        while ($current instanceof \Throwable) {
+            if ($current instanceof UniqueConstraintViolationException) {
+                return true;
+            }
+            $current = $current->getPrevious();
+        }
+
+        return false;
+    }
+
     /**
      * POST /api/equipment-template/createTemplate
-     * Body: { "companyId": 1, "outputs": ["sarasas", "korteles"] }
+     * Body: { "companyId": 1, "outputs": ["sarasas", "korteles"], "pagrindas": "...", "language": "lt"|"en"|"ru" }
      * outputs neprivalomas: numatyta ["sarasas"]. Abu tipai → ZIP su dviem .docx.
+     * pagrindas neprivalomas: vienkartinis ${pagrindas} tekstas kortelėms (kitaip — iš įmonės arba numatytasis).
+     * language / locale / documentLanguage — dokumento ir šablono kalba (LT/EN/RU).
      */
     #[Route('/createTemplate', name: 'api_equipment_template_create', methods: ['POST'])]
     public function createTemplate(Request $request): JsonResponse|BinaryFileResponse
     {
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+            return new JsonResponse(['error' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $companyId = $data['companyId'] ?? null;
         if (! is_int($companyId) && ! ctype_digit((string) $companyId)) {
-            return new JsonResponse(['error' => 'companyId is required'], 400);
+            return new JsonResponse(['error' => 'Būtinas laukas companyId'], 400);
         }
 
         $outputs = $data['outputs'] ?? $data['documents'] ?? null;
@@ -73,8 +96,24 @@ final class EquipmentTemplate extends AbstractController
             return new JsonResponse(['error' => 'outputs turi būti „sarasas“ ir/arba „korteles“'], 400);
         }
 
+        $pagrindasRaw = $data['pagrindas'] ?? $data['aapKortelesPagrindas'] ?? null;
+        $kortelesPagrindasOverride = null;
+        if (is_string($pagrindasRaw)) {
+            $t = trim($pagrindasRaw);
+            $kortelesPagrindasOverride = $t !== '' ? $t : null;
+        }
+
+        $documentLocale = $this->normalizeAapLocaleParam(
+            $data['language'] ?? $data['locale'] ?? $data['documentLanguage'] ?? 'lt'
+        );
+
         try {
-            $result = $this->aapEquipmentWordDocumentService->generate((int) $companyId, $normalized);
+            $result = $this->aapEquipmentWordDocumentService->generate(
+                (int) $companyId,
+                $normalized,
+                $kortelesPagrindasOverride,
+                $documentLocale
+            );
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
@@ -101,18 +140,22 @@ final class EquipmentTemplate extends AbstractController
     {
         $templates = [];
         foreach ([AapEquipmentWordDocumentService::OUTPUT_SARASAS, AapEquipmentWordDocumentService::OUTPUT_KORTELES] as $kind) {
-            $row = ['kind' => $kind];
-            $entity = $this->aapEquipmentWordTemplateRepository->findOneBy(['templateKind' => $kind]);
-            if ($entity instanceof AapEquipmentWordTemplate && $entity->getContent() !== '') {
-                $row['source'] = 'database';
-                $row['originalFilename'] = $entity->getOriginalFilename();
-                $row['updatedAt'] = $entity->getUpdatedAt()->format(DATE_ATOM);
-            } else {
-                $row['source'] = $this->aapEquipmentWordDocumentService->hasFilesystemTemplate($kind) ? 'filesystem' : 'none';
-                $row['originalFilename'] = null;
-                $row['updatedAt'] = null;
+            foreach (['lt', 'en', 'ru'] as $locale) {
+                $row = ['kind' => $kind, 'locale' => $locale];
+                $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
+                if ($entity instanceof AapEquipmentWordTemplate && $entity->getContent() !== '') {
+                    $row['source'] = 'database';
+                    $row['originalFilename'] = $entity->getOriginalFilename();
+                    $row['updatedAt'] = $entity->getUpdatedAt()->format(DATE_ATOM);
+                } else {
+                    $row['source'] = $this->aapEquipmentWordDocumentService->hasFilesystemTemplate($kind, $locale)
+                        ? 'filesystem'
+                        : 'none';
+                    $row['originalFilename'] = null;
+                    $row['updatedAt'] = null;
+                }
+                $templates[] = $row;
             }
-            $templates[] = $row;
         }
 
         return new JsonResponse(['templates' => $templates]);
@@ -123,10 +166,12 @@ final class EquipmentTemplate extends AbstractController
      * Esamo šablono (.docx, įskaitant iš DB) peržiūra PDF (LibreOffice).
      */
     #[Route('/aap-template/{kind}/pdf', name: 'api_equipment_template_aap_pdf', methods: ['GET'], requirements: ['kind' => 'sarasas|korteles'])]
-    public function aapTemplatePdf(string $kind): JsonResponse|BinaryFileResponse
+    public function aapTemplatePdf(Request $request, string $kind): JsonResponse|BinaryFileResponse
     {
+        $locale = $this->normalizeAapLocaleParam($request->query->get('locale', 'lt'));
+
         try {
-            $docxPath = $this->aapEquipmentWordDocumentService->getTemplateDocxAbsolutePath($kind);
+            $docxPath = $this->aapEquipmentWordDocumentService->getTemplateDocxAbsolutePath($kind, $locale);
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
         }
@@ -139,9 +184,10 @@ final class EquipmentTemplate extends AbstractController
             return new JsonResponse(['error' => 'PDF generavimas nepavyko: ' . $e->getMessage()], 500);
         }
 
+        $loc = mb_strtoupper($locale);
         $filename = $kind === AapEquipmentWordDocumentService::OUTPUT_SARASAS
-            ? 'AAP_sarasas_sablonas.pdf'
-            : 'AAP_korteles_sablonas.pdf';
+            ? 'AAP_sarasas_sablonas_' . $loc . '.pdf'
+            : 'AAP_korteles_sablonas_' . $loc . '.pdf';
 
         $response = new BinaryFileResponse($pdfPath);
         $response->headers->set('Content-Type', 'application/pdf');
@@ -165,6 +211,8 @@ final class EquipmentTemplate extends AbstractController
             && $kind !== AapEquipmentWordDocumentService::OUTPUT_KORTELES) {
             return new JsonResponse(['error' => 'kind turi būti „sarasas“ arba „korteles“'], 400);
         }
+
+        $locale = $this->normalizeAapLocaleParam($request->request->get('locale', 'lt'));
 
         $file = $request->files->get('file');
         if (! $file instanceof UploadedFile || ! $file->isValid()) {
@@ -193,33 +241,60 @@ final class EquipmentTemplate extends AbstractController
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
 
-        $entity = $this->aapEquipmentWordTemplateRepository->findOneBy(['templateKind' => $kind]);
+        $originalName = $file->getClientOriginalName();
+
+        $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
         if (! $entity instanceof AapEquipmentWordTemplate) {
-            $entity = (new AapEquipmentWordTemplate())->setTemplateKind($kind);
+            $entity = (new AapEquipmentWordTemplate())
+                ->setTemplateKind($kind)
+                ->setTemplateLocale($locale);
+            $this->em->persist($entity);
         }
-        $entity->setOriginalFilename($file->getClientOriginalName());
+        $entity->setTemplateLocale($locale);
+        $entity->setOriginalFilename($originalName);
         $entity->setContent($docxBinary);
-        $this->em->persist($entity);
-        $this->em->flush();
+
+        try {
+            $this->em->flush();
+        } catch (\Throwable $e) {
+            if (! $this->isUniqueConstraintViolation($e)) {
+                throw $e;
+            }
+            $this->em->clear(AapEquipmentWordTemplate::class);
+            $existing = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
+            if (! $existing instanceof AapEquipmentWordTemplate) {
+                throw $e;
+            }
+            $existing->setTemplateLocale($locale);
+            $existing->setOriginalFilename($originalName);
+            $existing->setContent($docxBinary);
+            $this->em->persist($existing);
+            $this->em->flush();
+            $entity = $existing;
+        }
+
         $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind);
 
-        $this->auditLogger->log('Įkeltas AAP Word šablonas į DB (kind=' . $kind . '): ' . $entity->getOriginalFilename());
+        $this->auditLogger->log('Įkeltas AAP Word šablonas į DB (kind=' . $kind . ', locale=' . $locale . '): ' . $entity->getOriginalFilename());
 
         return new JsonResponse([
             'ok' => true,
             'kind' => $kind,
+            'locale' => $locale,
             'originalFilename' => $entity->getOriginalFilename(),
             'updatedAt' => $entity->getUpdatedAt()->format(DATE_ATOM),
         ]);
     }
 
-    /** DELETE /api/equipment-template/aap-template/{kind} */
+    /** DELETE /api/equipment-template/aap-template/{kind}?locale=lt|en|ru */
     #[Route('/aap-template/{kind}', name: 'api_equipment_template_aap_delete', methods: ['DELETE'], requirements: ['kind' => 'sarasas|korteles'])]
-    public function deleteAapTemplate(string $kind): JsonResponse
+    public function deleteAapTemplate(Request $request, string $kind): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
-        $entity = $this->aapEquipmentWordTemplateRepository->findOneBy(['templateKind' => $kind]);
+        $locale = $this->normalizeAapLocaleParam($request->query->get('locale', 'lt'));
+
+        $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
         if (! $entity instanceof AapEquipmentWordTemplate) {
             return new JsonResponse(['ok' => true, 'message' => 'Įrašo nebuvo']);
         }
@@ -229,7 +304,7 @@ final class EquipmentTemplate extends AbstractController
         $this->em->flush();
         $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind);
 
-        $this->auditLogger->log('Pašalintas AAP Word šablonas iš DB (kind=' . $kind . '): ' . $name);
+        $this->auditLogger->log('Pašalintas AAP Word šablonas iš DB (kind=' . $kind . ', locale=' . $locale . '): ' . $name);
 
         return new JsonResponse(['ok' => true]);
     }
@@ -241,21 +316,34 @@ final class EquipmentTemplate extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+            return new JsonResponse(['error' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name = trim((string) ($data['name'] ?? ''));
+        $nameEn = trim((string) ($data['nameEn'] ?? ''));
+        $nameRu = trim((string) ($data['nameRu'] ?? ''));
         $expirationDate = trim((string) ($data['expirationDate'] ?? $data['ExperationDate'] ?? ''));
-        if ($name === '' || $expirationDate === '') {
-            return new JsonResponse(['error' => 'name ir expirationDate yra privalomi'], 400);
+        $expirationDateEn = trim((string) ($data['expirationDateEn'] ?? ''));
+        $expirationDateRu = trim((string) ($data['expirationDateRu'] ?? ''));
+
+        $nameLt = $name !== '' ? $name : ($nameEn !== '' ? $nameEn : $nameRu);
+        $expLt = $expirationDate !== '' ? $expirationDate : ($expirationDateEn !== '' ? $expirationDateEn : $expirationDateRu);
+        if ($nameLt === '' || $expLt === '') {
+            return new JsonResponse([
+                'error' => 'Būtinas bent vienos kalbos pavadinimas ir tinkamumo terminas (name / nameEn / nameRu ir atitinkamas terminas)',
+            ], 400);
         }
 
         $unitRaw = (string) ($data['unitOfMeasurement'] ?? $data['unit'] ?? 'vnt');
 
         $equipment = new Equipment();
-        $equipment->setName($name);
-        $equipment->setExpirationDate($expirationDate);
+        $equipment->setName($nameLt);
+        $equipment->setExpirationDate($expLt);
         $equipment->setUnitOfMeasurement($unitRaw);
+        $equipment->setNameEn($nameEn !== '' ? $nameEn : null);
+        $equipment->setNameRu($nameRu !== '' ? $nameRu : null);
+        $equipment->setExpirationDateEn($expirationDateEn !== '' ? $expirationDateEn : null);
+        $equipment->setExpirationDateRu($expirationDateRu !== '' ? $expirationDateRu : null);
         $this->em->persist($equipment);
         $this->em->flush();
 
@@ -269,7 +357,7 @@ final class EquipmentTemplate extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+            return new JsonResponse(['error' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $workerId    = $data['workerId'] ?? null;
@@ -281,13 +369,13 @@ final class EquipmentTemplate extends AbstractController
         $worker = $this->em->getRepository(Worker::class)->find((int) $workerId);
         $equipment = $this->em->getRepository(Equipment::class)->find((int) $equipmentId);
         if (! $worker instanceof Worker || ! $equipment instanceof Equipment) {
-            return new JsonResponse(['error' => 'Worker arba Equipment nerastas'], 404);
+            return new JsonResponse(['error' => 'Darbuotojo tipas arba priemonė nerasta'], 404);
         }
 
         $existing = $this->em->getRepository(WorkerItem::class)
             ->findOneBy(['worker' => $worker, 'equipment' => $equipment]);
         if ($existing instanceof WorkerItem) {
-            return new JsonResponse(['status' => 'SUCCESS', 'message' => 'Already assigned']);
+            return new JsonResponse(['status' => 'SUCCESS', 'message' => 'Jau priskirta']);
         }
 
         $item = new WorkerItem();
@@ -307,7 +395,7 @@ final class EquipmentTemplate extends AbstractController
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (\Throwable $e) {
-            return new JsonResponse(['error' => 'Nepavyko gauti duomenu: ' . $e->getMessage()], 500);
+            return new JsonResponse(['error' => 'Nepavyko gauti duomenų: ' . $e->getMessage()], 500);
         }
         return new JsonResponse($payload);
     }

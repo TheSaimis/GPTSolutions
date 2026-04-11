@@ -54,7 +54,7 @@ final class BodyPartController extends AbstractController
     {
         $item = $this->em->getRepository(BodyPart::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'BodyPart not found'], 404);
+            return $this->json(['message' => 'Kūno dalis nerasta'], 404);
         }
 
         return $this->json([
@@ -75,7 +75,7 @@ final class BodyPartController extends AbstractController
         $payload = json_decode($request->getContent(), true);
 
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name = trim((string) ($payload['name'] ?? ''));
@@ -83,16 +83,16 @@ final class BodyPartController extends AbstractController
         $categoryId = $payload['categoryId'] ?? null;
 
         if ($name === '') {
-            return $this->json(['message' => 'Field "name" is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas „name“'], 400);
         }
 
         if ($categoryId === null) {
-            return $this->json(['message' => 'Field "categoryId" is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas „categoryId“'], 400);
         }
 
         $category = $this->em->getRepository(BodyPartCategory::class)->find((int) $categoryId);
         if ($category === null) {
-            return $this->json(['message' => 'BodyPartCategory not found'], 404);
+            return $this->json(['message' => 'Kūno dalių kategorija nerasta'], 404);
         }
 
         $item = new BodyPart();
@@ -120,18 +120,18 @@ final class BodyPartController extends AbstractController
     {
         $item = $this->em->getRepository(BodyPart::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'BodyPart not found'], 404);
+            return $this->json(['message' => 'Kūno dalis nerasta'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'Field "name" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
             $item->setName($name);
         }
@@ -143,7 +143,7 @@ final class BodyPartController extends AbstractController
         if (array_key_exists('categoryId', $payload)) {
             $category = $this->em->getRepository(BodyPartCategory::class)->find((int) $payload['categoryId']);
             if ($category === null) {
-                return $this->json(['message' => 'BodyPartCategory not found'], 404);
+                return $this->json(['message' => 'Kūno dalių kategorija nerasta'], 404);
             }
             $item->setCategory($category);
         }
@@ -169,7 +169,7 @@ final class BodyPartController extends AbstractController
     {
         $item = $this->em->getRepository(BodyPart::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'BodyPart not found'], 404);
+            return $this->json(['message' => 'Kūno dalis nerasta'], 404);
         }
 
         $this->em->remove($item);

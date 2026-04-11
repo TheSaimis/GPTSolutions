@@ -44,7 +44,7 @@ final class TemplateController extends AbstractController
     public function all(): JsonResponse
     {
         if ($this->fileService->getBaseFullPath('templates') === null) {
-            return new JsonResponse(['error' => 'Templates directory not found'], 500);
+            return new JsonResponse(['error' => 'Šablonų katalogas nerastas'], 500);
         }
 
         return new JsonResponse(
@@ -120,7 +120,7 @@ final class TemplateController extends AbstractController
         if ($items === []) {
             $resolved = $this->fileService->resolvePath('templates', $category);
             if ($resolved === null || ! is_dir($resolved)) {
-                return new JsonResponse(['error' => 'Category not found'], 404);
+                return new JsonResponse(['error' => 'Kategorija nerasta'], 404);
             }
         }
         return new JsonResponse(['templates' => $this->filterTemplatesOnly($items)]);
@@ -213,7 +213,7 @@ final class TemplateController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         if (! is_array($data)) {
-            return new JsonResponse(['error' => 'Invalid JSON body'], 400);
+            return new JsonResponse(['error' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $user = $this->getUser();
@@ -222,7 +222,7 @@ final class TemplateController extends AbstractController
         $name      = isset($data['name']) ? trim((string) $data['name']) : null;
 
         if (! is_array($templates) || count($templates) === 0) {
-            return new JsonResponse(['error' => 'templates[] is required'], 400);
+            return new JsonResponse(['error' => 'Būtinas masyvas templates[]'], 400);
         }
 
         $rawCompanyId = $data['companyId'] ?? null;
@@ -237,7 +237,7 @@ final class TemplateController extends AbstractController
             /** @var CompanyRequisite|null $company */
             $company = $em->getRepository(CompanyRequisite::class)->find($companyId);
             if (! $company) {
-                return new JsonResponse(['error' => 'Company not found'], 404);
+                return new JsonResponse(['error' => 'Įmonė nerasta'], 404);
             }
 
             $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
@@ -358,7 +358,7 @@ final class TemplateController extends AbstractController
 
             // Security: must be relative inside /templates
             if (str_contains($tplPath, '..') || str_starts_with($tplPath, '/')) {
-                $results[] = ['template' => $tplPath, 'status' => 'FAIL', 'error' => 'Invalid path'];
+                $results[] = ['template' => $tplPath, 'status' => 'FAIL', 'error' => 'Netinkamas kelias'];
                 continue;
             }
 
@@ -440,7 +440,7 @@ final class TemplateController extends AbstractController
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'status'  => 'FAIL',
-                'error'   => 'Failed to zip generated documents: ' . $e->getMessage(),
+                'error'   => 'Nepavyko supakuoti sugeneruotų dokumentų: ' . $e->getMessage(),
                 'results' => $results,
             ], 500);
         }
@@ -468,14 +468,14 @@ final class TemplateController extends AbstractController
         $file      = $request->files->get('template');
 
         if (! $file) {
-            return new JsonResponse(['error' => 'Missing file field "template"'], 400);
+            return new JsonResponse(['error' => 'Trūksta failo lauko „template“'], 400);
         }
 
         $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates');
         $status = $result['status'] ?? 'FAIL';
 
         if ($status !== 'SUCCESS') {
-            return new JsonResponse(['error' => 'Upload failed (invalid file type or save error)'], 400);
+            return new JsonResponse(['error' => 'Įkėlimas nepavyko (netinkamas failo tipas arba įrašymo klaida)'], 400);
         }
 
         $this->auditLogger->log("Įkeltas šablonas: {$directory}");
@@ -495,7 +495,7 @@ final class TemplateController extends AbstractController
         $newName = trim((string) (is_array($data) ? ($data['name'] ?? $request->request->get('name') ?? $request->request->get('name')) : ''));
 
         if ($path === '' || $newName === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path and newName are required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtini laukai path ir newName'], 400);
         }
 
         $status = $this->fileService->rename('templates', $path, $newName);
@@ -518,7 +518,7 @@ final class TemplateController extends AbstractController
         $path = trim((string) (is_array($data) ? ($data['path'] ?? '') : $request->request->get('path') ?? ''));
 
         if ($path === '') {
-            return new JsonResponse(['status' => 'FAIL', 'error' => 'path is required'], 400);
+            return new JsonResponse(['status' => 'FAIL', 'error' => 'Būtinas laukas path'], 400);
         }
 
         $status = $this->fileService->delete('templates', $path);

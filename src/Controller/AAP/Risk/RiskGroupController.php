@@ -45,7 +45,7 @@ final class RiskGroupController extends AbstractController
     {
         $item = $this->em->getRepository(RiskGroup::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskGroup not found'], 404);
+            return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
         }
 
         return $this->json([
@@ -77,14 +77,14 @@ final class RiskGroupController extends AbstractController
         $payload = json_decode($request->getContent(), true);
 
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name = trim((string) ($payload['name'] ?? ''));
         $lineNumber = (int) ($payload['lineNumber'] ?? 0);
 
         if ($name === '') {
-            return $this->json(['message' => 'Field "name" is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas „name“'], 400);
         }
 
         $item = new RiskGroup();
@@ -106,18 +106,18 @@ final class RiskGroupController extends AbstractController
     {
         $item = $this->em->getRepository(RiskGroup::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskGroup not found'], 404);
+            return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'Field "name" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
             $item->setName($name);
         }
@@ -140,7 +140,7 @@ final class RiskGroupController extends AbstractController
     {
         $item = $this->em->getRepository(RiskGroup::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskGroup not found'], 404);
+            return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
         }
 
         $this->em->remove($item);

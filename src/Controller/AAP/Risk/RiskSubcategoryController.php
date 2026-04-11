@@ -47,7 +47,7 @@ final class RiskSubcategoryController extends AbstractController
     {
         $item = $this->em->getRepository(RiskSubcategory::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskSubcategory not found'], 404);
+            return $this->json(['message' => 'Rizikos potipis nerastas'], 404);
         }
 
         return $this->json($this->serializeRiskSubcategory($item));
@@ -59,7 +59,7 @@ final class RiskSubcategoryController extends AbstractController
         $payload = json_decode($request->getContent(), true);
 
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         $name       = trim((string) ($payload['name'] ?? ''));
@@ -68,15 +68,15 @@ final class RiskSubcategoryController extends AbstractController
         $groupId    = $payload['groupId'] ?? null;
 
         if ($name === '') {
-            return $this->json(['message' => 'Field "name" is required'], 400);
+            return $this->json(['message' => 'Būtinas laukas „name“'], 400);
         }
 
         if ($categoryId === null && $groupId === null) {
-            return $this->json(['message' => 'Either "categoryId" or "groupId" is required'], 400);
+            return $this->json(['message' => 'Būtinas „categoryId“ arba „groupId“'], 400);
         }
 
         if ($categoryId !== null && $groupId !== null) {
-            return $this->json(['message' => 'Provide only one of: "categoryId" or "groupId"'], 400);
+            return $this->json(['message' => 'Nurodykite tik vieną: „categoryId“ arba „groupId“'], 400);
         }
 
         $item = new RiskSubcategory();
@@ -86,7 +86,7 @@ final class RiskSubcategoryController extends AbstractController
         if ($categoryId !== null) {
             $category = $this->em->getRepository(RiskCategory::class)->find((int) $categoryId);
             if ($category === null) {
-                return $this->json(['message' => 'RiskCategory not found'], 404);
+                return $this->json(['message' => 'Rizikos kategorija nerasta'], 404);
             }
             $item->setCategory($category);
             $item->setGroup(null);
@@ -95,7 +95,7 @@ final class RiskSubcategoryController extends AbstractController
         if ($groupId !== null) {
             $group = $this->em->getRepository(RiskGroup::class)->find((int) $groupId);
             if ($group === null) {
-                return $this->json(['message' => 'RiskGroup not found'], 404);
+                return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
             }
             $item->setGroup($group);
             $item->setCategory(null);
@@ -112,18 +112,18 @@ final class RiskSubcategoryController extends AbstractController
     {
         $item = $this->em->getRepository(RiskSubcategory::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskSubcategory not found'], 404);
+            return $this->json(['message' => 'Rizikos potipis nerastas'], 404);
         }
 
         $payload = json_decode($request->getContent(), true);
         if (! is_array($payload)) {
-            return $this->json(['message' => 'Invalid JSON body'], 400);
+            return $this->json(['message' => 'Neteisingas užklausos JSON'], 400);
         }
 
         if (array_key_exists('name', $payload)) {
             $name = trim((string) $payload['name']);
             if ($name === '') {
-                return $this->json(['message' => 'Field "name" cannot be empty'], 400);
+                return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
             $item->setName($name);
         }
@@ -140,7 +140,7 @@ final class RiskSubcategoryController extends AbstractController
             $groupId    = $payload['groupId'];
 
             if ($categoryId !== null && $groupId !== null) {
-                return $this->json(['message' => 'Provide only one of: "categoryId" or "groupId"'], 400);
+                return $this->json(['message' => 'Nurodykite tik vieną: „categoryId“ arba „groupId“'], 400);
             }
 
             if ($categoryId === null && $groupId === null) {
@@ -149,14 +149,14 @@ final class RiskSubcategoryController extends AbstractController
             } elseif ($categoryId !== null) {
                 $category = $this->em->getRepository(RiskCategory::class)->find((int) $categoryId);
                 if ($category === null) {
-                    return $this->json(['message' => 'RiskCategory not found'], 404);
+                    return $this->json(['message' => 'Rizikos kategorija nerasta'], 404);
                 }
                 $item->setCategory($category);
                 $item->setGroup(null);
             } else {
                 $group = $this->em->getRepository(RiskGroup::class)->find((int) $groupId);
                 if ($group === null) {
-                    return $this->json(['message' => 'RiskGroup not found'], 404);
+                    return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
                 }
                 $item->setGroup($group);
                 $item->setCategory(null);
@@ -169,7 +169,7 @@ final class RiskSubcategoryController extends AbstractController
             } else {
                 $category = $this->em->getRepository(RiskCategory::class)->find((int) $categoryId);
                 if ($category === null) {
-                    return $this->json(['message' => 'RiskCategory not found'], 404);
+                    return $this->json(['message' => 'Rizikos kategorija nerasta'], 404);
                 }
                 $item->setCategory($category);
                 $item->setGroup(null);
@@ -182,7 +182,7 @@ final class RiskSubcategoryController extends AbstractController
             } else {
                 $group = $this->em->getRepository(RiskGroup::class)->find((int) $groupId);
                 if ($group === null) {
-                    return $this->json(['message' => 'RiskGroup not found'], 404);
+                    return $this->json(['message' => 'Rizikos grupė nerasta'], 404);
                 }
                 $item->setGroup($group);
                 $item->setCategory(null);
@@ -190,7 +190,7 @@ final class RiskSubcategoryController extends AbstractController
         }
 
         if ($item->getCategory() === null && $item->getGroup() === null) {
-            return $this->json(['message' => 'RiskSubcategory must belong either to category or directly to group'], 400);
+            return $this->json(['message' => 'Rizikos potipis turi priklausyti kategorijai arba tiesiogiai grupei'], 400);
         }
 
         $this->em->flush();
@@ -203,7 +203,7 @@ final class RiskSubcategoryController extends AbstractController
     {
         $item = $this->em->getRepository(RiskSubcategory::class)->find($id);
         if ($item === null) {
-            return $this->json(['message' => 'RiskSubcategory not found'], 404);
+            return $this->json(['message' => 'Rizikos potipis nerastas'], 404);
         }
 
         $this->em->remove($item);
