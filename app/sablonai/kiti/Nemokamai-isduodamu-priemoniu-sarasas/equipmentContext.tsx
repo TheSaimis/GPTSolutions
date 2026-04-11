@@ -1,11 +1,19 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import {
+    createContext,
+    useContext,
+    useMemo,
+    useState,
+    ReactNode,
+    type Dispatch,
+    type SetStateAction,
+} from "react";
 import { Equipment } from "@/lib/types/equipment/equipment";
 import { Worker } from "@/lib/types/Worker";
 type EquipmentContextType = {
     equipment: Equipment[];
-    setEquipment: (equipment: Equipment[]) => void;
+    setEquipment: Dispatch<SetStateAction<Equipment[]>>;
     addEquipment: (item: Equipment) => void;
     removeEquipment: (item: Equipment) => void;
     clearEquipment: () => void;
@@ -19,7 +27,7 @@ type EquipmentContextType = {
 
 const EquipmentContext = createContext<EquipmentContextType>({
     equipment: [],
-    setEquipment: () => { },
+    setEquipment: (() => {}) as Dispatch<SetStateAction<Equipment[]>>,
     addEquipment: () => { },
     removeEquipment: () => { },
     clearEquipment: () => { },

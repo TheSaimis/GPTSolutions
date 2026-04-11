@@ -1,5 +1,6 @@
 export type CompanyWorkerEquipmentRow = {
     id: number;
+    quantity?: number;
     company: { id: number; companyName?: string | null } | null;
     worker: { id: number; name: string } | null;
     equipment: {

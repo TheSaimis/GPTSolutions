@@ -36,6 +36,8 @@ export type Company = {
     managerLastNameRu?: string | null;
     managerGender?: string;
     documentDate?: string;
+    /** Tuščia → numatytasis AAP kortelių „Pagrindas išduoti“ tekstas; Word žyma ${pagrindas}. */
+    aapKortelesPagrindas?: string | null;
     modifiedAt?: string;
     createdAt?: string;
     deleted?: boolean;
@@ -71,6 +73,7 @@ export const companyLabels: Record<keyof Company, string> = {
     managerLastNameRu: "Vadovo pavardė (RU)",
     managerGender: "Vadovo lytis",
     documentDate: "Dokumento data",
+    aapKortelesPagrindas: "AAP kortelės — pagrindas išduoti (${pagrindas})",
     modifiedAt: "Redaguota",
     createdAt: "Sukurta",
     role: "Pareigos",
@@ -107,6 +110,7 @@ export const wordVariables = [
 
     "${data}",
     "${documentDate}",
+    "${pagrindas}",
     "${dataSkaitmenimis}",
 
     "${role}",

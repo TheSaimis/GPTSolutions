@@ -3,6 +3,15 @@ export const EQUIPMENT_UNIT_OPTIONS = [
     { value: "poros", label: "Poros" },
 ] as const;
 
-export function equipmentUnitLabel(stored?: string): string {
-    return stored === "poros" ? "Poros" : "Vnt";
+export type EquipmentDocLang = "LT" | "EN" | "RU";
+
+export function equipmentUnitLabel(stored?: string, docLang: EquipmentDocLang = "LT"): string {
+    const isPoros = stored === "poros";
+    if (docLang === "EN") {
+        return isPoros ? "Pairs" : "Pcs.";
+    }
+    if (docLang === "RU") {
+        return isPoros ? "Пары" : "шт.";
+    }
+    return isPoros ? "Poros" : "Vnt";
 }

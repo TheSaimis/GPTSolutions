@@ -3,6 +3,7 @@ import type { Worker } from "../Worker";
 
 export interface WorkerItem {
   id: number;
+  quantity?: number;
   worker: Worker | null;
   equipment: Equipment | null;
 }

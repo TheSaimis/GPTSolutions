@@ -9,6 +9,7 @@ export type AapEquipmentGroupRow = {
     }>;
     equipment: Array<{
         id: number;
+        quantity?: number;
         equipment: {
             id: number;
             name: string;

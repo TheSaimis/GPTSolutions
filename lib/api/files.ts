@@ -78,7 +78,7 @@ export const FilesApi = {
     const res = await FilesApi.createFiles([file], directory, root);
     const first = res.results[0];
     if (!first) {
-      return { status: "FAIL", error: "No result from server" };
+      return { status: "FAIL", error: "Serveris negrąžino rezultato" };
     }
     return {
       status: first.status,

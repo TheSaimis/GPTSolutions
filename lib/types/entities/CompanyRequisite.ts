@@ -18,6 +18,7 @@ export interface CompanyRequisite {
   managerFirstNameRu: string | null;
   managerLastName: string | null;
   documentDate: string | null;
+  aapKortelesPagrindas?: string | null;
   role: string | null;
   roleEn: string | null;
   roleRu: string | null;

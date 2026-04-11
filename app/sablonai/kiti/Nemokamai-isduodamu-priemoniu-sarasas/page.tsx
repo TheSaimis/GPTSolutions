@@ -32,37 +32,46 @@ function EquipmentPageContent() {
   const ActiveComponent = componentMap[activeTab];
 
   return (
-    <div className={styles.container}>
-      <div className={styles.navigation}>
+    <div className={styles.workflowShell}>
+      <nav className={styles.workflowNav} aria-label="AAP darbo eiga">
         <button
-          className={`${styles.tabButton} ${activeTab === "document" ? styles.tabButtonActive : ""}`}
+          type="button"
+          className={`${styles.workflowTab} ${activeTab === "document" ? styles.workflowTabActive : ""}`}
           onClick={() => setActiveTab("document")}
+          aria-current={activeTab === "document" ? "page" : undefined}
         >
           Dokumento kūrimas
         </button>
         <button
-          className={`${styles.tabButton} ${activeTab === "assignment" ? styles.tabButtonActive : ""}`}
+          type="button"
+          className={`${styles.workflowTab} ${activeTab === "assignment" ? styles.workflowTabActive : ""}`}
           onClick={() => setActiveTab("assignment")}
+          aria-current={activeTab === "assignment" ? "page" : undefined}
         >
           Apsaugos priemonių priskirimas
         </button>
         <button
-          className={`${styles.tabButton} ${activeTab === "equipment" ? styles.tabButtonActive : ""}`}
+          type="button"
+          className={`${styles.workflowTab} ${activeTab === "equipment" ? styles.workflowTabActive : ""}`}
           onClick={() => setActiveTab("equipment")}
+          aria-current={activeTab === "equipment" ? "page" : undefined}
         >
           Apsaugos priemonės
         </button>
         <button
-          className={`${styles.tabButton} ${activeTab === "template" ? styles.tabButtonActive : ""}`}
+          type="button"
+          className={`${styles.workflowTab} ${activeTab === "template" ? styles.workflowTabActive : ""}`}
           onClick={() => setActiveTab("template")}
+          aria-current={activeTab === "template" ? "page" : undefined}
         >
           Šablonas
         </button>
+      </nav>
+
+      <div className={styles.workflowContent}>
+        <h1 className={styles.workflowPageTitle}>AAP Kortelės+Žiniaraščiai</h1>
+        <ActiveComponent />
       </div>
-
-      <h1 className={styles.title}>AAP Kortelės+Žiniaraščiai</h1>
-
-      <ActiveComponent />
     </div>
   );
 }

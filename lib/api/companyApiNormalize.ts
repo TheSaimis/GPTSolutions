@@ -59,6 +59,11 @@ export function normalizeCompanyFromApi(data: unknown): Company {
         }
     }
 
+    const akp = r.aapKortelesPagrindas ?? r.aap_korteles_pagrindas;
+    if (akp !== undefined) {
+        merged.aapKortelesPagrindas = akp == null || akp === "" ? null : String(akp);
+    }
+
     return merged as Company;
 }
 

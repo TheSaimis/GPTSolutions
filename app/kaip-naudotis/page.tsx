@@ -32,6 +32,11 @@ const kategorijos: Kategorija[] = [
             { kodas: "${tipasPilnas}", aprasymas: "Pilnas kategorijos pavadinimas", pastaba: 'Pvz.: Uždaroji akcinė bendrovė. Taip pat veikia ${TIPASPILNAS}' },
             { kodas: "${adresas}", aprasymas: "Įmonės registracijos adresas" },
             { kodas: "${kodas}", aprasymas: "Įmonės kodas", pastaba: 'Alternatyva: ${code}' },
+            {
+                kodas: "${pagrindas}",
+                aprasymas: "AAP kortelių dokumente — stulpelis „Pagrindas išduoti“",
+                pastaba: "Tekstą nustatote įmonės kortelėje (administratorius). Tuščia — numatytasis sakinys apie nemokamai išduodamų AAP sąrašą.",
+            },
         ],
     },
     {
