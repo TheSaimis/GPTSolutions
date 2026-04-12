@@ -130,6 +130,9 @@ final class EquipmentTemplate extends AbstractController
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
             $result['filename']
         );
+        if (! empty($result['deleteAfterSend'])) {
+            $response->deleteFileAfterSend(true);
+        }
 
         return $response;
     }

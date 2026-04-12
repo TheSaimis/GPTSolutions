@@ -774,11 +774,17 @@ final class TemplateController extends AbstractController
         $result = [];
         foreach ($items as $item) {
             if ($item['type'] === 'directory') {
+                $children = $this->filterTemplatesOnly($item['children'] ?? []);
+                $size     = 0;
+                foreach ($children as $c) {
+                    $size += (int) ($c['size'] ?? 0);
+                }
                 $result[] = [
                     'name'     => $item['name'],
                     'type'     => 'directory',
                     'path'     => $item['path'] ?? $item['name'],
-                    'children' => $this->filterTemplatesOnly($item['children'] ?? []),
+                    'size'     => $size,
+                    'children' => $children,
                 ];
             } else {
                 $ext = strtolower(pathinfo($item['name'], PATHINFO_EXTENSION));

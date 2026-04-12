@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Entity\AapEquipmentCompanyGroup;
 use App\Entity\AapEquipmentGroup;
 use App\Entity\AapEquipmentGroupEquipment;
 use App\Entity\AapEquipmentGroupWorker;
@@ -91,7 +92,7 @@ final class CreateEquipmentDocument
     }
 
     /**
-     * Grupės su nariais — jei masyvas ne tuščias, AAP Word generuojamas po vieną lentelės eilutę grupei.
+     * Įmonei priskirtos AAP grupės (daug-su-daug per aap_equipment_company_group).
      *
      * @return list<array{
      *   groupId:int,
@@ -102,34 +103,20 @@ final class CreateEquipmentDocument
      */
     private function buildGroupsPayload(CompanyRequisite $company): array
     {
-        /** @var list<AapEquipmentGroup> $groups */
-        $groups = $this->em->getRepository(AapEquipmentGroup::class)->findBy(
+        $links = $this->em->getRepository(AapEquipmentCompanyGroup::class)->findBy(
             ['companyRequisite' => $company],
             ['sortOrder' => 'ASC', 'id' => 'ASC']
         );
 
-        if ($groups === []) {
+        if ($links === []) {
             return [];
         }
 
         $out = [];
-        foreach ($groups as $g) {
-            $workers = [];
-            $gwRows = $g->getGroupWorkers()->toArray();
-            usort(
-                $gwRows,
-                static fn (AapEquipmentGroupWorker $a, AapEquipmentGroupWorker $b): int =>
-                    strcmp($a->getWorker()?->getName() ?? '', $b->getWorker()?->getName() ?? '')
-            );
-            foreach ($gwRows as $gw) {
-                $w = $gw->getWorker();
-                if (! $w instanceof Worker || $w->getId() === null) {
-                    continue;
-                }
-                $workers[] = [
-                    'workerId'   => (int) $w->getId(),
-                    'workerName' => $w->getName(),
-                ];
+        foreach ($links as $membership) {
+            $g = $membership->getEquipmentGroup();
+            if (! $g instanceof AapEquipmentGroup || $g->getId() === null) {
+                continue;
             }
 
             $equipment = [];
@@ -147,10 +134,28 @@ final class CreateEquipmentDocument
                 $equipment[] = self::serializeEquipmentRow($eq, $ge->getQuantity());
             }
 
+            $groupWorkers = [];
+            $gwRows = $g->getGroupWorkers()->toArray();
+            usort(
+                $gwRows,
+                static fn (AapEquipmentGroupWorker $a, AapEquipmentGroupWorker $b): int =>
+                    strcmp($a->getWorker()?->getName() ?? '', $b->getWorker()?->getName() ?? '')
+            );
+            foreach ($gwRows as $gw) {
+                $w = $gw->getWorker();
+                if (! $w instanceof Worker || $w->getId() === null) {
+                    continue;
+                }
+                $groupWorkers[] = [
+                    'workerId'   => (int) $w->getId(),
+                    'workerName' => $w->getName(),
+                ];
+            }
+
             $out[] = [
                 'groupId'   => (int) $g->getId(),
                 'groupName' => $g->getName(),
-                'workers'   => $workers,
+                'workers'   => $groupWorkers,
                 'equipment' => $equipment,
             ];
         }
@@ -248,4 +253,3 @@ final class CreateEquipmentDocument
         ];
     }
 }
-

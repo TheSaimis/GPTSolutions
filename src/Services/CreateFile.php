@@ -27,6 +27,9 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - tipasKompaktiskas – kaip tipasPilnas; jei kompanija ilgesnė nei 14 simbolių, naudojamas tipas (trumpesnis)
  *   - adresas / address – adresas
  *   - companyId – jei > 0, ${companyDirectory} užpildoma iš CompanyRequisite::directory (DB)
+ *   - Išvestis: generated/{outputDirectory arba tipas/įmonė}/{šablonoKatalogasPoTemplates}/failas.docx —
+ *     šablonoKatalogasPoTemplates = tik poaplankiai po templates/, be failo vardo (pvz. Path/To kai šablonas
+ *     yra templates/Path/To/Template.docx; pats Template yra išvesties failo vardo dalis, ne aplankas).
  *   - ${atliktiDarbai} – unikalūs šablonų pavadinimai (be plėtinio), po vieną eilutę (\n), pagal templateId
  *     failuose po generated/{companyDirectory arba outputDirectory}; DOCX po generavimo skaidomas į atskiras
  *     sąrašo pastraipas (DocxMultilineListParagraphSplitter), kad kiekviena eilutė turėtų „-“ kaip Word sąraše
@@ -130,6 +133,10 @@ final class CreateFile
         $outputDir = $outputDirectory !== ''
             ? $this->getGeneratedDir() . '/' . $outputDirectory
             : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        $templateCatalogueRel = $this->templatePathSegmentUnderTemplates($directory, $template);
+        if ($templateCatalogueRel !== '') {
+            $outputDir .= '/' . $templateCatalogueRel;
+        }
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }
@@ -372,6 +379,10 @@ final class CreateFile
         $outputDir = $outputDirectory !== ''
             ? $this->getGeneratedDir() . '/' . $outputDirectory
             : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
+        $templateCatalogueRel = $this->templatePathSegmentUnderTemplates($directory, $template);
+        if ($templateCatalogueRel !== '') {
+            $outputDir .= '/' . $templateCatalogueRel;
+        }
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0775, true);
         }
@@ -773,6 +784,36 @@ final class CreateFile
         }
 
         return null;
+    }
+
+    /**
+     * Tik katalogo dalis po templates/ (be failo vardo) — failo vardas lieka išvesties pavadinime, ne kaip paskutinis aplankas.
+     * Pvz. directory „Path/To“, template „Template.docx“ → „Path/To“. Jei directory tuščias, imama dirname iš template.
+     */
+    private function templatePathSegmentUnderTemplates(string $directory, string $templateFile): string
+    {
+        $dir = trim(str_replace('\\', '/', $directory), '/');
+        if ($dir === '') {
+            $tpl = trim(str_replace('\\', '/', $templateFile), '/');
+            $parent = dirname($tpl);
+            if ($parent === '.' || $parent === '') {
+                return '';
+            }
+            $dir = $parent;
+        }
+        $parts = explode('/', $dir);
+        $safeParts = [];
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if ($p === '') {
+                continue;
+            }
+            $sp = $this->sanitizeForFilename($p);
+
+            $safeParts[] = $sp !== '' ? $sp : $p;
+        }
+
+        return $safeParts === [] ? '' : implode('/', $safeParts);
     }
 
     private function mapTipasPilnas(string $tipas): string

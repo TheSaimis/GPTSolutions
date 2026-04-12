@@ -22,7 +22,8 @@ final class GetPDF
      */
     public function convertToPdf(string $relativePath, string $baseDir = 'templates'): string
     {
-        $relativePath = str_replace('\\', '/', urldecode($relativePath));
+        // rawurldecode — ne urldecode: pastarasis „+“ paverčia tarpu ir sugadina failus, kurių pavadinime yra pliusas.
+        $relativePath = str_replace('\\', '/', rawurldecode($relativePath));
         $baseDir = trim(str_replace('\\', '/', $baseDir), '/');
         
         $sourceDir = $this->projectDir . '/' . $baseDir;

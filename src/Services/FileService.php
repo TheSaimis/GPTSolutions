@@ -211,8 +211,9 @@ final class FileService
 
     /**
      * GrÄ…Å¾ina katalogo turinÄ¯ (katalogai ir failai).
+     * Katalogams „size“ – visų poaplankiuose esančių failų dydžių suma (rekursyviai).
      *
-     * @return array{name: string, type: 'directory'|'file', path: string, children?: array}[]
+     * @return array<int, array<string, mixed>>
      */
     public function listDirectory(string $baseDir, string $path = ''): array
     {
@@ -237,17 +238,23 @@ final class FileService
             $itemPath = $resolved . '/' . $item;
             $relPath  = $path !== '' ? $path . '/' . $item : $item;
             if (is_dir($itemPath)) {
+                $children = $this->listDirectory($baseDir, $relPath);
+                $dirSize  = 0;
+                foreach ($children as $child) {
+                    $dirSize += (int) ($child['size'] ?? 0);
+                }
                 $result[] = [
                     'name'     => $item,
                     'type'     => 'directory',
                     'path'     => $relPath,
-                    'children' => $this->listDirectory($baseDir, $relPath),
+                    'size'     => $dirSize,
+                    'children' => $children,
                 ];
             } else {
                 $entry = [
                     'name'       => $item,
                     'type'       => 'file',
-                    'size'       => filesize($itemPath),
+                    'size'       => (int) (filesize($itemPath) ?: 0),
                     'path'       => $relPath,
                     'createdAt'  => date('Y-m-d H:i:s', filectime($itemPath)),
                     'modifiedAt' => date('Y-m-d H:i:s', filemtime($itemPath)),

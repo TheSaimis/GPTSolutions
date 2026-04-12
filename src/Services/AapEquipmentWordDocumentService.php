@@ -19,10 +19,12 @@ use ZipArchive;
  * Sąrašas (pasirinktinai): lentelė su ${pareigybe}/${pareigybes}, ${priemones}, ${terminas}, ${eilNr} ir cloneRow;
  *   jei lentelės nėra — užpildoma tik ${sarasas_turinys} arba ${sarasas_duomenys} arba ${aap_sarasas} (laisvas tekstas).
  * Be DB grupių — viena eilutė vienam darbuotojų tipui; su grupėmis — viena eilutė vienai grupei.
+ * Kortelėse — viena lentelės eilutė vienai priemonei (sąraše galima sujungti kelias į vieną eilutę).
  * Kelios reikšmės langelyje — \\n (Word lūžis per PhpWord).
  * Kortelės: ${pareigybes} + lentelė ${priemones}, ${terminas}, ${kiekis}, ${vnt}, ${pagrindas}, ${eilNr} (eilės Nr. 1, 2, 3… — šablone rašyti be #1, klonavimas prideda) arba ${korteles_turinys}/${aap_korteles}.
  * Po lentelės generavimo „Pagrindas išduoti“ stulpelis su tuo pačiu tekstu visose eilutėse automatiškai sujungiamas vertikaliai (w:vMerge).
  * Įmonės rekvizitai ir bendri šablono laukai užpildomi per CreateFile (tarpinis .docx saugomas templates/_aap_temp/).
+ * Abu dokumentai — abu .docx lieka generated/ įmonės aplane; ZIP atsisiuntimui kuriamas tik laikinai (var/) ir ištrinamas po siuntimo.
  */
 final class AapEquipmentWordDocumentService
 {
@@ -192,7 +194,7 @@ final class AapEquipmentWordDocumentService
      * @param list<self::OUTPUT_*> $outputs
      * @param string|null         $kortelesPagrindasOverride ne null ir ne tuščia — perrašo ${pagrindas} tik kortelių dokumente (vienkartinis generavimas)
      *
-     * @return array{path: string, filename: string, mime: string}
+     * @return array{path: string, filename: string, mime: string, deleteAfterSend?: bool} deleteAfterSend — tik laikinam ZIP atsisiuntimui (nebėra saugoma generated/)
      */
     public function generate(int $companyId, array $outputs, ?string $kortelesPagrindasOverride = null, ?string $documentLocale = null): array
     {
@@ -216,31 +218,39 @@ final class AapEquipmentWordDocumentService
         }
 
         $payload = $this->createEquipmentDocument->buildDataByCompanyId($companyId);
-        $tableRows = $this->buildEquipmentTableRows($payload, $documentLocale);
+        $tableRowsSarasas = $this->buildEquipmentTableRows($payload, $documentLocale, false);
+        $tableRowsKorteles = $this->buildEquipmentTableRows($payload, $documentLocale, true);
 
         if (count($list) === 1) {
-            return $this->singleOutput($list[0], $company, $tableRows, $payload, $kortelesPagrindasOverride, $documentLocale);
+            $kind = $list[0];
+            $rows = $kind === self::OUTPUT_KORTELES ? $tableRowsKorteles : $tableRowsSarasas;
+
+            return $this->singleOutput($kind, $company, $rows, $payload, $kortelesPagrindasOverride, $documentLocale);
         }
 
         $paths = [];
         foreach ($list as $kind) {
+            $rows = $kind === self::OUTPUT_KORTELES ? $tableRowsKorteles : $tableRowsSarasas;
             $paths[$kind] = $this->renderToTempPath(
                 $kind,
                 $company,
-                $tableRows,
+                $rows,
                 $payload,
                 $kind === self::OUTPUT_KORTELES ? $kortelesPagrindasOverride : null,
                 $documentLocale
             );
         }
 
-        $zipDir = $this->resolveGeneratedAbsoluteOutputDir($company);
-        if (! is_dir($zipDir) && ! mkdir($zipDir, 0775, true) && ! is_dir($zipDir)) {
-            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $zipDir);
+        // ZIP tik atsisiuntimui — laikinas kelias; generated/ lieka tik abu .docx (žr. renderToTempPath).
+        $zipTmpDir = $this->projectDir . '/var/aap-word-tmp';
+        if (! is_dir($zipTmpDir) && ! mkdir($zipTmpDir, 0775, true) && ! is_dir($zipTmpDir)) {
+            throw new \RuntimeException('Nepavyko sukurti laikino katalogo ZIP archyvui');
         }
 
         $zipLoc = $documentLocale !== 'lt' ? '_' . mb_strtoupper($documentLocale) : '';
-        $zipPath = $zipDir . '/AAP_dokumentai' . $zipLoc . '_' . date('Ymd_His') . '.zip';
+        $zipCompanySlug = $this->sanitizeForFilenameLikeCreateFile((string) $company->getCompanyName())
+            ?: ((string) $company->getCode() !== '' ? (string) $company->getCode() : 'be_kodo');
+        $zipPath = $zipTmpDir . '/aap_bundle_' . bin2hex(random_bytes(12)) . '.zip';
         $zip = new ZipArchive();
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             foreach ($paths as $p) {
@@ -249,12 +259,17 @@ final class AapEquipmentWordDocumentService
             throw new \RuntimeException('Nepavyko sukurti ZIP archyvo');
         }
 
-        $zipInnerSuffix = $documentLocale !== 'lt' ? '_' . mb_strtoupper($documentLocale) : '';
         if (isset($paths[self::OUTPUT_SARASAS])) {
-            $zip->addFile($paths[self::OUTPUT_SARASAS], 'AAP_sarasas' . $zipInnerSuffix . '.docx');
+            $zip->addFile(
+                $paths[self::OUTPUT_SARASAS],
+                $this->buildAapGeneratedDocxBasename($company, self::OUTPUT_SARASAS, $documentLocale)
+            );
         }
         if (isset($paths[self::OUTPUT_KORTELES])) {
-            $zip->addFile($paths[self::OUTPUT_KORTELES], 'AAP_korteles_ziniarasciai' . $zipInnerSuffix . '.docx');
+            $zip->addFile(
+                $paths[self::OUTPUT_KORTELES],
+                $this->buildAapGeneratedDocxBasename($company, self::OUTPUT_KORTELES, $documentLocale)
+            );
         }
         $zip->close();
 
@@ -264,15 +279,16 @@ final class AapEquipmentWordDocumentService
 
         return [
             'path' => $zipPath,
-            'filename' => basename($zipPath),
+            'filename' => 'AAP_dokumentai_' . $zipCompanySlug . $zipLoc . '.zip',
             'mime' => 'application/zip',
+            'deleteAfterSend' => true,
         ];
     }
 
     /**
      * @param list<self::OUTPUT_*> $outputs
      *
-     * @return array{path: string, filename: string, mime: string}
+     * @return array{path: string, filename: string, mime: string, deleteAfterSend: false}
      */
     private function singleOutput(string $kind, CompanyRequisite $company, array $tableRows, array $payload, ?string $kortelesPagrindasOverride, string $documentLocale): array
     {
@@ -289,19 +305,21 @@ final class AapEquipmentWordDocumentService
             'path' => $path,
             'filename' => basename($path),
             'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'deleteAfterSend' => false,
         ];
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @param bool                   $oneRowPerEquipmentPiece true — kortelėms: viena eilutė vienai priemonei; false — sąrašui: sujungtos eilutės kaip anksčiau
      *
      * @return list<array{pareigybe: string, priemones: string, terminas: string, unitOfMeasurement: string, kiekis: string}>
      */
-    private function buildEquipmentTableRows(array $payload, string $documentLocale = 'lt'): array
+    private function buildEquipmentTableRows(array $payload, string $documentLocale = 'lt', bool $oneRowPerEquipmentPiece = false): array
     {
         $groups = $payload['groups'] ?? null;
         if (is_array($groups) && $groups !== []) {
-            return $this->buildEquipmentTableRowsFromGroups($groups, $documentLocale);
+            return $this->buildEquipmentTableRowsFromGroups($groups, $documentLocale, $oneRowPerEquipmentPiece);
         }
 
         $rows = [];
@@ -319,6 +337,35 @@ final class AapEquipmentWordDocumentService
                     'unitOfMeasurement' => 'vnt',
                     'kiekis' => '-',
                 ];
+
+                continue;
+            }
+            if ($oneRowPerEquipmentPiece) {
+                $expanded = 0;
+                foreach ($eqList as $eq) {
+                    if (! is_array($eq)) {
+                        continue;
+                    }
+                    $unit = trim((string) ($eq['unitOfMeasurement'] ?? 'vnt'));
+                    $unitNorm = $unit !== '' ? Equipment::normalizeUnitOfMeasurement($unit) : 'vnt';
+                    $rows[] = [
+                        'pareigybe' => $name !== '' ? $name : '-',
+                        'priemones' => trim($this->localizedEquipmentName($eq, $documentLocale)) ?: '-',
+                        'terminas' => trim($this->localizedEquipmentExpiration($eq, $documentLocale)) ?: '-',
+                        'unitOfMeasurement' => $unitNorm,
+                        'kiekis' => (string) Equipment::normalizeDocumentQuantity($eq['quantity'] ?? 1),
+                    ];
+                    ++$expanded;
+                }
+                if ($expanded === 0) {
+                    $rows[] = [
+                        'pareigybe' => $name !== '' ? $name : '-',
+                        'priemones' => '-',
+                        'terminas' => '-',
+                        'unitOfMeasurement' => 'vnt',
+                        'kiekis' => '-',
+                    ];
+                }
 
                 continue;
             }
@@ -360,13 +407,14 @@ final class AapEquipmentWordDocumentService
     }
 
     /**
-     * Viena lentelės eilutė vienai grupei: visi grupės darbuotojai, visos priemonės ir terminai toje pačioje eilutėje.
+     * Viena lentelės eilutė vienai grupei (sąrašas): pareigybių stulpelis iš grupės darbuotojų tipų (${pareigybes}); jei jų nėra — grupės pavadinimas.
+     * Kortelėms — galima išskleisti į kelias eilutes (po vieną priemonei).
      *
      * @param list<array<string, mixed>> $groups
      *
      * @return list<array{pareigybe: string, priemones: string, terminas: string, unitOfMeasurement: string, kiekis: string}>
      */
-    private function buildEquipmentTableRowsFromGroups(array $groups, string $documentLocale = 'lt'): array
+    private function buildEquipmentTableRowsFromGroups(array $groups, string $documentLocale = 'lt', bool $oneRowPerEquipmentPiece = false): array
     {
         $rows = [];
         foreach ($groups as $g) {
@@ -383,7 +431,14 @@ final class AapEquipmentWordDocumentService
                     $workerNames[] = $n;
                 }
             }
-            $pareigybe = $workerNames === [] ? '-' : implode(self::CELL_LIST_SEPARATOR, $workerNames);
+            $groupName = trim((string) ($g['groupName'] ?? ''));
+            if ($workerNames !== []) {
+                $pareigybe = implode(self::CELL_LIST_SEPARATOR, $workerNames);
+            } elseif ($groupName !== '') {
+                $pareigybe = $groupName;
+            } else {
+                $pareigybe = '-';
+            }
 
             $priemonesParts = [];
             $terminasParts = [];
@@ -398,6 +453,25 @@ final class AapEquipmentWordDocumentService
                 $kiekisParts[] = (string) Equipment::normalizeDocumentQuantity($eq['quantity'] ?? 1);
                 $unit = trim((string) ($eq['unitOfMeasurement'] ?? 'vnt'));
                 $units[] = $unit !== '' ? Equipment::normalizeUnitOfMeasurement($unit) : 'vnt';
+            }
+
+            if ($oneRowPerEquipmentPiece && $priemonesParts !== []) {
+                foreach ($g['equipment'] ?? [] as $eq) {
+                    if (! is_array($eq)) {
+                        continue;
+                    }
+                    $unit = trim((string) ($eq['unitOfMeasurement'] ?? 'vnt'));
+                    $unitNorm = $unit !== '' ? Equipment::normalizeUnitOfMeasurement($unit) : 'vnt';
+                    $rows[] = [
+                        'pareigybe' => $pareigybe,
+                        'priemones' => trim($this->localizedEquipmentName($eq, $documentLocale)) ?: '-',
+                        'terminas' => trim($this->localizedEquipmentExpiration($eq, $documentLocale)) ?: '-',
+                        'unitOfMeasurement' => $unitNorm,
+                        'kiekis' => (string) Equipment::normalizeDocumentQuantity($eq['quantity'] ?? 1),
+                    ];
+                }
+
+                continue;
             }
 
             $priemones = $priemonesParts === [] ? '-' : implode(self::CELL_LIST_SEPARATOR, $priemonesParts);
@@ -465,6 +539,57 @@ final class AapEquipmentWordDocumentService
     }
 
     /**
+     * Kaip {@see CreateFile::createDocxDocument}: `{šablonoVardasBePlėtinio}_{įmonėsSlug}.docx`.
+     */
+    private function buildAapGeneratedDocxBasename(CompanyRequisite $company, string $kind, string $documentLocale): string
+    {
+        $stem = $this->resolveAapOutputTemplateStem($kind, $documentLocale);
+        $companySlug = $this->sanitizeForFilenameLikeCreateFile((string) $company->getCompanyName())
+            ?: ((string) $company->getCode() !== '' ? (string) $company->getCode() : 'be_kodo');
+
+        return $stem . '_' . $companySlug . '.docx';
+    }
+
+    /**
+     * Šablono bazinis vardas (kaip CreateFile imą iš pathinfo(template)), ne stage_*.docx.
+     */
+    private function resolveAapOutputTemplateStem(string $kind, string $documentLocale): string
+    {
+        $loc = $this->normalizeAapLocale($documentLocale);
+        $localeCandidates = $loc !== 'lt' ? [$loc, 'lt'] : ['lt'];
+
+        foreach ($localeCandidates as $tryLoc) {
+            $fromDb = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $tryLoc);
+            if ($fromDb instanceof AapEquipmentWordTemplate && $fromDb->getContent() !== '') {
+                $orig = trim($fromDb->getOriginalFilename());
+                if ($orig !== '') {
+                    $stem = pathinfo($orig, PATHINFO_FILENAME);
+
+                    return is_string($stem) && $stem !== '' ? $stem : $this->defaultAapTemplateStem($kind);
+                }
+
+                return $this->defaultAapTemplateStem($kind);
+            }
+        }
+
+        foreach ($localeCandidates as $tryLoc) {
+            $fs = $this->tryResolveFilesystemTemplate($kind, $tryLoc);
+            if ($fs !== null) {
+                $stem = pathinfo($fs, PATHINFO_FILENAME);
+
+                return is_string($stem) && $stem !== '' ? $stem : $this->defaultAapTemplateStem($kind);
+            }
+        }
+
+        return $this->defaultAapTemplateStem($kind);
+    }
+
+    private function defaultAapTemplateStem(string $kind): string
+    {
+        return $kind === self::OUTPUT_SARASAS ? 'sarasas-aap' : 'korteles-ziniarasciai';
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     private function renderToFinalPath(
@@ -480,10 +605,7 @@ final class AapEquipmentWordDocumentService
             throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $outDir);
         }
 
-        $normLoc = $this->normalizeAapLocale($documentLocale);
-        $locSuffix = $normLoc !== 'lt' ? '_' . mb_strtoupper($normLoc) : '';
-        $prefix = $kind === self::OUTPUT_SARASAS ? 'AAP_sarasas_' : 'AAP_korteles_ziniarasciai_';
-        $outBasename = $prefix . date('Ymd_His') . $locSuffix . '.docx';
+        $outBasename = $this->buildAapGeneratedDocxBasename($company, $kind, $documentLocale);
         $outPath = $outDir . '/' . $outBasename;
 
         $stagingPath = $this->createStagingTemplatePath();
@@ -511,6 +633,9 @@ final class AapEquipmentWordDocumentService
     }
 
     /**
+     * Kaip {@see renderToFinalPath}, bet papildomai kopijuoja į temp ZIP sujungimui.
+     * Galutinis .docx lieka generated/ (anksčiau buvo ištrinamas — vartotojas nerado failų diske).
+     *
      * @param array<string, mixed> $payload
      */
     private function renderToTempPath(
@@ -526,28 +651,38 @@ final class AapEquipmentWordDocumentService
             throw new \RuntimeException('Nepavyko sukurti laikino katalogo');
         }
 
-        $prefix = $kind === self::OUTPUT_SARASAS ? 'sarasas_' : 'korteles_';
-        $tmpBasename = $prefix . bin2hex(random_bytes(8)) . '.docx';
+        $tmpKindPrefix = $kind === self::OUTPUT_SARASAS ? 'sarasas_' : 'korteles_';
+        $tmpBasename = $tmpKindPrefix . bin2hex(random_bytes(8)) . '.docx';
         $tmpPath = $tmpDir . '/' . $tmpBasename;
+
+        $outDir = $this->resolveGeneratedAbsoluteOutputDir($company);
+        if (! is_dir($outDir) && ! mkdir($outDir, 0775, true) && ! is_dir($outDir)) {
+            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $outDir);
+        }
+
+        $outBasename = $this->buildAapGeneratedDocxBasename($company, $kind, $documentLocale);
+        $outPath = $outDir . '/' . $outBasename;
 
         $stagingPath = $this->createStagingTemplatePath();
         try {
             $this->renderTemplate($kind, $company, $tableRows, $stagingPath, $kortelesPagrindasOverride, $documentLocale);
-            $genBasename = $prefix . bin2hex(random_bytes(4)) . '_zip.docx';
             $generatedPath = $this->finalizeAapThroughCreateFile(
                 $stagingPath,
                 $company,
                 $kind,
                 $kortelesPagrindasOverride,
-                $genBasename,
+                $outBasename,
                 $documentLocale
             );
+            if ($generatedPath !== $outPath) {
+                throw new \RuntimeException(
+                    'Sugeneruotas kelias neatitinka laukto: ' . $generatedPath . ' (laukta ' . $outPath . ')'
+                );
+            }
             $this->fixLegacyEilNrPlaceholdersInDocx($generatedPath);
             if (! @copy($generatedPath, $tmpPath)) {
-                @unlink($generatedPath);
                 throw new \RuntimeException('Nepavyko nukopijuoti ZIP dalies dokumento');
             }
-            @unlink($generatedPath);
         } finally {
             @unlink($stagingPath);
         }
