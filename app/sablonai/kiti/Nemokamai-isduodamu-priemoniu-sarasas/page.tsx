@@ -8,12 +8,12 @@ import { EquipmentProvider, useEquipment } from "./equipmentContext";
 import EquipmentController from "./tabs/equipmentController/equipmentController";
 import EquipmentTable from "./tabs/documentController/table";
 import EquipmentTemplate from "./tabs/template/template";
-import WorkerEquipmentController from "./tabs/workerEquipmentController/workerEquipmentController";
+import AapEquipmentGroupsSection from "./tabs/aapGroups/aapEquipmentGroupsSection";
 
-type EquipmentTab = "document" | "assignment" | "equipment" | "template";
+type EquipmentTab = "document" | "groups" | "equipment" | "template";
 const componentMap = {
   document: EquipmentTable,
-  assignment: WorkerEquipmentController,
+  groups: AapEquipmentGroupsSection,
   equipment: EquipmentController,
   template: EquipmentTemplate,
 } satisfies Record<EquipmentTab, React.ComponentType>;
@@ -44,11 +44,11 @@ function EquipmentPageContent() {
         </button>
         <button
           type="button"
-          className={`${styles.workflowTab} ${activeTab === "assignment" ? styles.workflowTabActive : ""}`}
-          onClick={() => setActiveTab("assignment")}
-          aria-current={activeTab === "assignment" ? "page" : undefined}
+          className={`${styles.workflowTab} ${activeTab === "groups" ? styles.workflowTabActive : ""}`}
+          onClick={() => setActiveTab("groups")}
+          aria-current={activeTab === "groups" ? "page" : undefined}
         >
-          Apsaugos priemonių priskirimas
+          Grupės
         </button>
         <button
           type="button"

@@ -62,7 +62,6 @@ export default function EquipmentTable() {
     const [creating, setCreating] = useState(false);
     const [wantSarasas, setWantSarasas] = useState(true);
     const [wantKorteles, setWantKorteles] = useState(false);
-    /** Vienkartinis ${pagrindas} tekstas generuojant korteles (tuščia = įmonės / numatytasis). */
     const [documentPagrindas, setDocumentPagrindas] = useState("");
     const [documentLanguage, setDocumentLanguage] = useState<AapTemplateLocale>("lt");
     const [preview, setPreview] = useState<{
@@ -175,7 +174,7 @@ export default function EquipmentTable() {
                             checked={wantSarasas}
                             onChange={(e) => setWantSarasas(e.target.checked)}
                         />
-                        AAP sąrašas (pareigybė, priemonė, terminas)
+                        AAP sąrašas
                     </label>
                     <label className={styles.checkboxLabel}>
                         <input
@@ -187,7 +186,7 @@ export default function EquipmentTable() {
                     </label>
                 </div>
                 <InputFieldSelect
-                    label="Dokumento kalba (šablonas + priemonių tekstai)"
+                    label="Kalba"
                     options={DOC_LANG_OPTIONS}
                     selected={docLangSelectLabel}
                     onChange={(v) => setDocumentLanguage(v as AapTemplateLocale)}
@@ -196,14 +195,14 @@ export default function EquipmentTable() {
                 {wantKorteles ? (
                     <div className={styles.pagrindasField}>
                         <label className={styles.pagrindasLabel} htmlFor="aap-doc-pagrindas">
-                            „Pagrindas išduoti“ kortelėse (<code>{"${pagrindas}"}</code>) — šiam eksportui
+                            Pagrindas (kortelėms)
                         </label>
                         <textarea
                             id="aap-doc-pagrindas"
                             className={styles.pagrindasTextarea}
                             value={documentPagrindas}
                             onChange={(e) => setDocumentPagrindas(e.target.value)}
-                            placeholder="Palikite tuščią arba kaip įmonės kortelėje — naudos įmonės arba numatytąjį tekstą. Įrašykite čia, jei šiam kartui norite kito teksto."
+                            placeholder=""
                             spellCheck
                             disabled={!selectedCompanyId}
                         />
@@ -226,23 +225,21 @@ export default function EquipmentTable() {
                     </p>
                     {preview.company.pagrindas != null && preview.company.pagrindas !== "" && (
                         <p className={styles.mutedSmall} style={{ margin: "6px 0 8px" }}>
-                            <strong>{"${pagrindas}"}</strong> (kortelės): {preview.company.pagrindas}
+                            Pagrindas: {preview.company.pagrindas}
                         </p>
                     )}
                     {preview.groups && preview.groups.length > 0 ? (
                         <>
-                            <p className={styles.mutedSmall} style={{ margin: "8px 0" }}>
-                                Dokumente naudojamos <strong>grupės</strong> — po vieną lentelės eilutę kiekvienai grupei.
-                            </p>
                             {preview.groups.map((g) => (
                                 <div key={g.groupId} className={styles.previewWorker}>
                                     <p className={styles.itemText}>
                                         {g.groupName} — {g.workers.length} tip., {g.equipment.length} priem.
                                     </p>
-                                    <p className={styles.previewEqList} style={{ margin: "4px 0", fontSize: 13 }}>
-                                        <strong>Darbuotojų tipai:</strong>{" "}
-                                        {g.workers.map((w) => w.workerName).join(", ") || "—"}
-                                    </p>
+                                    {g.workers.length > 0 ? (
+                                        <p className={styles.previewEqList} style={{ margin: "4px 0", fontSize: 13 }}>
+                                            {g.workers.map((w) => w.workerName).join(", ")}
+                                        </p>
+                                    ) : null}
                                     <ul className={styles.previewEqList}>
                                         {g.equipment.map((eq) => (
                                             <li key={eq.id}>
@@ -274,9 +271,7 @@ export default function EquipmentTable() {
                         ))
                     )}
                 </div>
-            ) : (
-                <p className={styles.muted}>Pasirinkite įmonę, kad matytumėte dokumento duomenų peržiūrą.</p>
-            )}
+            ) : null}
         </div>
     );
 }

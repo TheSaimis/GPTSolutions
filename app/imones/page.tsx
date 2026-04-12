@@ -18,6 +18,7 @@ import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import CompanyFormLocaleToggle, { type CompanyFormLocale } from "@/components/companyForm/CompanyFormLocaleToggle";
 
 export default function ImonesPage() {
+    const [role, setRole] = useState("");
     const [companyTypeRows, setCompanyTypeRows] = useState<CompanyTypeRow[]>([]);
     const [companyTypeId, setCompanyTypeId] = useState<number | null>(null);
     const [companyTypeShort, setCompanyTypeShort] = useState("");
@@ -34,7 +35,6 @@ export default function ImonesPage() {
     const [managerFirstName, setManagerFirstName] = useState("");
     const [managerLastName, setManagerLastName] = useState("");
     const [managerGender, setManagerGender] = useState("");
-    const [role, setRole] = useState("");
     const [categories, setCategories] = useState<CompanyCategory[]>([]);
     const [categorySearch, setCategorySearch] = useState("");
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);

@@ -49,7 +49,7 @@ export default function NaudotojaiPage() {
                         <InputFieldText value={lastName} onChange={setLastName} placeholder="Pavardė" />
                     </div>
                     <InputFieldText value={email} onChange={setEmail} type="email" placeholder="Prisijungimo paštas" />
-                    <InputFieldSelect options={[{ value: "ROLE_ADMIN", label: "Administratorius" },{ value: "ROLE_USER", label: "Naudotojas" },]} onChange={setRole} placeholder="Teisės"/>
+                    <InputFieldSelect options={[{ value: "ROLE_ADMIN", label: "Administratorius" }, { value: "ROLE_USER", label: "Naudotojas" },]} onChange={setRole} placeholder="Teisės" />
                     <InputFieldPassword autocomplete={"new-password"} value={password} onChange={setPassword} placeholder="Slaptažodis" />
                 </div>
 

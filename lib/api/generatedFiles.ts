@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { encodePathForApiUrl } from "../functions/encodePathForApiUrl";
 import { TemplateList } from "../types/TemplateList";
 
 /** Atsarginis ZIP pavadinimas, jei CORS neperduoda Content-Disposition */
@@ -17,9 +18,9 @@ export const GeneratedFilesApi = {
         }),
     getAll: () => api.get<TemplateList[]>("/api/generated",),
     getGeneratedPDF: (path: string) =>
-        api.getBlob(`/api/generated/pdf/${path}`, { loadingMessage: "Kraunamas PDF..." }),
+        api.getBlob(`/api/generated/pdf/${encodePathForApiUrl(path)}`, { loadingMessage: "Kraunamas PDF..." }),
     getGeneratedWord: (path: string) =>
-        api.getBlob(`/api/generated/file/${path}`, { loadingMessage: "Kraunamas Word..." }),
+        api.getBlob(`/api/generated/file/${encodePathForApiUrl(path)}`, { loadingMessage: "Kraunamas Word..." }),
 
     // /api/generated/file/{path}
 }

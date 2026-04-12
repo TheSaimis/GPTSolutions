@@ -111,6 +111,7 @@ export default function FileList({ overflow }: FileListProps) {
                                     key={`${node.name}-${node.type}-${node.path}`}
                                     fileType={fileType}
                                     data={node}
+                                    size={node.size}
                                 />
                             ) : (
                                 <Directory
@@ -119,6 +120,7 @@ export default function FileList({ overflow }: FileListProps) {
                                     nodes={node.children}
                                     path={node.path}
                                     fileType={fileType}
+                                    size={node.size}
                                 />
                             )
                         )) :

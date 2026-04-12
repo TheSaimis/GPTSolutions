@@ -55,3 +55,10 @@ input, button, textarea, select {
     transform: rotate(360deg);
   }
 }
+
+/* Next.js dev-only: hide internal <nextjs-portal> unless admin (class set in NextDevPortalAdminOnly) */
+html:not(.user-is-admin) nextjs-portal {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

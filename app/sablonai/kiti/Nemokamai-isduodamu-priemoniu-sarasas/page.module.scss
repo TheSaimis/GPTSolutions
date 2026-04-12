@@ -409,3 +409,44 @@
   padding: 6px 12px;
   font-size: 13px;
 }
+
+/** AAP šablonų įkėlimas: kiekvienai kalbai — DropZone + failo pasirinkimas */
+.templateLocaleRow {
+  align-items: flex-start;
+}
+
+.templateUploadDropZone {
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 360px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fafafa;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.templateUploadDropZone:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.templateUploadDropInner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.templateUploadHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.templateUploadBrowse {
+  display: inline-block;
+  width: fit-content;
+}

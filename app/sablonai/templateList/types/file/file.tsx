@@ -178,7 +178,7 @@ export default function Files({ data, fileType }: List) {
               : []),
             {
               id: "download",
-              label: isLink ? "Atsisiųsti nuorodą (.url)" : "Atsisiųsti",
+              label: isLink ? "Atsisiųsti nuorodą (.url)" : `Atsisiųsti - ${data.size ? formatFileSize(data.size) : ""}`,
               onClick: downloadFile,
             },
             ...(fileType === "templates" ? [

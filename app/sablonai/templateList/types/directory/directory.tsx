@@ -19,15 +19,17 @@ import { useDirectoryFileMoveDrop } from "./functions/useDirectoryFileMoveDrop";
 import { CatalougeApi } from "@/lib/api/catalouges";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import { extractTemplateIds } from "@/app/sablonai/components/utilities/extractTemplateIds";
+import { formatFileSize } from "@/lib/functions/formatFileSize";
 
 type DirectoryList = {
     name: string;
     fileType: string,
     nodes?: TemplateList[]
+    size?: number
     path?: string
 }
 
-export default function Directory({ name, nodes, path, fileType }: DirectoryList) {
+export default function Directory({ name, nodes, path, fileType, size }: DirectoryList) {
 
     const [collapsed, setCollapsed] = useState<boolean>(fileType == "generated");
     const [rename, setRename] = useState<boolean>(false);
@@ -119,7 +121,7 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
             },
             {
                 id: "downloadFolder",
-                label: "Atsisiunti aplanką",
+                label: `Atsisiunti aplanką - ${size ? formatFileSize(size) : ""}`,
                 onClick: () => {
                     downloadFolder();
                 },
@@ -185,9 +187,9 @@ export default function Directory({ name, nodes, path, fileType }: DirectoryList
                         <CreateDirectory key={"createDirectory"} fileType={fileType} path={path ?? ""} onFocus={setCreate} folders={nodes?.filter((child) => child.type === "directory")} />
                     }
                     {(nodes ?? []).map((child) => child.type === "file" ? (
-                        <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} />
+                        <Files key={`${child.name}-${child.type}-${path}`} fileType={fileType} data={child} size={child.size} />
                     ) : (
-                        <Directory key={child.path ?? child.name} name={child.name} nodes={child.children} path={child.path} fileType={fileType} />
+                        <Directory key={child.path ?? child.name} name={child.name} nodes={child.children} path={child.path} fileType={fileType} size={child.size} />
                     )
                     )}
                 </div>

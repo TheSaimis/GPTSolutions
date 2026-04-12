@@ -24,6 +24,12 @@ export type AapEquipmentTemplateStatusRow = {
     updatedAt: string | null;
 };
 
+/** Visos sistemos AAP grupės (katalogas susieti su įmone) */
+export type AapEquipmentGroupCatalogRow = {
+    id: number;
+    name: string;
+};
+
 export const EquipmentApi = {
 
     getAll: () => api.get<Equipment[]>("/api/equipment"),
@@ -46,14 +52,25 @@ export const EquipmentApi = {
 
     getAapEquipmentGroups: (companyId: number) =>
         api.get<AapEquipmentGroupRow[]>(`/api/aap-equipment-groups?companyId=${companyId}`),
-    createAapEquipmentGroup: (input: { companyId: number; name: string; sortOrder?: number }) =>
-        api.post<AapEquipmentGroupRow>("/api/aap-equipment-groups", input),
-    updateAapEquipmentGroup: (id: number, input: { name?: string; sortOrder?: number }) =>
-        api.patch<AapEquipmentGroupRow>(`/api/aap-equipment-groups/${id}`, input),
-    deleteAapEquipmentGroup: (id: number) =>
-        api.delete<{ message: string }>(`/api/aap-equipment-groups/${id}`),
-    addWorkerToAapEquipmentGroup: (groupId: number, workerId: number) =>
-        api.post<AapEquipmentGroupRow>(`/api/aap-equipment-groups/${groupId}/workers`, { workerId }),
+    getAapEquipmentGroupCatalog: () =>
+        api.get<AapEquipmentGroupCatalogRow[]>("/api/aap-equipment-groups/catalog"),
+    createAapEquipmentGroup: (input: {
+        companyId: number;
+        name?: string;
+        groupId?: number;
+        sortOrder?: number;
+    }) => api.post<AapEquipmentGroupRow>("/api/aap-equipment-groups", input),
+    updateAapEquipmentGroup: (
+        id: number,
+        input: { name?: string; sortOrder?: number; companyId?: number },
+    ) => api.patch<AapEquipmentGroupRow>(`/api/aap-equipment-groups/${id}`, input),
+    deleteAapEquipmentGroup: (id: number, companyId: number) =>
+        api.delete<{ message: string }>(`/api/aap-equipment-groups/${id}?companyId=${companyId}`),
+    addWorkerToAapEquipmentGroup: (groupId: number, workerId: number, companyId: number) =>
+        api.post<AapEquipmentGroupRow>(`/api/aap-equipment-groups/${groupId}/workers`, {
+            workerId,
+            companyId,
+        }),
     removeWorkerFromAapEquipmentGroup: (groupId: number, workerId: number) =>
         api.delete<AapEquipmentGroupRow>(`/api/aap-equipment-groups/${groupId}/workers/${workerId}`),
     addEquipmentToAapEquipmentGroup: (

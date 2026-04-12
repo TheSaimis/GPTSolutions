@@ -200,9 +200,6 @@ export default function EquipmentController() {
 
     return (
         <div className={styles.card}>
-            <p className={styles.mutedSmall} style={{ marginBottom: 10 }}>
-                Bent vienoje kalboje užpildykite pavadinimą ir terminą; kiti laukai neprivalomi.
-            </p>
             {nameRow(nameLt, setNameLt, nameEn, setNameEn, nameRu, setNameRu)}
             {expRow(expLt, setExpLt, expEn, setExpEn, expRu, setExpRu)}
             <div className={styles.row} style={{ marginTop: 12, alignItems: "flex-end" }}>

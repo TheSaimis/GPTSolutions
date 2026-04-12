@@ -3,9 +3,10 @@
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
 import { EquipmentApi } from "@/lib/api/equipment";
-import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
 import { CompanyApi } from "@/lib/api/companies";
+import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import type { AapEquipmentGroupCatalogRow } from "@/lib/api/equipment";
 import { useEquipment } from "../../equipmentContext";
 import { EQUIPMENT_UNIT_OPTIONS, equipmentUnitLabel } from "../equipmentController/equipmentUnits";
 import type { Equipment } from "@/lib/types/equipment/equipment";
@@ -13,6 +14,15 @@ import styles from "../../page.module.scss";
 import ctrl from "../../../pazyma/controllers.module.scss";
 import type { Company, CompanyWorker } from "@/lib/types/Company";
 import type { AapEquipmentGroupRow } from "@/lib/types/aapEquipmentGroup";
+
+function mergeGroupContext(prev: AapEquipmentGroupRow, next: AapEquipmentGroupRow): AapEquipmentGroupRow {
+    return {
+        ...next,
+        companyId: next.companyId ?? prev.companyId,
+        sortOrder: next.sortOrder ?? prev.sortOrder,
+        workers: next.workers ?? prev.workers,
+    };
+}
 
 const DOC_QTY_MIN = 1;
 const DOC_QTY_MAX = 99999;
@@ -34,15 +44,17 @@ const quantityInputStyle: CSSProperties = {
 
 type GroupEditorProps = {
     group: AapEquipmentGroupRow;
+    companyId: number;
     workerOptions: { value: string; label: string }[];
     equipmentOptions: { value: string; label: string }[];
     onReplaceGroup: (g: AapEquipmentGroupRow) => void;
-    onRemoveGroup: (id: number) => void;
+    onRemoveGroup: (groupId: number, companyId: number) => void;
     onEquipmentUpdated: (updated: Equipment) => void | Promise<void>;
 };
 
 function AapGroupEditor({
     group,
+    companyId,
     workerOptions,
     equipmentOptions,
     onReplaceGroup,
@@ -74,8 +86,8 @@ function AapGroupEditor({
         if (!w) return;
         setBusy(true);
         try {
-            const next = await EquipmentApi.addWorkerToAapEquipmentGroup(group.id, w);
-            onReplaceGroup(next);
+            const next = await EquipmentApi.addWorkerToAapEquipmentGroup(group.id, w, companyId);
+            onReplaceGroup(mergeGroupContext(group, next));
             setWorkerId("");
         } finally {
             setBusy(false);
@@ -89,7 +101,7 @@ function AapGroupEditor({
         setBusy(true);
         try {
             const next = await EquipmentApi.addEquipmentToAapEquipmentGroup(group.id, e, { quantity: qty });
-            onReplaceGroup(next);
+            onReplaceGroup(mergeGroupContext(group, next));
             setEquipmentId("");
             setAddEquipmentQty("1");
         } finally {
@@ -106,7 +118,7 @@ function AapGroupEditor({
             const next = await EquipmentApi.patchAapEquipmentGroupEquipment(group.id, equipmentEntityId, {
                 quantity: qty,
             });
-            onReplaceGroup(next);
+            onReplaceGroup(mergeGroupContext(group, next));
         } finally {
             setBusy(false);
         }
@@ -116,7 +128,7 @@ function AapGroupEditor({
         setBusy(true);
         try {
             const next = await EquipmentApi.removeWorkerFromAapEquipmentGroup(group.id, wid);
-            onReplaceGroup(next);
+            onReplaceGroup(mergeGroupContext(group, next));
         } finally {
             setBusy(false);
         }
@@ -126,7 +138,7 @@ function AapGroupEditor({
         setBusy(true);
         try {
             const next = await EquipmentApi.removeEquipmentFromAapEquipmentGroup(group.id, eid);
-            onReplaceGroup(next);
+            onReplaceGroup(mergeGroupContext(group, next));
         } finally {
             setBusy(false);
         }
@@ -172,8 +184,11 @@ function AapGroupEditor({
         }
         setBusy(true);
         try {
-            const updated = await EquipmentApi.updateAapEquipmentGroup(group.id, { name });
-            onReplaceGroup(updated);
+            const updated = await EquipmentApi.updateAapEquipmentGroup(group.id, {
+                name,
+                companyId,
+            });
+            onReplaceGroup(mergeGroupContext(group, updated));
             setEditingGroupName(false);
         } finally {
             setBusy(false);
@@ -253,19 +268,16 @@ function AapGroupEditor({
                     className={`${ctrl.button} ${ctrl.buttonDanger}`}
                     disabled={busy}
                     onClick={() => {
-                        if (window.confirm(`Pašalinti grupę „${group.name}“?`)) {
-                            onRemoveGroup(group.id);
+                        if (window.confirm(`Pašalinti grupę „${group.name}“ iš šios įmonės sąrašo?`)) {
+                            onRemoveGroup(group.id, companyId);
                         }
                     }}
                 >
-                    Šalinti grupę
+                    Šalinti grupę iš įmonės
                 </button>
             </div>
 
-            <h4 className={ctrl.workerAddTitle}>1. Darbuotojų tipai (pareigybės)</h4>
-            <p className={ctrl.workerAddHint} style={{ marginBottom: 10 }}>
-                Word lentelėje visi šios grupės tipai bus vienoje eilutėje, atskirti kableliu.
-            </p>
+            <h4 className={ctrl.workerAddTitle}>Darbuotojų tipai (pareigybės)</h4>
             <div className={`${ctrl.formRow}`} style={{ marginBottom: 10 }}>
                 <InputFieldSelect
                     label="Pridėti tipą į grupę"
@@ -285,7 +297,7 @@ function AapGroupEditor({
                 </button>
             </div>
             <ul className={styles.assignmentList}>
-                {group.workers.map((row) => (
+                {(group.workers ?? []).map((row) => (
                     <li key={row.id} className={styles.aapCompactRow}>
                         <span className={styles.aapCompactRowText}>{row.worker.name}</span>
                         <button
@@ -302,12 +314,8 @@ function AapGroupEditor({
             </ul>
 
             <h4 className={ctrl.workerAddTitle} style={{ marginTop: 16 }}>
-                2. Apsaugos priemonės
+                Apsaugos priemonės
             </h4>
-            <p className={ctrl.workerAddHint} style={{ marginBottom: 10 }}>
-                Toje pačioje Word eilutėje priemonės bus sujungtos per kablelį. „Redaguoti“ keičia bendrą priemonės
-                aprašą visur sistemoje.
-            </p>
             <div className={`${ctrl.formRow}`} style={{ marginBottom: 10 }}>
                 <InputFieldSelect
                     label="Pridėti priemonę į grupę"
@@ -446,15 +454,21 @@ function AapGroupEditor({
     );
 }
 
-export default function WorkerEquipmentController() {
+/**
+ * AAP grupės: kurti grupę, susieti su įmone (daug-su-daug), pridėti darbuotojų tipus ir priemones, pervadinti, pašalinti ryšį.
+ */
+export default function AapEquipmentGroupsSection() {
     const { equipment, setEquipment } = useEquipment();
     const [companies, setCompanies] = useState<Company[]>([]);
     const [companyId, setCompanyId] = useState<string>("");
     const [companyWorkers, setCompanyWorkers] = useState<CompanyWorker[]>([]);
     const [groups, setGroups] = useState<AapEquipmentGroupRow[]>([]);
     const [newGroupName, setNewGroupName] = useState("");
+    const [groupCatalog, setGroupCatalog] = useState<AapEquipmentGroupCatalogRow[]>([]);
+    const [linkGroupSelection, setLinkGroupSelection] = useState("");
     const [loadingCompany, setLoadingCompany] = useState(false);
     const [creatingGroup, setCreatingGroup] = useState(false);
+    const [linkingGroup, setLinkingGroup] = useState(false);
     const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -472,8 +486,7 @@ export default function WorkerEquipmentController() {
         [companies],
     );
 
-    const selectedCompanyLabel =
-        companyOptions.find((o) => o.value === companyId)?.label ?? "";
+    const selectedCompanyLabel = companyOptions.find((o) => o.value === companyId)?.label ?? "";
 
     useEffect(() => {
         const id = Number(companyId);
@@ -529,6 +542,40 @@ export default function WorkerEquipmentController() {
         [equipment],
     );
 
+    const groupsAlreadyLinkedIds = useMemo(() => new Set(groups.map((g) => g.id)), [groups]);
+
+    const loadGroupCatalog = useCallback(async () => {
+        try {
+            const rows = await EquipmentApi.getAapEquipmentGroupCatalog();
+            setGroupCatalog(rows);
+        } catch {
+            setGroupCatalog([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!companyId) {
+            setLinkGroupSelection("");
+            return;
+        }
+        void loadGroupCatalog();
+    }, [companyId, loadGroupCatalog]);
+
+    const linkableGroupOptions = useMemo(() => {
+        const available = groupCatalog.filter((g) => !groupsAlreadyLinkedIds.has(g.id));
+        const nameCount = new Map<string, number>();
+        for (const g of available) {
+            nameCount.set(g.name, (nameCount.get(g.name) ?? 0) + 1);
+        }
+        return available.map((g) => ({
+            value: String(g.id),
+            label: (nameCount.get(g.name) ?? 0) > 1 ? `${g.name} (#${g.id})` : g.name,
+        }));
+    }, [groupCatalog, groupsAlreadyLinkedIds]);
+
+    const linkGroupSelectedLabel =
+        linkableGroupOptions.find((o) => o.value === linkGroupSelection)?.label ?? "";
+
     async function createGroup() {
         const c = Number(companyId);
         const name = newGroupName.trim();
@@ -539,13 +586,33 @@ export default function WorkerEquipmentController() {
             setGroups((prev) => [...prev, g].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id));
             setSelectedGroupId(g.id);
             setNewGroupName("");
+            await loadGroupCatalog();
         } finally {
             setCreatingGroup(false);
         }
     }
 
+    async function linkExistingGroup() {
+        const c = Number(companyId);
+        const gid = Number(linkGroupSelection);
+        if (!c || !gid) return;
+        setLinkingGroup(true);
+        try {
+            const g = await EquipmentApi.createAapEquipmentGroup({ companyId: c, groupId: gid });
+            setGroups((prev) => {
+                if (prev.some((x) => x.id === g.id)) return prev;
+                return [...prev, g].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+            });
+            setSelectedGroupId(g.id);
+            setLinkGroupSelection("");
+            await loadGroupCatalog();
+        } finally {
+            setLinkingGroup(false);
+        }
+    }
+
     const replaceGroup = useCallback((g: AapEquipmentGroupRow) => {
-        setGroups((prev) => prev.map((x) => (x.id === g.id ? g : x)));
+        setGroups((prev) => prev.map((x) => (x.id === g.id ? mergeGroupContext(x, g) : x)));
     }, []);
 
     const onEquipmentUpdated = useCallback(
@@ -559,16 +626,16 @@ export default function WorkerEquipmentController() {
         [companyId, setEquipment],
     );
 
-    async function removeGroup(id: number) {
-        await EquipmentApi.deleteAapEquipmentGroup(id);
-        setGroups((prev) => prev.filter((g) => g.id !== id));
+    async function removeGroup(groupId: number, cid: number) {
+        await EquipmentApi.deleteAapEquipmentGroup(groupId, cid);
+        setGroups((prev) => prev.filter((g) => !(g.id === groupId)));
     }
 
     return (
         <div className={`${ctrl.workerLayout}`}>
-            <aside className={ctrl.workerMenu} aria-label="Įmonė ir grupių sąrašas">
+            <aside className={ctrl.workerMenu} aria-label="AAP grupės — įmonė ir sąrašas">
                 <h3 className={ctrl.title} style={{ fontSize: 18 }}>
-                    Įmonė ir grupės
+                    Grupės ir įmonė
                 </h3>
                 <InputFieldSelect
                     label="Įmonė"
@@ -579,33 +646,13 @@ export default function WorkerEquipmentController() {
                     search
                 />
 
-                {!companyId ? (
-                    <p className={ctrl.subtitle}>1 žingsnis: pasirinkite įmonę, kuriai sudarinėjate AAP grupes.</p>
-                ) : loadingCompany ? (
+                {!companyId ? null : loadingCompany ? (
                     <p className={ctrl.subtitle}>Kraunama…</p>
-                ) : companyWorkers.length === 0 ? (
-                    <p className={ctrl.subtitle}>
-                        Šiai įmonei nepriskirti darbuotojų tipai. Juos priskirkite įmonės kortelėje arba rizikų modulyje.
-                    </p>
                 ) : (
                     <>
-                        <p className={ctrl.subtitle}>
-                            <strong>Kaip veikia:</strong> kiekviena grupė = viena eilutė AAP Word lentelėje (visi pasirinkti
-                            tipai ir priemonės sujungti toje eilutėje).
-                        </p>
-                        <ol
-                            className={ctrl.subtitle}
-                            style={{ margin: "0 0 12px", paddingLeft: "1.15rem", lineHeight: 1.5 }}
-                        >
-                            <li>Pasirinkite grupę sąraše arba sukurkite naują.</li>
-                            <li>Dešinėje pridėkite darbuotojų tipus, tada apsaugos priemones.</li>
-                        </ol>
-
-                        <h4 className={ctrl.workerAddTitle}>Grupių sąrašas</h4>
+                        <h4 className={ctrl.workerAddTitle}>Šios įmonės grupės</h4>
                         <div className={ctrl.workerList}>
-                            {groups.length === 0 ? (
-                                <p className={ctrl.subtitle}>Grupių nėra — sukurkite žemiau.</p>
-                            ) : (
+                            {groups.length === 0 ? null : (
                                 groups.map((g) => (
                                     <button
                                         key={g.id}
@@ -625,7 +672,7 @@ export default function WorkerEquipmentController() {
                                 <InputFieldText
                                     value={newGroupName}
                                     onChange={setNewGroupName}
-                                    placeholder="Naujos grupės pavadinimas (pvz. Gamyba)"
+                                    placeholder="Pavadinimas"
                                 />
                                 <button
                                     type="button"
@@ -633,7 +680,33 @@ export default function WorkerEquipmentController() {
                                     disabled={!newGroupName.trim() || creatingGroup}
                                     onClick={createGroup}
                                 >
-                                    {creatingGroup ? "Kuriama…" : "Sukurti grupę"}
+                                    {creatingGroup ? "Kuriama…" : "Sukurti ir priskirti įmonei"}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                            <h4 className={ctrl.workerAddTitle}>Pridėti jau esančią grupę</h4>
+                            <div className={ctrl.formRow}>
+                                <InputFieldSelect
+                                    label="Grupė"
+                                    options={linkableGroupOptions}
+                                    selected={linkGroupSelectedLabel}
+                                    placeholder={
+                                        linkableGroupOptions.length === 0
+                                            ? "Nėra grupių arba visos jau priskirtos"
+                                            : "Pasirinkite grupę"
+                                    }
+                                    onChange={setLinkGroupSelection}
+                                    search
+                                />
+                                <button
+                                    type="button"
+                                    className={`${ctrl.button} ${ctrl.buttonPrimary}`}
+                                    disabled={linkingGroup || !linkGroupSelection || linkableGroupOptions.length === 0}
+                                    onClick={linkExistingGroup}
+                                >
+                                    {linkingGroup ? "Jungiama…" : "Priskirti įmonei"}
                                 </button>
                             </div>
                         </div>
@@ -641,33 +714,21 @@ export default function WorkerEquipmentController() {
                 )}
             </aside>
 
-            <section className={ctrl.controller}>
+            <section className={ctrl.controller} aria-label="Pasirinktos grupės redagavimas">
                 <h3 className={ctrl.title}>Grupės turinys</h3>
-                {!companyId ? (
-                    <p className={ctrl.subtitle}>Pasirinkite įmonę kairėje, tada grupę.</p>
-                ) : loadingCompany ? (
+                {!companyId ? null : loadingCompany ? (
                     <p className={ctrl.subtitle}>Kraunama…</p>
-                ) : companyWorkers.length === 0 ? (
-                    <p className={ctrl.subtitle}>Be darbuotojų tipų grupių kurti negalima.</p>
-                ) : groups.length === 0 ? (
-                    <div className={ctrl.panel}>
-                        <p className={ctrl.subtitle}>
-                            Dar nėra grupių. Kairėje įveskite pavadinimą ir spauskite <strong>Sukurti grupę</strong>, tada
-                            čia pridėsite tipus ir priemones.
-                        </p>
-                    </div>
-                ) : selectedGroup ? (
+                ) : groups.length === 0 ? null : selectedGroup ? (
                     <AapGroupEditor
                         group={selectedGroup}
+                        companyId={Number(companyId)}
                         workerOptions={workerOptions}
                         equipmentOptions={equipmentOptions}
                         onReplaceGroup={replaceGroup}
                         onRemoveGroup={removeGroup}
                         onEquipmentUpdated={onEquipmentUpdated}
                     />
-                ) : (
-                    <p className={ctrl.subtitle}>Pasirinkite grupę kairėje.</p>
-                )}
+                ) : null}
             </section>
         </div>
     );

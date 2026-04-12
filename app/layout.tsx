@@ -8,6 +8,7 @@ import PdfViewer from "@/components/pdfViewer/pdfViewer";
 import ContextMenu from "@/components/contextMenu/contextMenu";
 import { ContextMenuProvider } from "@/components/contextMenu/menuComponents/contextMenuProvider";
 import { ConfirmActionProvider } from "@/components/confirmationPanel/confirmationPanel";
+import { NextDevPortalAdminOnly } from "@/components/layout/NextDevPortalAdminOnly";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
+        <NextDevPortalAdminOnly />
         <ConfirmActionProvider>
           <ContextMenuProvider>
             <ContextMenu />

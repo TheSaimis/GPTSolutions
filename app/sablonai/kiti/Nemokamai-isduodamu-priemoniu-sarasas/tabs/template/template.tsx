@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/equipment";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
+import DropZone from "@/components/inputFields/dropZone";
 
 function kindLabel(kind: AapEquipmentTemplateKind): string {
     return kind === "sarasas" ? "AAP sąrašas" : "AAP kortelės + žiniaraščiai";
@@ -17,12 +18,12 @@ function kindLabel(kind: AapEquipmentTemplateKind): string {
 
 function sourceLabel(row: AapEquipmentTemplateStatusRow): string {
     if (row.source === "database") {
-        return "Duomenų bazėje (įkeltas šablonas)";
+        return "DB";
     }
     if (row.source === "filesystem") {
-        return "Failai serveryje (numatytasis)";
+        return "Failai";
     }
-    return "Šablonas nerastas — įkelkite .docx arba .doc";
+    return "Nėra";
 }
 
 function rowsForKind(
@@ -61,10 +62,7 @@ export default function EquipmentTemplate() {
         [],
     );
 
-    const onUpload = async (kind: AapEquipmentTemplateKind, loc: AapTemplateLocale, input: HTMLInputElement) => {
-        const file = input.files?.[0];
-        input.value = "";
-        if (!file) return;
+    const uploadTemplateFile = async (kind: AapEquipmentTemplateKind, loc: AapTemplateLocale, file: File) => {
         const lower = file.name.toLowerCase();
         if (!lower.endsWith(".doc") && !lower.endsWith(".docx")) {
             MessageStore.push({
@@ -125,27 +123,8 @@ export default function EquipmentTemplate() {
 
     return (
         <div className={styles.card}>
-            <p className={styles.itemText}>
-                Dokumentai generuojami iš sistemos duomenų (darbuotojai ir priskirtos priemonės). Galite įkelti savo Word
-                šabloną kiekvienai kalbai (LT, EN, RU) — jis saugomas duomenų bazėje ir naudojamas vietoj numatytųjų failų
-                serveryje (pvz. <code>sarasas-aap EN.docx</code>).
-            </p>
-            <p className={styles.muted}>
-                Lentelė neprivaloma. Įmonės laukai visada: sąrašui <code>{"${Kompanija}"}</code> ir kt.; kortelėms{" "}
-                <code>{"${Kompanija}"}</code>, <code>{"${TIPAS}"}</code>, <code>{"${data}"}</code>. Jei norite lentelės:
-                sąrašui eilutėje <code>{"${pareigybe}"}</code> arba <code>{"${pareigybes}"}</code>,{" "}
-                <code>{"${priemones}"}</code>, <code>{"${terminas}"}</code>,{" "}
-                <code>{"${eilNr}"}</code> (eilės numeris 1, 2, 3… — be <code>#1</code> šablone); be lentelės įdėkite vieną iš{" "}
-                <code>{"${sarasas_turinys}"}</code>, <code>{"${sarasas_duomenys}"}</code>, <code>{"${aap_sarasas}"}</code>{" "}
-                (tekstas su eilutėmis). Kortelėms: <code>{"${pareigybes}"}</code> ir lentelė su{" "}
-                <code>{"${priemones}"}</code>, <code>{"${terminas}"}</code>, <code>{"${kiekis}"}</code>,{" "}
-                <code>{"${vnt}"}</code>, <code>{"${pagrindas}"}</code>, <code>{"${eilNr}"}</code> (eilės Nr.; nenaudokite{" "}
-                <code>{"${eil Nr# 1}"}</code> — rašykite tik <code>{"${eilNr}"}</code>) arba{" "}
-                <code>{"${korteles_turinys}"}</code> / <code>{"${aap_korteles}"}</code>.
-            </p>
-
             {!status ? (
-                <p className={styles.muted}>Kraunama būsena…</p>
+                <p className={styles.muted}>Kraunama…</p>
             ) : (
                 <div style={{ marginTop: 12 }}>
                     {(["sarasas", "korteles"] as const).map((kind) => (
@@ -155,7 +134,7 @@ export default function EquipmentTemplate() {
                                     {rowsForKind(status, kind).map((row) => (
                                         <li
                                             key={`${row.kind}-${row.locale}`}
-                                            className={styles.item}
+                                            className={`${styles.item} ${styles.templateLocaleRow}`}
                                             style={{ flexWrap: "wrap" }}
                                         >
                                             <div className={styles.equipmentItemMain}>
@@ -189,19 +168,44 @@ export default function EquipmentTemplate() {
                                                 ) : null}
                                                 {isAdmin ? (
                                                     <>
-                                                        <label
-                                                            className={`${styles.button} ${styles.buttonCompact}`}
-                                                            style={{ cursor: "pointer" }}
+                                                        <DropZone
+                                                            accept={[".doc", ".docx"]}
+                                                            disabled={uploading !== null}
+                                                            onFiles={(files) => {
+                                                                const f = files[0];
+                                                                if (f) {
+                                                                    void uploadTemplateFile(kind, row.locale, f);
+                                                                }
+                                                            }}
+                                                            className={styles.templateUploadDropZone}
                                                         >
-                                                            {uploading === uploadKey(kind, row.locale) ? "Įkeliama…" : "Įkelti .doc / .docx"}
-                                                            <input
-                                                                type="file"
-                                                                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                                                style={{ display: "none" }}
-                                                                disabled={uploading !== null}
-                                                                onChange={(e) => onUpload(kind, row.locale, e.target)}
-                                                            />
-                                                        </label>
+                                                            <div className={styles.templateUploadDropInner}>
+                                                                <p className={styles.templateUploadHint}>
+                                                                    Nutempkite .doc / .docx čia arba pasirinkite failą.
+                                                                </p>
+                                                                <label
+                                                                    className={`${styles.button} ${styles.buttonCompact} ${styles.templateUploadBrowse}`}
+                                                                    style={{ cursor: "pointer" }}
+                                                                >
+                                                                    {uploading === uploadKey(kind, row.locale)
+                                                                        ? "Įkeliama…"
+                                                                        : "Pasirinkti failą"}
+                                                                    <input
+                                                                        type="file"
+                                                                        accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                                                        style={{ display: "none" }}
+                                                                        disabled={uploading !== null}
+                                                                        onChange={(e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            e.target.value = "";
+                                                                            if (file) {
+                                                                                void uploadTemplateFile(kind, row.locale, file);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </DropZone>
                                                         {row.source === "database" ? (
                                                             <button
                                                                 type="button"
@@ -221,16 +225,6 @@ export default function EquipmentTemplate() {
                             </div>
                     ))}
                 </div>
-            )}
-
-            {!isAdmin ? (
-                <p className={styles.helpNote} style={{ marginTop: 12 }}>
-                    Šablonų įkėlimą gali atlikti tik administratorius (ROLE_ADMIN).
-                </p>
-            ) : (
-                <p className={styles.mutedSmall} style={{ marginTop: 12 }}>
-                    .doc failams serveryje turi būti įdiegtas LibreOffice (konvertavimui į .docx).
-                </p>
             )}
         </div>
     );

@@ -1,4 +1,5 @@
 import { api, DownloadResult } from "./api";
+import { encodePathForApiUrl } from "../functions/encodePathForApiUrl";
 import {
   CreateFileResponse,
   CreateFilesResponse,
@@ -27,12 +28,13 @@ export const FilesApi = {
         filename: path.split("/").pop() ?? "download",
       };
     }
-    const res = await api.getBlob(`/api/files/download/${path}`);
+    const res = await api.getBlob(`/api/files/download/${encodePathForApiUrl(path)}`);
     setCachedWordFile(path, res.blob);
     return res;
   },
 
-  getPDF: (root: string, path: string) => api.getBlob(`/api/files/pdf/${root}/${path}`),
+  getPDF: (root: string, path: string) =>
+    api.getBlob(`/api/files/pdf/${encodeURIComponent(root)}/${encodePathForApiUrl(path)}`),
 
   /**
    * Upload one or more files to the same directory in a single request.
