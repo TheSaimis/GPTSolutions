@@ -13,6 +13,7 @@ final class DocxMetadataService
         'documentdata',
         'templatetype',
         'templatepath',
+        'customvariables',
     ];
 
     /**

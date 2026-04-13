@@ -9,7 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * AAP Word šablonai (sąrašas / kortelės) — turinys saugomas DB; generavimas naudoja pirmiau DB, paskui failus diske.
+ * AAP Word šablonai (sąrašas / kortelės) — įkėlus saugoma DB kopija ir sinchronizuojama į templates/AAP/*.docx; generavimas skaito tik iš templates/AAP.
  */
 #[ORM\Entity(repositoryClass: AapEquipmentWordTemplateRepository::class)]
 #[ORM\Table(name: 'aap_equipment_word_template')]

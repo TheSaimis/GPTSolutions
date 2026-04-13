@@ -12,8 +12,10 @@ use App\Entity\RiskGroup;
 use App\Entity\RiskList;
 use App\Entity\RiskSubcategory;
 use App\Entity\Worker;
+use App\Services\Metadata\FlowMacroIgnores;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -60,17 +62,25 @@ final class RiskExcelService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly string $projectDir,
+        private readonly CreateFile $createFile,
+        private readonly AddWordDocument $addWordDocument,
     ) {}
 
     /**
-     * @param string|null $nameAndSurname Tekstas virš parašo linijos dešinėje (nekeičia etiketės žemiau).
-     * @param string|null $role            Tekstas virš parašo linijos kairėje (nekeičia „(pareigos)“ žemiau).
+     * Vienas lapas: šablono blokas kopijuojamas žemiau kiekvienam darbuotojui. Neįterpiamos eilutės/stulpeliai:
+     * rizikų zonoje išvaloma ir uždedama „+“, ${pareigybe} pakeičiama į darbuotojo pavadinimą, tada CreateFile užpildo įmonės rekvizitus.
+     *
+     * @param array<string, mixed>|null $createFileExtras Papildomi laukai į CreateFile (įskaitant „replacements“).
      */
-    public function generate(int $companyId, ?string $nameAndSurname = null, ?string $role = null): string
-    {
+    public function generate(
+        int $companyId,
+        ?string $nameAndSurname = null,
+        ?string $role = null,
+        ?array $createFileExtras = null,
+    ): string {
         $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
         if ($company === null) {
-            throw new \InvalidArgumentException("Įmonė nerastas: ID {$companyId}");
+            throw new \InvalidArgumentException('Company not found: ID ' . $companyId);
         }
 
         $workers = $this->getCompanyWorkers($company);
@@ -80,61 +90,207 @@ final class RiskExcelService
         }
 
         if ($workers === []) {
-            throw new \InvalidArgumentException("Įmonei \"{$companyName}\" nepriskirta darbuotojų");
+            throw new \InvalidArgumentException('No workers assigned for company: ' . $companyName);
         }
 
-        $bodyParts  = $this->getOrderedBodyParts();
+        $bodyParts = $this->getOrderedBodyParts();
 
         $templatePath = $this->resolveTemplatePath();
+        $this->addWordDocument->ensureTemplateCustomMetadata(
+            $templatePath,
+            basename($templatePath),
+            null,
+            FlowMacroIgnores::riskAssessmentExcel()
+        );
         $spreadsheet  = IOFactory::load($templatePath);
-        $sheet        = $spreadsheet->getSheet(0);
-        $sheet->setTitle('Rizikos vertinimas');
-
-        $highestRow = $sheet->getHighestRow();
-        if ($highestRow > self::TEMPLATE_BLOCK_HEIGHT) {
-            $sheet->removeRow(self::TEMPLATE_BLOCK_HEIGHT + 1, $highestRow - self::TEMPLATE_BLOCK_HEIGHT);
-        }
+        $this->keepFirstWorksheetOnly($spreadsheet);
+        $sheet = $spreadsheet->getSheet(0);
 
         $templateMerges = $this->collectTemplateBlockMerges($sheet);
-        $bodyRowByPart  = $this->buildBodyRowMap($bodyParts);
+        $bodyRowByPart   = $this->buildBodyRowMap($bodyParts);
+
+        // Copy every extra block from row 1 while it is still the untouched template.
+        // If we copied after filling / ${pareigybe} replacement on block 1, later blocks would get the first worker’s literal text.
+        $workerCount = count($workers);
+        for ($index = 1; $index < $workerCount; $index++) {
+            $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
+            $this->copyTemplateBlock($sheet, 1, $blockStart, $templateMerges);
+        }
 
         foreach ($workers as $index => $worker) {
             $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
-            if ($index > 0) {
-                $this->copyTemplateBlock($sheet, 1, $blockStart, $templateMerges);
-            }
-
             $riskPoints = $this->buildRiskPoints($worker, $bodyRowByPart);
-            $this->fillWorkerBlock(
-                $sheet,
-                $blockStart,
-                $company,
-                $companyName,
-                $worker,
-                $riskPoints,
-                $nameAndSurname,
-                $role
-            );
+            $this->fillRiskGridPlusOnly($sheet, $blockStart, $riskPoints);
+            $this->replacePareigybePlaceholdersInBlock($sheet, $blockStart, $worker->getName());
         }
 
         $this->applyRiskExportPrintLayout($sheet, count($workers));
-
         $this->removeYellowFill($sheet);
 
-        $outputDir = $this->projectDir . '/var/risk_export';
-        if (! is_dir($outputDir)) {
-            mkdir($outputDir, 0775, true);
+        $stagingDir = $this->projectDir . '/var/risk_export';
+        if (! is_dir($stagingDir)) {
+            mkdir($stagingDir, 0775, true);
         }
 
-        $slug     = preg_replace('/[^\w]+/', '_', $companyName) ?: 'company';
-        $filename = 'rizikos_vertinimas_' . $slug . '.xlsx';
-        $path     = $outputDir . '/' . $filename;
-
-        $writer = new XlsxWriter($spreadsheet);
-        $writer->save($path);
+        $slug        = preg_replace('/[^\w]+/', '_', $companyName) ?: 'company';
+        $stagingName = 'aap_risk_stage_' . $slug . '_' . bin2hex(random_bytes(4)) . '.xlsx';
+        $stagingPath = $stagingDir . '/' . $stagingName;
+        $writer      = new XlsxWriter($spreadsheet);
+        $writer->save($stagingPath);
         $spreadsheet->disconnectWorksheets();
 
-        return $path;
+        $mirror = $this->outputMirrorPartsRelativeToProject($templatePath);
+        $createData = $this->buildCreateFilePayloadForRiskExport(
+            $company,
+            $stagingPath,
+            $templatePath,
+            $role,
+            $nameAndSurname,
+            $createFileExtras,
+            $mirror['directory'],
+            $mirror['template'],
+        );
+
+        try {
+            return $this->createFile->createWordDocument(
+                $createData,
+                'rizikos_vertinimas_' . $slug
+            );
+        } finally {
+            if (is_file($stagingPath)) {
+                @unlink($stagingPath);
+            }
+        }
+    }
+
+    private function keepFirstWorksheetOnly(Spreadsheet $spreadsheet): void
+    {
+        while ($spreadsheet->getSheetCount() > 1) {
+            $spreadsheet->removeSheetByIndex($spreadsheet->getSheetCount() - 1);
+        }
+    }
+
+    /**
+     * @param array<int, array{row:int, col:int}> $riskPoints
+     */
+    private function fillRiskGridPlusOnly(SpreadsheetWorksheet $sheet, int $blockStart, array $riskPoints): void
+    {
+        $dataStartRow = $blockStart + 7;
+        $dataEndRow   = $blockStart + 21;
+
+        for ($r = $dataStartRow; $r <= $dataEndRow; $r++) {
+            for ($c = 3; $c <= self::TEMPLATE_MAX_COL; $c++) {
+                $sheet->setCellValue($this->colLetter($c) . $r, '');
+            }
+        }
+
+        foreach ($riskPoints as $point) {
+            $row = $dataStartRow + ($point['row'] - 1);
+            $sheet->setCellValue($this->colLetter($point['col']) . $row, '+');
+        }
+    }
+
+    private function replacePareigybePlaceholdersInBlock(SpreadsheetWorksheet $sheet, int $blockStart, string $pareigybeText): void
+    {
+        $endRow = $blockStart + self::TEMPLATE_BLOCK_HEIGHT - 1;
+        foreach ($sheet->getRowIterator($blockStart, $endRow) as $row) {
+            foreach ($row->getCellIterator() as $cell) {
+                $cellValue = $cell->getValue();
+                if (! is_string($cellValue) || ! str_contains($cellValue, '${')) {
+                    continue;
+                }
+                $newValue = $cellValue;
+                foreach (['pareigybe', 'pareigybė'] as $placeholderBase) {
+                    $variants = array_unique([
+                        $placeholderBase,
+                        mb_strtolower($placeholderBase, 'UTF-8'),
+                        mb_strtoupper($placeholderBase, 'UTF-8'),
+                        mb_convert_case($placeholderBase, MB_CASE_TITLE, 'UTF-8'),
+                    ]);
+                    foreach ($variants as $v) {
+                        $newValue = str_replace('${' . $v . '}', $pareigybeText, $newValue);
+                    }
+                }
+                if ($newValue !== $cellValue) {
+                    $cell->setValue($newValue);
+                }
+            }
+        }
+    }
+
+    /**
+     * Visada templates/AAP atitikmuo po generated/ (žr. {@see CreateFile::TEMPLATE_CATALOGUE_AAP}).
+     *
+     * @return array{directory: string, template: string}
+     */
+    private function outputMirrorPartsRelativeToProject(string $sourceTemplateAbsolute): array
+    {
+        $normalized = str_replace('\\', '/', $sourceTemplateAbsolute);
+        $filePart   = basename($normalized);
+
+        return [
+            'directory' => CreateFile::TEMPLATE_CATALOGUE_AAP,
+            'template'  => $filePart !== '' ? $filePart : 'AAP.xlsx',
+        ];
+    }
+
+    private function buildCreateFilePayloadForRiskExport(
+        CompanyRequisite $company,
+        string $templateAbsolutePath,
+        string $sourceTemplateAbsoluteForMetadata,
+        ?string $roleOverride,
+        ?string $nameAndSurname,
+        ?array $createFileExtras,
+        string $mirrorDirectory,
+        string $mirrorTemplate,
+    ): array {
+        $companyName = trim((string) $company->getCompanyName());
+        if ($companyName === '') {
+            $companyName = 'Nenurodyta įmonė';
+        }
+
+        $role = $roleOverride !== null && trim($roleOverride) !== ''
+            ? trim($roleOverride)
+            : (string) ($company->getRole() ?? '');
+
+        $base = [
+            'directory'                      => $mirrorDirectory,
+            'template'                       => $mirrorTemplate,
+            'templateAbsolutePath'           => $templateAbsolutePath,
+            'templateMetadataSourcePath'     => $sourceTemplateAbsoluteForMetadata,
+            'skipMirrorTemplatePathToOutput' => false,
+            'forceOutputCatalogueSegment'    => CreateFile::TEMPLATE_CATALOGUE_AAP,
+            'outputDirectory'                => (string) ($company->getDirectory() ?? ''),
+            'kompanija'                      => $companyName,
+            'companyName'                    => $companyName,
+            'companyId'                      => (string) ($company->getId() ?? ''),
+            'kodas'                          => (string) ($company->getCode() ?? ''),
+            'data'                           => (string) ($company->getDocumentDate() ?? ''),
+            'role'                           => $role,
+            'vardas'                         => (string) ($company->getManagerFirstName() ?? ''),
+            'pavarde'                        => (string) ($company->getManagerLastName() ?? ''),
+            'tipas'                          => (string) ($company->getCompanyType() ?? ''),
+            'adresas'                        => (string) ($company->getAddress() ?? ''),
+            'miestas'                        => (string) ($company->getCityOrDistrict() ?? ''),
+        ];
+
+        $extras = $createFileExtras ?? [];
+        $extraRep = [];
+        if (isset($extras['replacements']) && is_array($extras['replacements'])) {
+            $extraRep = $extras['replacements'];
+            unset($extras['replacements']);
+        }
+        $base = array_merge($base, $extras);
+
+        $mergedRep = $extraRep;
+        if ($nameAndSurname !== null && trim($nameAndSurname) !== '') {
+            $mergedRep['eksportoPasirasiusioVardas'] = trim($nameAndSurname);
+        }
+        if ($mergedRep !== []) {
+            $base['replacements'] = $mergedRep;
+        }
+
+        return $base;
     }
 
     // ─── Data fetching ───────────────────────────────
@@ -337,12 +493,16 @@ final class RiskExcelService
             return self::TEMPLATE_ABSOLUTE_PATH;
         }
 
-        $fallback = $this->projectDir . '/otherTemplates/AAP/AAP.xlsx';
-        if (is_file($fallback)) {
-            return $fallback;
+        $fallbackXlsx = $this->projectDir . '/templates/AAP/AAP.xlsx';
+        if (is_file($fallbackXlsx)) {
+            return $fallbackXlsx;
+        }
+        $fallbackLegacy = $this->projectDir . '/otherTemplates/AAP/AAP.xlsx';
+        if (is_file($fallbackLegacy)) {
+            return $fallbackLegacy;
         }
 
-        throw new \RuntimeException('AAP šablono failas nerastas.');
+        throw new \RuntimeException('AAP šablono failas nerastas (templates/AAP/AAP.xlsx).');
     }
 
     /**
@@ -837,7 +997,7 @@ final class RiskExcelService
 
         for ($index = 1; $index < $workerCount; $index++) {
             $blockStart = 1 + ($index * self::TEMPLATE_BLOCK_STRIDE);
-            $sheet->setBreak('A' . $blockStart - 1, SpreadsheetWorksheet::BREAK_ROW);
+            $sheet->setBreak('A' . ($blockStart - 1), SpreadsheetWorksheet::BREAK_ROW);
         }
 
         $pageSetup = $sheet->getPageSetup();

@@ -4,6 +4,7 @@ declare (strict_types = 1);
 
 namespace App\Services;
 
+use App\Services\Metadata\CustomVariableScanner;
 use App\Services\Metadata\DocxMetadataService;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -19,6 +20,7 @@ final class AddWordDocument
     public function __construct(
         private readonly string $projectDir,
         private readonly DocxMetadataService $docxMetadataService,
+        private readonly CustomVariableScanner $customVariableScanner,
     ) {}
 
     /**
@@ -28,10 +30,16 @@ final class AddWordDocument
      * @param UploadedFile $file      Įkeltas .docx failas
      * @param string       $directory Katalogas po templates/ (pvz. "4 Tvarkos" arba "4 Tvarkos/3 Mobingo")
      * @param string       $root      Šakninis katalogas (pvz. "templates")
+     * @param list<string> $ignoreCustomVariablePlaceholders Papildomi ${x} arba x — ignoruojami kaip žinomų makro
+     *
      * @return 'SUCCESS'|'FAIL'
      */
-    public function addWordDocument(UploadedFile $file, string $directory, string $root): array
-    {
+    public function addWordDocument(
+        UploadedFile $file,
+        string $directory,
+        string $root,
+        array $ignoreCustomVariablePlaceholders = [],
+    ): array {
         $directory = trim(str_replace('\\', '/', $directory));
         if ($directory === '' || $directory === '.') {
             $directory = '';
@@ -88,12 +96,21 @@ final class AddWordDocument
             try {
                 $existing = $this->docxMetadataService->readDocxCustomProperties($targetPath);
 
-                $metadataToEnsure = [
+                               $metadataToEnsure = [
                     'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
                     'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
                     'originalName' => $existing['originalName'] ?? $filename,
                     'mimeType'     => $existing['mimeType'] ?? $file->getClientMimeType(),
                 ];
+
+                $unknown = $this->customVariableScanner->listUnknownPlaceholders(
+                    $targetPath,
+                    $ignoreCustomVariablePlaceholders
+                );
+                $metadataToEnsure['customVariables'] = json_encode(
+                    array_values($unknown),
+                    JSON_UNESCAPED_UNICODE
+                ) ?: '[]';
 
                 $this->docxMetadataService->setDocxCustomProperties($targetPath, $metadataToEnsure);
                 $metadata = $this->docxMetadataService->readDocxCustomProperties($targetPath);
@@ -122,6 +139,66 @@ final class AddWordDocument
                 ],
             ],
         ];
+    }
+
+    /**
+     * Užtikrina OOXML custom savybes šablone (kaip po įkėlimo): templateId (UUID jei nėra), uploadedAt, originalName, mimeType.
+     * Tinka .docx ir .xlsx failams diske (AAP, pažymos ir kt.).
+     *
+     * @param list<string> $ignoreCustomVariablePlaceholders Papildomi ignoruojami makro (${x} arba x)
+     *
+     * @return array<string, string> Nuskaityti custom laukai po įrašymo (gali būti tuščias jei nepavyko)
+     */
+    public function ensureTemplateCustomMetadata(
+        string $absolutePath,
+        ?string $originalName = null,
+        ?string $mimeType = null,
+        array $ignoreCustomVariablePlaceholders = [],
+    ): array {
+        $absolutePath = str_replace('\\', '/', $absolutePath);
+        if ($absolutePath === '' || ! is_file($absolutePath) || ! is_readable($absolutePath)) {
+            return [];
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['docx', 'xlsx'], true)) {
+            return [];
+        }
+
+        $name = $originalName !== null && trim($originalName) !== ''
+            ? trim($originalName)
+            : basename($absolutePath);
+        $mime = $mimeType !== null && trim($mimeType) !== ''
+            ? trim($mimeType)
+            : ($ext === 'xlsx'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+        try {
+            $existing = $this->docxMetadataService->readDocxCustomProperties($absolutePath);
+
+            $metadataToEnsure = [
+                'templateId'   => $existing['templateId'] ?? $this->generateUuidV4(),
+                'uploadedAt'   => $existing['uploadedAt'] ?? date('Y-m-d H:i:s'),
+                'originalName' => $existing['originalName'] ?? $name,
+                'mimeType'     => $existing['mimeType'] ?? $mime,
+            ];
+
+            $unknown = $this->customVariableScanner->listUnknownPlaceholders(
+                $absolutePath,
+                $ignoreCustomVariablePlaceholders
+            );
+            $metadataToEnsure['customVariables'] = json_encode(
+                array_values($unknown),
+                JSON_UNESCAPED_UNICODE
+            ) ?: '[]';
+
+            $this->docxMetadataService->setDocxCustomProperties($absolutePath, $metadataToEnsure);
+
+            return $this->docxMetadataService->readDocxCustomProperties($absolutePath);
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /**
@@ -163,8 +240,12 @@ final class AddWordDocument
      *   results: array<array{file: string, status: 'SUCCESS'|'FAIL'}>
      * }
      */
-    public function addWordDocumentsBulk(array $files, string $directory, string $root): array
-    {
+    public function addWordDocumentsBulk(
+        array $files,
+        string $directory,
+        string $root,
+        array $ignoreCustomVariablePlaceholders = [],
+    ): array {
         $results    = [];
         $allSuccess = true;
 
@@ -174,7 +255,7 @@ final class AddWordDocument
             }
 
             $filename = $file->getClientOriginalName() ?: 'unknown';
-            $result   = $this->addWordDocument($file, $directory, $root);
+            $result   = $this->addWordDocument($file, $directory, $root, $ignoreCustomVariablePlaceholders);
             $status   = $result['status'] ?? self::FAIL;
 
             $results[] = [

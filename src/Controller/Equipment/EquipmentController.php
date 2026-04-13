@@ -116,8 +116,12 @@ final class EquipmentController extends AbstractController
             $item->setExpirationDate($expirationDate);
         }
 
-        if (array_key_exists('unitOfMeasurement', $payload) || array_key_exists('unit', $payload)) {
-            $unitRaw = (string) ($payload['unitOfMeasurement'] ?? $payload['unit'] ?? 'vnt');
+        $hasUnitKey = array_key_exists('unitOfMeasurement', $payload)
+            || array_key_exists('unit', $payload)
+            || array_key_exists('unit_of_measurement', $payload);
+        if ($hasUnitKey) {
+            $raw = $payload['unitOfMeasurement'] ?? $payload['unit'] ?? $payload['unit_of_measurement'] ?? '';
+            $unitRaw = is_string($raw) ? $raw : (string) $raw;
             $item->setUnitOfMeasurement($unitRaw);
         }
 

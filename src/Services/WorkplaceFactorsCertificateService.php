@@ -8,6 +8,7 @@ use App\Entity\CompanyRequisite;
 use App\Entity\Worker;
 use App\Entity\WorkerRisk;
 use App\Services\Metadata\DocxMetadataService;
+use App\Services\Metadata\FlowMacroIgnores;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -43,10 +44,15 @@ final class WorkplaceFactorsCertificateService
         'checkPeriod',
     ];
 
+    /** Numatytasis sugeneruoto .docx vardas (be plėtinio) — taip pat fillFileBulk, kai šablonas pažymos .docx. */
+    public const OUTPUT_DOCUMENT_STEM = 'Sveikatos tikrinimo pazyma + knyga';
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CreateFile $createFile,
         private readonly DocxMetadataService $docxMetadataService,
+        private readonly AddWordDocument $addWordDocument,
+        private readonly string $projectDir,
     ) {}
 
     /**
@@ -80,16 +86,25 @@ final class WorkplaceFactorsCertificateService
             throw new \InvalidArgumentException('Įmonė nerasta');
         }
 
-        $templatePathNorm = str_replace('\\', '/', urldecode(trim((string) $effective['templatePath'])));
+        // rawurldecode — ne urldecode: urldecode „+“ paverčia tarpu ir sugadina kelius su „+“ faile.
+        $templatePathNorm = str_replace('\\', '/', rawurldecode(trim((string) $effective['templatePath'])));
         if ($templatePathNorm === '' || str_contains($templatePathNorm, '..') || str_starts_with($templatePathNorm, '/')) {
             throw new \InvalidArgumentException('Invalid template path');
         }
 
-        $directory = dirname($templatePathNorm);
-        if ($directory === '.') {
-            $directory = '';
-        }
         $template = basename($templatePathNorm);
+        $templatesRoot    = str_replace('\\', '/', rtrim($this->projectDir, '/\\')) . '/templates';
+        $fullTemplatePath = $templatesRoot . '/' . $templatePathNorm;
+        if (! is_file($fullTemplatePath) || ! is_readable($fullTemplatePath)) {
+            throw new \InvalidArgumentException('Šablonas nerastas: templates/' . $templatePathNorm);
+        }
+
+        $this->addWordDocument->ensureTemplateCustomMetadata(
+            $fullTemplatePath,
+            $template,
+            null,
+            FlowMacroIgnores::healthCertificate()
+        );
 
         $workerRowsDb = null;
         if ($effective['useWorkerSnapshot']) {
@@ -113,9 +128,13 @@ final class WorkplaceFactorsCertificateService
         $createFileReplacements = array_diff_key($healthReplacements, array_flip(self::HEALTH_ROW_MARKER_KEYS));
 
         $companyData = $this->buildCompanyData($company, $effective['userContext']);
-        $companyData['directory'] = $directory;
-        $companyData['template'] = $template;
-        $companyData['replacements'] = array_merge($createFileReplacements, $effective['customReplacements']);
+        $companyData['directory']                 = CreateFile::TEMPLATE_CATALOGUE_AAP;
+        $companyData['template']                  = $template;
+        $companyData['templateAbsolutePath']      = $fullTemplatePath;
+        $companyData['templateMetadataSourcePath'] = $fullTemplatePath;
+        $companyData['forceOutputCatalogueSegment'] = CreateFile::TEMPLATE_CATALOGUE_AAP;
+        $companyData['language']                  = $this->createFile->inferLanguageFromTemplatesRelativePath($templatePathNorm);
+        $companyData['replacements']              = array_merge($createFileReplacements, $effective['customReplacements']);
 
         $documentDataPayload = [
             'checkPeriodsByWorkerId' => $effective['checkPeriodsByWorkerId'],
@@ -166,12 +185,14 @@ final class WorkplaceFactorsCertificateService
         ?array $documentDataOverride,
     ): array {
         if ($documentDataOverride === null) {
+            $templateBasename = basename(str_replace('\\', '/', $templatePath));
+
             return [
                 'companyId' => $companyId,
                 'templatePath' => $templatePath,
                 'checkPeriodsByWorkerId' => $this->normalizeWorkerIdStringMap($checkPeriodsByWorkerId),
                 'userContext' => $userContext,
-                'name' => $name,
+                'name' => $this->resolveHealthCertificateOutputStem($name, $templateBasename),
                 'customReplacements' => $customReplacements,
                 'useWorkerSnapshot' => false,
                 'workerRowsSnapshot' => null,
@@ -193,22 +214,54 @@ final class WorkplaceFactorsCertificateService
             $effName = ($n === null || is_string($n)) ? $n : $name;
         }
 
+        $effTemplatePath = isset($o['templatePath']) ? (string) $o['templatePath'] : $templatePath;
+        $templateBasename = basename(str_replace('\\', '/', $effTemplatePath));
+
         return [
             'companyId' => $effCompanyId,
-            'templatePath' => isset($o['templatePath']) ? (string) $o['templatePath'] : $templatePath,
+            'templatePath' => $effTemplatePath,
             'checkPeriodsByWorkerId' => isset($o['checkPeriodsByWorkerId']) && is_array($o['checkPeriodsByWorkerId'])
                 ? $this->normalizeWorkerIdStringMap($o['checkPeriodsByWorkerId'])
                 : $this->normalizeWorkerIdStringMap($checkPeriodsByWorkerId),
             'userContext' => isset($o['userContext']) && is_array($o['userContext'])
                 ? $o['userContext']
                 : $userContext,
-            'name' => $effName,
+            'name' => $this->resolveHealthCertificateOutputStem(
+                is_string($effName) || $effName === null ? $effName : null,
+                $templateBasename
+            ),
             'customReplacements' => isset($o['customReplacements']) && is_array($o['customReplacements'])
                 ? $o['customReplacements']
                 : $customReplacements,
             'useWorkerSnapshot' => $useWorkerSnapshot,
             'workerRowsSnapshot' => $useWorkerSnapshot ? array_values($workerRowsRaw) : null,
         ];
+    }
+
+    /**
+     * Jei `documentData.name` ar kitur lieka šablono vardas (pvz. „pazyma.docx“), CreateFile išvestį pavadintų
+     * „pazyma.docx“ — todėl tokius atvejus laikome tuščiais ir naudojame {@see OUTPUT_DOCUMENT_STEM}.
+     *
+     * @param non-empty-string $templateFileBasename pvz. „pazyma.docx“
+     */
+    private function resolveHealthCertificateOutputStem(?string $name, string $templateFileBasename): string
+    {
+        $templateStem = pathinfo($templateFileBasename, PATHINFO_FILENAME);
+        $templateStem = is_string($templateStem) ? $templateStem : '';
+
+        $t = $name !== null ? trim($name) : '';
+        if ($t === '') {
+            return self::OUTPUT_DOCUMENT_STEM;
+        }
+
+        $candidateStem = pathinfo(str_replace('\\', '/', $t), PATHINFO_FILENAME);
+        $candidateStem = is_string($candidateStem) ? $candidateStem : '';
+
+        if ($candidateStem === '' || ($templateStem !== '' && strcasecmp($candidateStem, $templateStem) === 0)) {
+            return self::OUTPUT_DOCUMENT_STEM;
+        }
+
+        return $t;
     }
 
     /**

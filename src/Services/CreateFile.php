@@ -15,7 +15,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
  * Sukuria Word (.docx) failą iš šablono, pakeičiant žymes duotais duomenimis.
  *
  * Tikėtini $data raktai (lietuviškai arba anglų):
- *   - directory, template – šablono kelias
+ *   - directory, template – šablono kelias po templates/
+ *   - templateAbsolutePath (neprival.) – pilnas skaitomas kelias į .xlsx/.docx šabloną; jei nustatytas, naudojamas vietoj directory/template
  *   - kompanija / companyName – įmonės pavadinimas
  *   - kodas / code – įmonės kodas
  *   - data / documentDate – dokumento data pagal šablono kalbą (LT/EN/RU); ${dataSkaitmenimis} = Y-m-d
@@ -30,6 +31,9 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *   - Išvestis: generated/{outputDirectory arba tipas/įmonė}/{šablonoKatalogasPoTemplates}/failas.docx —
  *     šablonoKatalogasPoTemplates = tik poaplankiai po templates/, be failo vardo (pvz. Path/To kai šablonas
  *     yra templates/Path/To/Template.docx; pats Template yra išvesties failo vardo dalis, ne aplankas).
+ *   - skipMirrorTemplatePathToOutput (bool, neprival.) – jei true, šablono poaplankis po templates/ nepridedamas
+ *   - forceOutputCatalogueSegment (string, neprival.) – priverstinai poaplankis po generated/.../ (pvz. AAP), nepriklausomai nuo directory
+ *   - templateMetadataSourcePath (string, neprival.) – pilnas kelias į šabloną, iš kurio imti templateId (pvz. kai tarpinis failas neturi custom.xml).
  *   - ${atliktiDarbai} – unikalūs šablonų pavadinimai (be plėtinio), po vieną eilutę (\n), pagal templateId
  *     failuose po generated/{companyDirectory arba outputDirectory}; DOCX po generavimo skaidomas į atskiras
  *     sąrašo pastraipas (DocxMultilineListParagraphSplitter), kad kiekviena eilutė turėtų „-“ kaip Word sąraše
@@ -51,6 +55,9 @@ use PhpOffice\PhpWord\TemplateProcessor;
  */
 final class CreateFile
 {
+    /** Poaplankis po generated/{įmonės_kelias}/ atitinkantis šablonus po templates/AAP/. */
+    public const TEMPLATE_CATALOGUE_AAP = 'AAP';
+
     public function __construct(
         private readonly string $projectDir,
         private readonly EntityManagerInterface $em,
@@ -73,7 +80,11 @@ final class CreateFile
         $this->validateData($data);
 
         $template = (string) ($data['template'] ?? '');
-        $ext      = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        $absHead  = $data['templateAbsolutePath'] ?? null;
+        if (trim($template) === '' && is_string($absHead) && $absHead !== '' && is_readable($absHead)) {
+            $template = basename($absHead);
+        }
+        $ext = strtolower(pathinfo($template, PATHINFO_EXTENSION));
 
         if (in_array($ext, ['xls', 'xlsx'], true)) {
             return $this->createSpreadsheetDocument($data, $name);
@@ -114,12 +125,23 @@ final class CreateFile
 
         $tipasKompaktiskas = mb_strlen($companyName, 'UTF-8') > 14 ? $tipas : $tipasPilnas;
 
-        $templatePath = $this->resolveTemplatePath($directory, $template);
+        $templatePath = null;
+        $absTemplate  = $data['templateAbsolutePath'] ?? null;
+        if (is_string($absTemplate) && $absTemplate !== '' && is_readable($absTemplate)) {
+            $templatePath = $absTemplate;
+        }
+        if ($templatePath === null) {
+            $templatePath = $this->resolveTemplatePath($directory, $template);
+        }
         if ($templatePath === null || ! is_readable($templatePath)) {
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
 
-        $ext                 = strtolower(pathinfo($template, PATHINFO_EXTENSION));
+        if (trim($template) === '') {
+            $template = basename($templatePath);
+        }
+
+        $ext                 = strtolower(pathinfo($templatePath, PATHINFO_EXTENSION));
         $workingTemplatePath = $ext === 'doc'
             ? $this->convertDocToDocx->ensureDocxForTemplate($templatePath)
             : $templatePath;
@@ -133,7 +155,7 @@ final class CreateFile
         $outputDir = $outputDirectory !== ''
             ? $this->getGeneratedDir() . '/' . $outputDirectory
             : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
-        $templateCatalogueRel = $this->templatePathSegmentUnderTemplates($directory, $template);
+        $templateCatalogueRel = $this->resolveGeneratedTemplateCatalogueRelative($data, $directory, $template);
         if ($templateCatalogueRel !== '') {
             $outputDir .= '/' . $templateCatalogueRel;
         }
@@ -142,7 +164,7 @@ final class CreateFile
         }
 
         $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $name ?? $baseName . '_' . $companySlug . '.docx';
+        $outputName = $this->resolveGeneratedOutputFilename($name, $baseName, $companySlug, 'docx');
         $outputPath = $outputDir . '/' . $outputName;
 
         $existingOutputMeta = [];
@@ -310,8 +332,7 @@ final class CreateFile
         $this->docxSplitMacroReplacer->apply($outputPath, $splitMacros);
         $this->docxMultilineListParagraphSplitter->expandInDocx($outputPath);
 
-        $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($workingTemplatePath);
-        $templateId       = (string) ($templateMetadata['templateId'] ?? '');
+        $templateId = $this->readTemplateIdFromTemplateSources($data, $workingTemplatePath);
 
         $timezone   = new \DateTimeZone('Europe/Vilnius');
         $now        = (new \DateTimeImmutable('now', $timezone))->format(DATE_ATOM);
@@ -367,7 +388,14 @@ final class CreateFile
 
         $tipasKompaktiskas = mb_strlen($companyName, 'UTF-8') > 14 ? $tipas : $tipasPilnas;
 
-        $templatePath = $this->resolveTemplatePath($directory, $template);
+        $templatePath = null;
+        $absTemplate = $data['templateAbsolutePath'] ?? null;
+        if (is_string($absTemplate) && $absTemplate !== '' && is_readable($absTemplate)) {
+            $templatePath = $absTemplate;
+        }
+        if ($templatePath === null) {
+            $templatePath = $this->resolveTemplatePath($directory, $template);
+        }
         if ($templatePath === null || ! is_readable($templatePath)) {
             throw new \InvalidArgumentException("Šablonas nerastas: {$directory}/{$template}");
         }
@@ -379,7 +407,7 @@ final class CreateFile
         $outputDir = $outputDirectory !== ''
             ? $this->getGeneratedDir() . '/' . $outputDirectory
             : $this->getGeneratedDir() . '/' . $tipasSlug . '/' . $companySlug;
-        $templateCatalogueRel = $this->templatePathSegmentUnderTemplates($directory, $template);
+        $templateCatalogueRel = $this->resolveGeneratedTemplateCatalogueRelative($data, $directory, $template);
         if ($templateCatalogueRel !== '') {
             $outputDir .= '/' . $templateCatalogueRel;
         }
@@ -387,9 +415,9 @@ final class CreateFile
             mkdir($outputDir, 0775, true);
         }
 
-        $ext        = strtolower(pathinfo($template, PATHINFO_EXTENSION));
-        $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $name ?? $baseName . '_' . $companySlug . '.' . $ext;
+        $ext      = strtolower(pathinfo($templatePath, PATHINFO_EXTENSION));
+        $baseName = pathinfo($templatePath, PATHINFO_FILENAME);
+        $outputName = $this->resolveGeneratedOutputFilename($name, $baseName, $companySlug, $ext);
         $outputPath = $outputDir . '/' . $outputName;
 
         $existingOutputMeta = [];
@@ -556,7 +584,8 @@ final class CreateFile
                             mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
                         ]);
                         foreach ($variants as $v) {
-                            $newValue = str_replace('${' . $v . '}', $replacement, $newValue);
+                            $subst    = $this->spreadsheetReplacementForVariant((string) $replacement, $v);
+                            $newValue = str_replace('${' . $v . '}', $subst, $newValue);
                         }
                     }
 
@@ -572,8 +601,7 @@ final class CreateFile
         $spreadsheet->disconnectWorksheets();
 
         if (strtolower(pathinfo($outputPath, PATHINFO_EXTENSION)) === 'xlsx') {
-            $templateMetadata = $this->docxMetadataService->readDocxCustomProperties($templatePath);
-            $templateId       = (string) ($templateMetadata['templateId'] ?? '');
+            $templateId = $this->readTemplateIdFromTemplateSources($data, $templatePath);
 
             $timezone   = new \DateTimeZone('Europe/Vilnius');
             $now        = (new \DateTimeImmutable('now', $timezone))->format(DATE_ATOM);
@@ -600,6 +628,79 @@ final class CreateFile
     }
 
     /**
+     * templateId iš šablono: pirmiausia templateMetadataSourcePath (jei skaitomas), tada primary kelias.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function readTemplateIdFromTemplateSources(array $data, string $primaryReadablePath): string
+    {
+        $candidates = [];
+        $extra      = $data['templateMetadataSourcePath'] ?? null;
+        if (is_string($extra) && $extra !== '') {
+            $norm = str_replace('\\', '/', $extra);
+            if (is_readable($norm)) {
+                $candidates[] = $norm;
+            }
+        }
+        $primary = str_replace('\\', '/', $primaryReadablePath);
+        if ($primary !== '' && is_readable($primary)) {
+            $candidates[] = $primary;
+        }
+        foreach ($candidates as $p) {
+            $meta = $this->docxMetadataService->readDocxCustomProperties($p);
+            $id   = trim((string) ($meta['templateId'] ?? ''));
+            if ($id !== '') {
+                return $id;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Ensures a custom $name without extension still gets the correct output suffix (e.g. .xlsx).
+     *
+     * @param non-empty-string $defaultBaseName
+     * @param non-empty-string $companySlug
+     * @param non-empty-string $outputExt Extension without leading dot (e.g. docx, xlsx)
+     */
+    private function resolveGeneratedOutputFilename(
+        ?string $name,
+        string $defaultBaseName,
+        string $companySlug,
+        string $outputExt,
+    ): string {
+        $outputExt = strtolower(ltrim($outputExt, '.'));
+        if ($outputExt === '') {
+            $outputExt = 'bin';
+        }
+        if ($name === null || trim($name) === '') {
+            return $defaultBaseName . '_' . $companySlug . '.' . $outputExt;
+        }
+        $stem = pathinfo(trim($name), PATHINFO_FILENAME);
+        if ($stem === '') {
+            $stem = $defaultBaseName . '_' . $companySlug;
+        }
+
+        return $stem . '.' . $outputExt;
+    }
+
+    /**
+     * All-uppercase placeholder spelling (e.g. ${KOMPANIJA}) → uppercase replacement; otherwise keep stored casing.
+     */
+    private function spreadsheetReplacementForVariant(string $replacement, string $variant): string
+    {
+        if ($replacement === '') {
+            return $replacement;
+        }
+        if ($variant !== '' && $variant === mb_strtoupper($variant, 'UTF-8')) {
+            return mb_strtoupper($replacement, 'UTF-8');
+        }
+
+        return $replacement;
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     private function validateData(array $data): void
@@ -608,8 +709,12 @@ final class CreateFile
         if (empty($companyName) || ! is_string($companyName) || trim($companyName) === '') {
             throw new \InvalidArgumentException('Būtinas laukas "kompanija" arba "companyName"');
         }
-        if (empty($data['template']) || ! is_string($data['template']) || trim($data['template']) === '') {
-            throw new \InvalidArgumentException('Būtinas laukas "template"');
+        $abs = $data['templateAbsolutePath'] ?? null;
+        $hasReadableAbs = is_string($abs) && $abs !== '' && is_readable($abs);
+        if (! $hasReadableAbs) {
+            if (empty($data['template']) || ! is_string($data['template']) || trim($data['template']) === '') {
+                throw new \InvalidArgumentException('Būtinas laukas "template" arba skaitomas "templateAbsolutePath"');
+            }
         }
     }
 
@@ -787,6 +892,44 @@ final class CreateFile
     }
 
     /**
+     * Poaplankis po generated/{įmonė}/ — iš forceOutputCatalogueSegment arba iš directory/template (žr. templatePathSegmentUnderTemplates).
+     *
+     * @param array<string, mixed> $data
+     */
+    private function resolveGeneratedTemplateCatalogueRelative(array $data, string $directory, string $templateFile): string
+    {
+        if (! empty($data['skipMirrorTemplatePathToOutput'])) {
+            return '';
+        }
+        $forced = $data['forceOutputCatalogueSegment'] ?? null;
+        if (is_string($forced) && trim($forced) !== '') {
+            return $this->sanitizeCatalogueDirSegments($forced);
+        }
+
+        return $this->templatePathSegmentUnderTemplates($directory, $templateFile);
+    }
+
+    private function sanitizeCatalogueDirSegments(string $dir): string
+    {
+        $dir = trim(str_replace('\\', '/', $dir), '/');
+        if ($dir === '' || $dir === '.') {
+            return '';
+        }
+        $parts      = explode('/', $dir);
+        $safeParts = [];
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if ($p === '') {
+                continue;
+            }
+            $sp = $this->sanitizeForFilename($p);
+            $safeParts[] = $sp !== '' ? $sp : $p;
+        }
+
+        return $safeParts === [] ? '' : implode('/', $safeParts);
+    }
+
+    /**
      * Tik katalogo dalis po templates/ (be failo vardo) — failo vardas lieka išvesties pavadinime, ne kaip paskutinis aplankas.
      * Pvz. directory „Path/To“, template „Template.docx“ → „Path/To“. Jei directory tuščias, imama dirname iš template.
      */
@@ -801,19 +944,8 @@ final class CreateFile
             }
             $dir = $parent;
         }
-        $parts = explode('/', $dir);
-        $safeParts = [];
-        foreach ($parts as $p) {
-            $p = trim($p);
-            if ($p === '') {
-                continue;
-            }
-            $sp = $this->sanitizeForFilename($p);
 
-            $safeParts[] = $sp !== '' ? $sp : $p;
-        }
-
-        return $safeParts === [] ? '' : implode('/', $safeParts);
+        return $this->sanitizeCatalogueDirSegments($dir);
     }
 
     private function mapTipasPilnas(string $tipas): string
@@ -977,6 +1109,15 @@ final class CreateFile
             ARRAY_FILTER_USE_KEY
         );
     }
+
+    /**
+     * Kalba iš kelio po templates/ (EN/RU segmentai, failo pavadinimas), kai išvesties aplankas fiksuotas (pvz. AAP).
+     */
+    public function inferLanguageFromTemplatesRelativePath(string $relativeUnderTemplates): string
+    {
+        return $this->detectLanguageFromPath($relativeUnderTemplates);
+    }
+
     /**
      * Kalba: iš užklausos (language/lang), kitaip pagal šablono kelią / pavadinimą
      * (kaip frontend catalogueTreeFilter: segmentai EN/RU/LT, _EN, metadata.custom.language).

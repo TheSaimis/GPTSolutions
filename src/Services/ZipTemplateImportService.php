@@ -24,6 +24,8 @@ final class ZipTemplateImportService
     ) {}
 
     /**
+     * @param list<string> $ignoreCustomVariablePlaceholders
+     *
      * @return array{
      *   status: 'SUCCESS'|'PARTIAL'|'FAIL',
      *   results: list<array{source: string, status: 'SUCCESS'|'FAIL', file?: array, error?: string}>,
@@ -31,8 +33,12 @@ final class ZipTemplateImportService
      *   error?: string
      * }
      */
-    public function import(UploadedFile $zip, string $directory, string $root): array
-    {
+    public function import(
+        UploadedFile $zip,
+        string $directory,
+        string $root,
+        array $ignoreCustomVariablePlaceholders = [],
+    ): array {
         $skipped = [];
         $results = [];
 
@@ -216,7 +222,12 @@ final class ZipTemplateImportService
                     true
                 );
 
-                $result = $this->addWordDocument->addWordDocument($uploaded, $targetDirectory, $root);
+                $result = $this->addWordDocument->addWordDocument(
+                    $uploaded,
+                    $targetDirectory,
+                    $root,
+                    $ignoreCustomVariablePlaceholders
+                );
                 $status = $result['status'] ?? 'FAIL';
 
                 $row = [

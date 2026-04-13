@@ -25,7 +25,7 @@ class Equipment
     #[ORM\Column(length: 120)]
     private string $expirationDate = '';
 
-    /** Matavimo vienetas dokumente (${vnt}): „vnt“, „poros“ ir pan. */
+    /** Matavimo vienetas dokumente (${vnt}): „vnt“, „poros“ arba laisvas tekstas (iki 32 simb.). */
     #[ORM\Column(name: 'unit_of_measurement', length: 32)]
     private string $unitOfMeasurement = 'vnt';
 
@@ -174,28 +174,46 @@ class Equipment
         return $this->expirationDate;
     }
 
-    /** Normalizuoja iš API: leidžiama „vnt“ arba „poros“. */
+    /**
+     * Saugo kaip įvesta (tuščia → „vnt“, ilgis ribojamas iki DB stulpelio).
+     */
     public static function normalizeUnitOfMeasurement(string $raw): string
     {
-        $u = strtolower(trim($raw));
-        if ($u === 'poros' || $u === 'pora' || $u === 'porų') {
-            return 'poros';
+        $u = trim($raw);
+        if ($u === '') {
+            return 'vnt';
+        }
+        if (mb_strlen($u) > 32) {
+            return mb_substr($u, 0, 32);
         }
 
-        return 'vnt';
+        return $u;
     }
 
-    /** Tekstas Word šablono stulpeliui (${vnt}). */
+    /** Word (${vnt}): „vnt“ ir „poros“ (bet koks registras) verčiami; visa kita – kaip įrašyta. */
     public static function documentUnitLabel(string $stored, string $documentLanguage = 'LT'): string
     {
-        $isPoros = self::normalizeUnitOfMeasurement($stored) === 'poros';
+        $norm = self::normalizeUnitOfMeasurement($stored);
         $lang = mb_strtoupper(trim($documentLanguage));
+        $lower = mb_strtolower($norm);
 
-        return match ($lang) {
-            'EN' => $isPoros ? 'Pairs' : 'Pcs.',
-            'RU' => $isPoros ? 'Пары' : 'шт.',
-            default => $isPoros ? 'Poros' : 'Vnt',
-        };
+        if ($lower === 'poros') {
+            return match ($lang) {
+                'EN' => 'Pairs',
+                'RU' => 'Пары',
+                default => 'Poros',
+            };
+        }
+
+        if ($lower === 'vnt') {
+            return match ($lang) {
+                'EN' => 'Pcs.',
+                'RU' => 'шт.',
+                default => 'Vnt',
+            };
+        }
+
+        return $norm;
     }
 
     /** Dokumento ${kiekis}: sveikasis skaičius ≥ 1. */

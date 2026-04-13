@@ -3,6 +3,7 @@ namespace App\Controller;
 
 use App\Services\AddWordDocument;
 use App\Services\AuditLogger;
+use App\Services\Metadata\CustomVariableScanner;
 use App\Services\FileService;
 use App\Services\GetPDF;
 use App\Services\ZipTemplateImportService;
@@ -96,11 +97,15 @@ final class FileController extends AbstractController
             $path = substr($path, strlen($root) + 1);
         }
 
+        $ignoreCustom = CustomVariableScanner::parseIgnoreListFromRequest(
+            $request->request->get('customVariableIgnorePlaceholders')
+        );
+
         $results    = [];
         $anySuccess = false;
         $anyFail    = false;
         foreach ($uploadedFiles as $file) {
-            $result = $this->addWordDocument->addWordDocument($file, $path, $root);
+            $result = $this->addWordDocument->addWordDocument($file, $path, $root, $ignoreCustom);
             $results[] = $result;
             if (($result['status'] ?? '') === 'SUCCESS') {
                 $anySuccess = true;
@@ -149,7 +154,10 @@ final class FileController extends AbstractController
             $path = substr($path, strlen($root) + 1);
         }
 
-        $payload = $this->zipTemplateImportService->import($file, $path, $root);
+        $ignoreCustom = CustomVariableScanner::parseIgnoreListFromRequest(
+            $request->request->get('customVariableIgnorePlaceholders')
+        );
+        $payload = $this->zipTemplateImportService->import($file, $path, $root, $ignoreCustom);
 
         if (isset($payload['error']) && ($payload['results'] ?? []) === []) {
             $this->auditLogger->log("ZIP įkėlimas į {$root}/{$path} nepavyko: " . (string) $payload['error']);

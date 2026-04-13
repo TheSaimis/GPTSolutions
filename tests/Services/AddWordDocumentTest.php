@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Services;
 
 use App\Services\AddWordDocument;
+use App\Services\Metadata\CustomVariableScanner;
+use App\Services\Metadata\DocxMetadataService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -19,16 +21,24 @@ final class AddWordDocumentTest extends TestCase
         $this->templatesDir = $this->projectDir . '/templates';
     }
 
+    private function service(): AddWordDocument
+    {
+        return new AddWordDocument(
+            $this->projectDir,
+            new DocxMetadataService(),
+            new CustomVariableScanner()
+        );
+    }
+
     public function testAddWordDocumentReturnsFailForNonDocExtension(): void
     {
         $tmpFile = $this->tmpFile('.txt', 'content');
         $upload  = new UploadedFile($tmpFile, 'document.txt', 'text/plain', \UPLOAD_ERR_OK, true);
 
-        $service = new AddWordDocument($this->projectDir);
-        $dir     = '__addword_test_' . \uniqid();
-        $result  = $service->addWordDocument($upload, $dir);
+        $dir = '__addword_test_' . \uniqid();
+        $result = $this->service()->addWordDocument($upload, $dir, 'templates');
 
-        self::assertSame('FAIL', $result);
+        self::assertSame('FAIL', $result['status'] ?? '');
         @\unlink($tmpFile);
     }
 
@@ -42,10 +52,9 @@ final class AddWordDocumentTest extends TestCase
 
         $this->removeIfExists($this->templatesDir . '/' . $dirName);
 
-        $service = new AddWordDocument($this->projectDir);
-        $result  = $service->addWordDocument($upload, $dirName);
+        $result = $this->service()->addWordDocument($upload, $dirName, 'templates');
 
-        self::assertSame('SUCCESS', $result);
+        self::assertSame('SUCCESS', $result['status'] ?? '');
         self::assertFileExists($target);
 
         $this->removeIfExists($this->templatesDir . '/' . $dirName);
@@ -54,10 +63,8 @@ final class AddWordDocumentTest extends TestCase
 
     public function testCreateFolderReturnsFailForEmptyDirectory(): void
     {
-        $service = new AddWordDocument($this->projectDir);
-
-        self::assertSame('FAIL', $service->createFolder(''));
-        self::assertSame('FAIL', $service->createFolder('.'));
+        self::assertSame('FAIL', $this->service()->createFolder('', 'templates'));
+        self::assertSame('FAIL', $this->service()->createFolder('.', 'templates'));
     }
 
     public function testCreateFolderReturnsSuccessAndCreatesDirectory(): void
@@ -67,8 +74,7 @@ final class AddWordDocumentTest extends TestCase
 
         $this->removeIfExists($full);
 
-        $service = new AddWordDocument($this->projectDir);
-        $result  = $service->createFolder($dirName);
+        $result = $this->service()->createFolder($dirName, 'templates');
 
         self::assertSame('SUCCESS', $result);
         self::assertDirectoryExists($full);
@@ -84,8 +90,7 @@ final class AddWordDocumentTest extends TestCase
         $dirName = '__addword_bulk_' . \uniqid();
         $this->removeIfExists($this->templatesDir . '/' . $dirName);
 
-        $service = new AddWordDocument($this->projectDir);
-        $result  = $service->addWordDocumentsBulk([$upload], $dirName);
+        $result = $this->service()->addWordDocumentsBulk([$upload], $dirName, 'templates');
 
         self::assertArrayHasKey('status', $result);
         self::assertArrayHasKey('results', $result);

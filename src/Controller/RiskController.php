@@ -4,6 +4,8 @@ declare (strict_types = 1);
 
 namespace App\Controller;
 
+use App\Services\AddWordDocument;
+use App\Services\Metadata\FlowMacroIgnores;
 use App\Services\RiskExcelService;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,20 +24,21 @@ final class RiskController extends AbstractController
 {
     public function __construct(
         private readonly RiskExcelService $riskExcelService,
+        private readonly AddWordDocument $addWordDocument,
     ) {}
 
     /**
      * GET /api/risk/export/{companyId}?nameAndSurname=...&role=...
-     * POST /api/risk/export/{companyId} — JSON: { "nameAndSurname": "...", "role": "..." }
+     * POST /api/risk/export/{companyId} — JSON: { "nameAndSurname", "role", "createFile"|"createFileExtras": { ... CreateFile laukai, "replacements": {} } }
      * Sugeneruoja .xlsx failą su rizikos vertinimo lentelėmis kiekvienam įmonės darbuotojui.
      */
     #[Route('/export/{companyId}', name: 'api_risk_export', methods: ['GET', 'POST'], requirements: ['companyId' => '\d+'])]
     public function export(Request $request, int $companyId): JsonResponse | BinaryFileResponse
     {
-        [$nameAndSurname, $role] = $this->parseRiskExportSignerParams($request);
+        [$nameAndSurname, $role, $createFileExtras] = $this->parseRiskExportSignerParams($request);
 
         try {
-            $path = $this->riskExcelService->generate($companyId, $nameAndSurname, $role);
+            $path = $this->riskExcelService->generate($companyId, $nameAndSurname, $role, $createFileExtras);
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
         } catch (\Throwable $e) {
@@ -56,21 +59,28 @@ final class RiskController extends AbstractController
     }
 
     /**
-     * @return array{0: ?string, 1: ?string} [nameAndSurname, role]
+     * @return array{0: ?string, 1: ?string, 2: ?array<string, mixed>} [nameAndSurname, role, createFileExtras]
      */
     private function parseRiskExportSignerParams(Request $request): array
     {
         if ($request->isMethod('POST')) {
             $data = json_decode($request->getContent(), true);
             if (! is_array($data)) {
-                return [null, null];
+                return [null, null, null];
             }
             $ns = trim((string) ($data['nameAndSurname'] ?? ''));
             $r  = trim((string) ($data['role'] ?? ''));
+            $extras = null;
+            if (isset($data['createFile']) && is_array($data['createFile'])) {
+                $extras = $data['createFile'];
+            } elseif (isset($data['createFileExtras']) && is_array($data['createFileExtras'])) {
+                $extras = $data['createFileExtras'];
+            }
 
             return [
                 $ns !== '' ? $ns : null,
                 $r !== '' ? $r : null,
+                $extras,
             ];
         }
 
@@ -80,6 +90,7 @@ final class RiskController extends AbstractController
         return [
             $ns !== '' ? $ns : null,
             $r !== '' ? $r : null,
+            null,
         ];
     }
 
@@ -108,7 +119,7 @@ final class RiskController extends AbstractController
         }
 
         $projectDir = $kernel->getProjectDir();
-        $targetDir  = $projectDir . '/otherTemplates/AAP';
+        $targetDir  = $projectDir . '/templates/AAP';
         $targetPath = $targetDir . '/AAP.xlsx';
         $saveWarning = null;
 
@@ -123,10 +134,17 @@ final class RiskController extends AbstractController
                     @unlink($targetPath);
                 }
                 if (! @copy($tmpPath, $targetPath)) {
-                    $saveWarning = 'Nepavyko išsaugoti AAP.xlsx kopijos kataloge otherTemplates/AAP.';
+                    $saveWarning = 'Nepavyko išsaugoti AAP.xlsx kopijos kataloge templates/AAP.';
+                } elseif (is_file($targetPath) && is_readable($targetPath)) {
+                    $this->addWordDocument->ensureTemplateCustomMetadata(
+                        $targetPath,
+                        'AAP.xlsx',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        FlowMacroIgnores::riskAssessmentExcel()
+                    );
                 }
             } else {
-                $saveWarning = 'otherTemplates/AAP katalogas nėra writable, AAP.xlsx kopija neišsaugota.';
+                $saveWarning = 'templates/AAP katalogas nėra writable, AAP.xlsx kopija neišsaugota.';
             }
         } catch (\Throwable $e) {
             $saveWarning = 'AAP.xlsx kopijos išsaugojimas nepavyko: ' . $e->getMessage();

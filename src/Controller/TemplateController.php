@@ -7,7 +7,9 @@ use App\Services\AuditLogger;
 use App\Services\CreateFile;
 use App\Services\FileService;
 use App\Services\GetPDF;
+use App\Services\Metadata\CustomVariableScanner;
 use App\Services\Metadata\FindTemplate;
+use App\Services\WorkplaceFactorsCertificateService;
 use App\Services\ZipFiles;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -185,7 +187,10 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['status' => 'FAIL'], 400);
         }
 
-        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates');
+        $ignoreCustom = CustomVariableScanner::parseIgnoreListFromRequest(
+            $request->request->get('customVariableIgnorePlaceholders')
+        );
+        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates', $ignoreCustom);
         $status = $result['status'] ?? 'FAIL';
         if ($status === 'SUCCESS') {
             $this->auditLogger->log("Įkeltas šablonas į templates/{$directory}");
@@ -354,7 +359,8 @@ final class TemplateController extends AbstractController
         foreach ($templateJobs as $job) {
             $tplPath = $job['path'];
 
-            $tplPath = str_replace('\\', '/', urldecode(trim($tplPath)));
+            // rawurldecode — ne urldecode: urldecode „+“ paverčia tarpu ir sugadina kelius su „+“ faile.
+            $tplPath = str_replace('\\', '/', rawurldecode(trim($tplPath)));
 
             // Security: must be relative inside /templates
             if (str_contains($tplPath, '..') || str_starts_with($tplPath, '/')) {
@@ -377,12 +383,13 @@ final class TemplateController extends AbstractController
             }
 
             try {
+                $effectiveName = $this->resolveFillBulkOutputName($name, $template, $tplPath);
                 $generatedPath = $this->createFile->createWordDocument(
                     array_merge($payload, [
                         'directory' => $directory,
                         'template'  => $template,
                     ]),
-                    $name
+                    $effectiveName
                 );
 
                 $generatedFiles[] = $generatedPath;
@@ -471,7 +478,10 @@ final class TemplateController extends AbstractController
             return new JsonResponse(['error' => 'Trūksta failo lauko „template“'], 400);
         }
 
-        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates');
+        $ignoreCustom = CustomVariableScanner::parseIgnoreListFromRequest(
+            $request->request->get('customVariableIgnorePlaceholders')
+        );
+        $result = $this->addWordDocument->addWordDocument($file, $directory, 'templates', $ignoreCustom);
         $status = $result['status'] ?? 'FAIL';
 
         if ($status !== 'SUCCESS') {
@@ -761,6 +771,60 @@ final class TemplateController extends AbstractController
         }
 
         return (string) $company->resolveTipasPilnasForDocuments();
+    }
+
+    /**
+     * Ar šablonas yra sveikatos tikrinimo pažyma (tas pats kelias kaip WorkplaceFactorsCertificateController).
+     */
+    private function isWorkplaceFactorsCertificateBulkTemplate(string $templateRelativePath): bool
+    {
+        $p = str_replace('\\', '/', trim($templateRelativePath));
+        foreach (
+            [
+                'AAP/Sveikatos tikrinimo pazyma + knyga.docx',
+                'AAP/pazyma.docx',
+                'otherTemplates/pazyma/pazyma.docx',
+            ] as $canonical
+        ) {
+            if (strcasecmp($p, $canonical) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * fillFileBulk: jei šablonas pažyma ir `name` tuščias arba sutampa su šablono stem —
+     * naudojame {@see WorkplaceFactorsCertificateService::OUTPUT_DOCUMENT_STEM}, kad neišsaugotų kaip pazyma.docx.
+     *
+     * @param string|null $name iš užklausos (gali būti null, tuščia eilutė arba „pazyma“ / „pazyma.docx“)
+     */
+    private function resolveFillBulkOutputName(?string $name, string $templateFilename, string $templateRelativePath): ?string
+    {
+        if (! $this->isWorkplaceFactorsCertificateBulkTemplate($templateRelativePath)) {
+            return $name;
+        }
+
+        $stem = WorkplaceFactorsCertificateService::OUTPUT_DOCUMENT_STEM;
+        $n    = $name !== null ? trim($name) : '';
+        if ($n === '') {
+            return $stem;
+        }
+
+        $nameStem = pathinfo(str_replace('\\', '/', $n), PATHINFO_FILENAME);
+        $tplStem  = pathinfo(str_replace('\\', '/', $templateFilename), PATHINFO_FILENAME);
+        $nameStem = is_string($nameStem) ? $nameStem : '';
+        $tplStem  = is_string($tplStem) ? $tplStem : '';
+
+        if ($nameStem !== '' && $tplStem !== '' && strcasecmp($nameStem, $tplStem) === 0) {
+            return $stem;
+        }
+        if ($nameStem !== '' && strcasecmp($nameStem, 'pazyma') === 0) {
+            return $stem;
+        }
+
+        return $n;
     }
 
     /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\AddWordDocument;
+use App\Services\Metadata\FlowMacroIgnores;
 use App\Services\AuditLogger;
 use App\Services\WorkplaceFactorsCertificateService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,11 +19,20 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/workplace-factors-certificate')]
 final class WorkplaceFactorsCertificateController extends AbstractController
 {
-    private const TEMPLATE_PATH = 'otherTemplates/pazyma/pazyma.docx';
+    /** Failo vardas diske po įkėlimo (templates/AAP/…). */
+    private const TEMPLATE_BASENAME = 'Sveikatos tikrinimo pazyma + knyga.docx';
+
+    private const TEMPLATE_PATH = 'AAP/Sveikatos tikrinimo pazyma + knyga.docx';
+
+    /** Senesnės diegtys, kur šablonas dar vadinamas pazyma.docx. */
+    private const TEMPLATE_PATH_LEGACY_AAP = 'AAP/pazyma.docx';
+
+    private const TEMPLATE_PATH_LEGACY = 'otherTemplates/pazyma/pazyma.docx';
 
     public function __construct(
         private readonly WorkplaceFactorsCertificateService $certificateService,
         private readonly AuditLogger $auditLogger,
+        private readonly AddWordDocument $addWordDocument,
     ) {}
 
     /**
@@ -31,7 +42,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
      *   "companyId": 1,
      *   "checkPeriods": { "1": "1 metai", "2": "2 metai" },
      *   "replacements": { ... papildomi custom laukai ... },
-     *   "templatePath": "otherTemplates/pazyma/pazyma.docx",  // optional; overrides default template file
+     *   "templatePath": "AAP/Sveikatos tikrinimo pazyma + knyga.docx",  // optional; overrides default
      *   "documentData": { "workerRows": [...], ... } | "json string"  // optional fill-only replay; company still from DB
      * }
      */
@@ -64,10 +75,15 @@ final class WorkplaceFactorsCertificateController extends AbstractController
         $templatePath = self::resolveCertificateTemplatePath($data, $documentDataOverride);
 
         $projectDir = (string) $this->getParameter('kernel.project_dir');
-        $absoluteTemplatePath = $projectDir . '/templates/' . $templatePath;
+        [$templatePath, $absoluteTemplatePath] = $this->resolveExistingCertificateTemplate(
+            $projectDir,
+            $templatePath
+        );
         if (! is_file($absoluteTemplatePath)) {
             return new JsonResponse([
-                'error' => 'Nerastas pažymos šablonas. Įkelkite jį per /api/workplace-factors-certificate/template/upload',
+                'error' => 'Nerastas pažymos šablonas (templates/' . self::TEMPLATE_PATH
+                    . ', templates/' . self::TEMPLATE_PATH_LEGACY_AAP . ' arba legacy '
+                    . self::TEMPLATE_PATH_LEGACY . '). Įkelkite per /api/workplace-factors-certificate/template/upload',
             ], 400);
         }
 
@@ -151,7 +167,7 @@ final class WorkplaceFactorsCertificateController extends AbstractController
     /**
      * POST /api/workplace-factors-certificate/template/upload
      * Form-data: template=<docx file>
-     * Uploads/overwrites templates/otherTemplates/pazyma/pazyma.docx
+     * Uploads/overwrites templates/AAP/Sveikatos tikrinimo pazyma + knyga.docx
      */
     #[Route('/template/upload', name: 'api_workplace_factors_certificate_template_upload', methods: ['POST'])]
     public function uploadTemplate(Request $request): JsonResponse
@@ -167,23 +183,38 @@ final class WorkplaceFactorsCertificateController extends AbstractController
         }
 
         $projectDir = (string) $this->getParameter('kernel.project_dir');
-        $targetDirectory = $projectDir . '/templates/otherTemplates/pazyma';
+        $targetDirectory = $projectDir . '/templates/AAP';
 
         if (! is_dir($targetDirectory) && ! @mkdir($targetDirectory, 0775, true) && ! is_dir($targetDirectory)) {
             return new JsonResponse(['error' => 'Nepavyko sukurti šablonų katalogo'], 500);
         }
 
+        $savedBasename = self::TEMPLATE_BASENAME;
         try {
-            $file->move($targetDirectory, 'pazyma.docx');
+            $file->move($targetDirectory, $savedBasename);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Nepavyko įkelti šablono: ' . $e->getMessage()], 500);
         }
+
+        $savedPath = $targetDirectory . '/' . $savedBasename;
+        $legacyOld = $targetDirectory . '/pazyma.docx';
+        if (is_file($legacyOld) && realpath($legacyOld) !== realpath($savedPath)) {
+            @unlink($legacyOld);
+        }
+
+        $this->addWordDocument->ensureTemplateCustomMetadata(
+            $savedPath,
+            $savedBasename,
+            $file->getClientMimeType() ?: null,
+            FlowMacroIgnores::healthCertificate()
+        );
 
         $this->auditLogger->log('Atnaujintas pažymos šablonas: templates/' . self::TEMPLATE_PATH);
 
         return new JsonResponse([
             'status' => 'SUCCESS',
             'template' => self::TEMPLATE_PATH,
+            'path'     => 'templates/' . self::TEMPLATE_PATH,
         ]);
     }
 
@@ -212,5 +243,32 @@ final class WorkplaceFactorsCertificateController extends AbstractController
         }
 
         return self::TEMPLATE_PATH;
+    }
+
+    /**
+     * @return array{0: string, 1: string} Santykinis kelias po templates/ ir absoliutus kelias diske.
+     */
+    private function resolveExistingCertificateTemplate(string $projectDir, string $requestedPath): array
+    {
+        $absolute = $projectDir . '/templates/' . $requestedPath;
+        if (is_file($absolute)) {
+            return [$requestedPath, $absolute];
+        }
+
+        $chain = match ($requestedPath) {
+            self::TEMPLATE_PATH => [self::TEMPLATE_PATH_LEGACY_AAP, self::TEMPLATE_PATH_LEGACY],
+            self::TEMPLATE_PATH_LEGACY_AAP => [self::TEMPLATE_PATH, self::TEMPLATE_PATH_LEGACY],
+            self::TEMPLATE_PATH_LEGACY => [self::TEMPLATE_PATH, self::TEMPLATE_PATH_LEGACY_AAP],
+            default => [],
+        };
+
+        foreach ($chain as $rel) {
+            $try = $projectDir . '/templates/' . $rel;
+            if (is_file($try)) {
+                return [$rel, $try];
+            }
+        }
+
+        return [$requestedPath, $absolute];
     }
 }

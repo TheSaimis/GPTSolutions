@@ -9,6 +9,8 @@ use App\Entity\Equipment;
 use App\Entity\Worker;
 use App\Entity\WorkerItem;
 use App\Repository\AapEquipmentWordTemplateRepository;
+use App\Services\AddWordDocument;
+use App\Services\Metadata\FlowMacroIgnores;
 use App\Services\AapEquipmentWordDocumentService;
 use App\Services\AuditLogger;
 use App\Services\ConvertDocToDocx;
@@ -35,6 +37,7 @@ final class EquipmentTemplate extends AbstractController
         private readonly AapEquipmentWordTemplateRepository $aapEquipmentWordTemplateRepository,
         private readonly ConvertDocToDocx $convertDocToDocx,
         private readonly GetPDF $getPDF,
+        private readonly AddWordDocument $addWordDocument,
     ) {}
 
     private function normalizeAapLocaleParam(mixed $raw): string
@@ -145,17 +148,28 @@ final class EquipmentTemplate extends AbstractController
         foreach ([AapEquipmentWordDocumentService::OUTPUT_SARASAS, AapEquipmentWordDocumentService::OUTPUT_KORTELES] as $kind) {
             foreach (['lt', 'en', 'ru'] as $locale) {
                 $row = ['kind' => $kind, 'locale' => $locale];
-                $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
-                if ($entity instanceof AapEquipmentWordTemplate && $entity->getContent() !== '') {
-                    $row['source'] = 'database';
-                    $row['originalFilename'] = $entity->getOriginalFilename();
-                    $row['updatedAt'] = $entity->getUpdatedAt()->format(DATE_ATOM);
+                $abs = $this->aapEquipmentWordDocumentService->getAapFilesystemTemplateAbsolutePath($kind, $locale);
+                if ($abs !== null && is_file($abs)) {
+                    $projectDir = str_replace('\\', '/', rtrim((string) $this->getParameter('kernel.project_dir'), '/\\'));
+                    $norm = str_replace('\\', '/', $abs);
+                    $row['source'] = 'templates/AAP';
+                    $row['path'] = str_starts_with($norm, $projectDir . '/')
+                        ? substr($norm, strlen($projectDir) + 1)
+                        : $norm;
+                    $row['originalFilename'] = basename($abs);
+                    $row['updatedAt'] = date(DATE_ATOM, (int) filemtime($abs));
                 } else {
-                    $row['source'] = $this->aapEquipmentWordDocumentService->hasFilesystemTemplate($kind, $locale)
-                        ? 'filesystem'
-                        : 'none';
+                    $row['source'] = 'none';
+                    $row['path'] = null;
                     $row['originalFilename'] = null;
                     $row['updatedAt'] = null;
+                }
+                $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
+                $row['dbCopy'] = $entity instanceof AapEquipmentWordTemplate && $entity->getContent() !== '';
+                if ($row['dbCopy']) {
+                    $row['dbUpdatedAt'] = $entity->getUpdatedAt()->format(DATE_ATOM);
+                } else {
+                    $row['dbUpdatedAt'] = null;
                 }
                 $templates[] = $row;
             }
@@ -166,7 +180,7 @@ final class EquipmentTemplate extends AbstractController
 
     /**
      * GET /api/equipment-template/aap-template/{kind}/pdf
-     * Esamo šablono (.docx, įskaitant iš DB) peržiūra PDF (LibreOffice).
+     * Esamo šablono (.docx iš templates/AAP) peržiūra PDF (LibreOffice).
      */
     #[Route('/aap-template/{kind}/pdf', name: 'api_equipment_template_aap_pdf', methods: ['GET'], requirements: ['kind' => 'sarasas|korteles'])]
     public function aapTemplatePdf(Request $request, string $kind): JsonResponse|BinaryFileResponse
@@ -196,6 +210,53 @@ final class EquipmentTemplate extends AbstractController
         $response->headers->set('Content-Type', 'application/pdf');
         $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, $filename);
+
+        return $response;
+    }
+
+    /**
+     * GET /api/equipment-template/aap-template/{kind}/docx?locale=lt|en|ru
+     * Atsisiunčiamas Word šablonas (.docx iš templates/AAP).
+     */
+    #[Route('/aap-template/{kind}/docx', name: 'api_equipment_template_aap_docx', methods: ['GET'], requirements: ['kind' => 'sarasas|korteles'])]
+    public function aapTemplateDocx(Request $request, string $kind): JsonResponse|BinaryFileResponse
+    {
+        $locale = $this->normalizeAapLocaleParam($request->query->get('locale', 'lt'));
+
+        try {
+            $docxPath = $this->aapEquipmentWordDocumentService->getTemplateDocxAbsolutePath($kind, $locale);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 404);
+        }
+
+        $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
+        $filename = null;
+        if ($entity instanceof AapEquipmentWordTemplate && $entity->getContent() !== '') {
+            $orig = $entity->getOriginalFilename();
+            if (is_string($orig) && $orig !== '') {
+                $base = basename(str_replace('\\', '/', $orig));
+                if ($base !== '' && $base !== '.' && $base !== '..') {
+                    $stem = pathinfo($base, PATHINFO_FILENAME);
+                    if (is_string($stem) && $stem !== '') {
+                        $filename = $stem . '.docx';
+                    }
+                }
+            }
+        }
+        if ($filename === null || $filename === '') {
+            $loc = mb_strtoupper($locale);
+            $filename = $kind === AapEquipmentWordDocumentService::OUTPUT_SARASAS
+                ? 'AAP_sarasas_sablonas_' . $loc . '.docx'
+                : 'AAP_korteles_sablonas_' . $loc . '.docx';
+        }
+
+        $response = new BinaryFileResponse($docxPath);
+        $response->headers->set(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        $response->headers->set('Cache-Control', 'private, no-store, must-revalidate');
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $filename);
 
         return $response;
     }
@@ -246,6 +307,26 @@ final class EquipmentTemplate extends AbstractController
 
         $originalName = $file->getClientOriginalName();
 
+        $tmp = @tempnam(sys_get_temp_dir(), 'aap_wt_');
+        if ($tmp !== false) {
+            try {
+                if (@file_put_contents($tmp, $docxBinary) !== false) {
+                    $this->addWordDocument->ensureTemplateCustomMetadata(
+                        $tmp,
+                        $originalName,
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        FlowMacroIgnores::aapEquipmentWord()
+                    );
+                    $readBack = @file_get_contents($tmp);
+                    if ($readBack !== false && $readBack !== '') {
+                        $docxBinary = $readBack;
+                    }
+                }
+            } finally {
+                @unlink($tmp);
+            }
+        }
+
         $entity = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $locale);
         if (! $entity instanceof AapEquipmentWordTemplate) {
             $entity = (new AapEquipmentWordTemplate())
@@ -276,9 +357,23 @@ final class EquipmentTemplate extends AbstractController
             $entity = $existing;
         }
 
-        $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind);
+        $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind, $locale);
 
-        $this->auditLogger->log('Įkeltas AAP Word šablonas į DB (kind=' . $kind . ', locale=' . $locale . '): ' . $entity->getOriginalFilename());
+        try {
+            $materializedAbsolute = $this->aapEquipmentWordDocumentService->syncDbAapTemplateToDisk($entity);
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'error' => 'DB saved but templates/AAP write failed: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        $projectDir = str_replace('\\', '/', rtrim((string) $this->getParameter('kernel.project_dir'), '/\\'));
+        $materializedNorm = str_replace('\\', '/', $materializedAbsolute);
+        $materializedRelative = (str_starts_with($materializedNorm, $projectDir . '/'))
+            ? substr($materializedNorm, strlen($projectDir) + 1)
+            : $materializedNorm;
+
+        $this->auditLogger->log('Įkeltas AAP Word šablonas (DB + templates/AAP, kind=' . $kind . ', locale=' . $locale . '): ' . $entity->getOriginalFilename());
 
         return new JsonResponse([
             'ok' => true,
@@ -286,6 +381,7 @@ final class EquipmentTemplate extends AbstractController
             'locale' => $locale,
             'originalFilename' => $entity->getOriginalFilename(),
             'updatedAt' => $entity->getUpdatedAt()->format(DATE_ATOM),
+            'materializedPath' => $materializedRelative,
         ]);
     }
 
@@ -305,7 +401,7 @@ final class EquipmentTemplate extends AbstractController
         $name = $entity->getOriginalFilename();
         $this->em->remove($entity);
         $this->em->flush();
-        $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind);
+        $this->aapEquipmentWordDocumentService->clearMaterializedDbTemplates($kind, $locale);
 
         $this->auditLogger->log('Pašalintas AAP Word šablonas iš DB (kind=' . $kind . ', locale=' . $locale . '): ' . $name);
 

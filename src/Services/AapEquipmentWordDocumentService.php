@@ -7,14 +7,15 @@ namespace App\Services;
 use App\Entity\AapEquipmentWordTemplate;
 use App\Entity\CompanyRequisite;
 use App\Entity\Equipment;
-use App\Repository\AapEquipmentWordTemplateRepository;
+use App\Services\Metadata\FlowMacroIgnores;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpWord\TemplateProcessor;
 use ZipArchive;
 
 /**
- * Word šablonai „AAP sąrašas“ ir „AAP kortelės + žiniaraščiai“ pagal
- * otherTemplates/aap-korteles-ziniarasciai/*.docx (arba .doc → LibreOffice).
+ * Word šablonai „AAP sąrašas“ ir „AAP kortelės + žiniaraščiai“ — generavimas skaito tik .docx po templates/AAP/
+ * (konstantos TEMPLATE_SARASAS_DOCX, TEMPLATE_KORTELES_DOCX ir EN/RU variantai tame pačiame aplanke).
+ * Admin įkėlimas saugo kopiją DB, bet vientisas šaltinis generavimui yra failas templates/AAP (žr. syncDbAapTemplateToDisk).
  *
  * Sąrašas (pasirinktinai): lentelė su ${pareigybe}/${pareigybes}, ${priemones}, ${terminas}, ${eilNr} ir cloneRow;
  *   jei lentelės nėra — užpildoma tik ${sarasas_turinys} arba ${sarasas_duomenys} arba ${aap_sarasas} (laisvas tekstas).
@@ -22,8 +23,9 @@ use ZipArchive;
  * Kortelėse — viena lentelės eilutė vienai priemonei (sąraše galima sujungti kelias į vieną eilutę).
  * Kelios reikšmės langelyje — \\n (Word lūžis per PhpWord).
  * Kortelės: ${pareigybes} + lentelė ${priemones}, ${terminas}, ${kiekis}, ${vnt}, ${pagrindas}, ${eilNr} (eilės Nr. 1, 2, 3… — šablone rašyti be #1, klonavimas prideda) arba ${korteles_turinys}/${aap_korteles}.
+ * Kelios AAP grupės (kortelėms): kiekvienai grupei generuojamas visas šablonas iš naujo ir sujungiamas su puslapio lūžiu (ne viena bendra lentelė ir ne antras puslapis rankiniu kopijavimu — PhpWord užpildo tik pirmą kintamųjų sritį).
  * Po lentelės generavimo „Pagrindas išduoti“ stulpelis su tuo pačiu tekstu visose eilutėse automatiškai sujungiamas vertikaliai (w:vMerge).
- * Įmonės rekvizitai ir bendri šablono laukai užpildomi per CreateFile (tarpinis .docx saugomas templates/_aap_temp/).
+ * Įmonės rekvizitai ir bendri šablono laukai užpildomi per CreateFile (tarpinis .docx — laikinas katalogas, ne šablonas).
  * Abu dokumentai — abu .docx lieka generated/ įmonės aplane; ZIP atsisiuntimui kuriamas tik laikinai (var/) ir ištrinamas po siuntimo.
  */
 final class AapEquipmentWordDocumentService
@@ -32,16 +34,16 @@ final class AapEquipmentWordDocumentService
 
     public const OUTPUT_KORTELES = 'korteles';
 
-    private const TEMPLATE_SARASAS_DOCX = 'templates/otherTemplates/aap-korteles-ziniarasciai/sarasas-aap.docx';
+    /** Kanoniniai šablonų vardai diske (templates/AAP/) — LT be priesagos, EN/RU: „ … EN.docx“ / „ … RU.docx“. */
+    private const TEMPLATE_SARASAS_DOCX = 'templates/AAP/AAP sąrašas.docx';
 
-    private const TEMPLATE_SARASAS_DOC = 'templates/otherTemplates/aap-korteles-ziniarasciai/sarasas-aap.doc';
-
-    private const TEMPLATE_KORTELES_DOCX = 'templates/otherTemplates/aap-korteles-ziniarasciai/korteles-ziniarasciai.docx';
-
-    private const TEMPLATE_KORTELES_DOC = 'templates/otherTemplates/aap-korteles-ziniarasciai/korteles-ziniarasciai.doc';
+    private const TEMPLATE_KORTELES_DOCX = 'templates/AAP/AAP kortelės + žiniaraščiai.docx';
 
     /** Kelios reikšmės viename lentelės langelyje — TemplateProcessor paverčia į Word eilučių lūžius. */
     private const CELL_LIST_SEPARATOR = "\n";
+
+    /** Kelios pareigybės ${pareigybes} antraštėje (kortelės / laisvas tekstas). */
+    private const PAREIGYBES_DISPLAY_SEPARATOR = ' / ';
 
     private const OOXML_W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
@@ -53,10 +55,9 @@ final class AapEquipmentWordDocumentService
     public function __construct(
         private readonly string $projectDir,
         private readonly CreateEquipmentDocument $createEquipmentDocument,
-        private readonly ConvertDocToDocx $convertDocToDocx,
         private readonly EntityManagerInterface $em,
-        private readonly AapEquipmentWordTemplateRepository $aapEquipmentWordTemplateRepository,
         private readonly CreateFile $createFile,
+        private readonly AddWordDocument $addWordDocument,
     ) {}
 
     private function normalizeAapLocale(?string $raw): string
@@ -118,12 +119,18 @@ final class AapEquipmentWordDocumentService
         };
     }
 
+    /**
+     * Kanoninis .docx šablonas templates/AAP (tik šis katalogas; be .doc ir be otherTemplates).
+     */
     private function tryResolveFilesystemTemplate(string $kind, string $locale): ?string
     {
-        [$docxRel, $docRel] = $kind === self::OUTPUT_SARASAS
-            ? [self::TEMPLATE_SARASAS_DOCX, self::TEMPLATE_SARASAS_DOC]
-            : [self::TEMPLATE_KORTELES_DOCX, self::TEMPLATE_KORTELES_DOC];
+        $docxRel = $kind === self::OUTPUT_SARASAS ? self::TEMPLATE_SARASAS_DOCX : self::TEMPLATE_KORTELES_DOCX;
 
+        return $this->tryResolveAapDocxTemplate($docxRel, $locale);
+    }
+
+    private function tryResolveAapDocxTemplate(string $docxRel, string $locale): ?string
+    {
         $dir = pathinfo($docxRel, PATHINFO_DIRNAME);
         $base = pathinfo($docxRel, PATHINFO_FILENAME);
         $ext = pathinfo($docxRel, PATHINFO_EXTENSION);
@@ -144,43 +151,152 @@ final class AapEquipmentWordDocumentService
             }
         }
 
-        $docDir = pathinfo($docRel, PATHINFO_DIRNAME);
-        $docBase = pathinfo($docRel, PATHINFO_FILENAME);
-        $docExt = pathinfo($docRel, PATHINFO_EXTENSION);
-        $tryDoc = $this->projectDir . '/' . $docDir . '/' . $docBase . $suffix . '.' . $docExt;
-        if (is_file($tryDoc) && is_readable($tryDoc)) {
-            return $this->convertDocToDocx->ensureDocxForTemplate($tryDoc);
+        return null;
+    }
+
+    /**
+     * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES $kind
+     */
+    public function getAapFilesystemTemplateAbsolutePath(string $kind, ?string $locale = null): ?string
+    {
+        if ($kind !== self::OUTPUT_SARASAS && $kind !== self::OUTPUT_KORTELES) {
+            return null;
         }
-        if ($suffix !== '') {
-            $fallbackDoc = $this->projectDir . '/' . $docRel;
-            if (is_file($fallbackDoc) && is_readable($fallbackDoc)) {
-                return $this->convertDocToDocx->ensureDocxForTemplate($fallbackDoc);
+
+        return $this->tryResolveFilesystemTemplate($kind, $this->normalizeAapLocale($locale ?? 'lt'));
+    }
+
+    /**
+     * Išvalo iš disko šablonus templates/AAP (po įkėlimo / trynimo).
+     * Kanoniniai vardai: {@see materializedDbAapTemplateFilename}; taip pat senesni techniniai ir UTF-8 legacy vardai.
+     *
+     * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES|null $kind
+     * @param 'lt'|'en'|'ru'|null                             $templateLocale jei nustatyta kartu su $kind — trinamas tik tas vienas failas
+     */
+    public function clearMaterializedDbTemplates(?string $kind = null, ?string $templateLocale = null): void
+    {
+        $dir = $this->projectDir . '/templates/AAP';
+        if (! is_dir($dir)) {
+            return;
+        }
+
+        $kinds = $kind !== null ? [$kind] : [self::OUTPUT_SARASAS, self::OUTPUT_KORTELES];
+        $locales = $templateLocale !== null
+            ? [$this->normalizeAapLocale($templateLocale)]
+            : ['lt', 'en', 'ru'];
+
+        foreach ($kinds as $k) {
+            if ($k !== self::OUTPUT_SARASAS && $k !== self::OUTPUT_KORTELES) {
+                continue;
             }
-        } else {
-            $fallbackDoc = $this->projectDir . '/' . $docRel;
-            if (is_file($fallbackDoc) && is_readable($fallbackDoc)) {
-                return $this->convertDocToDocx->ensureDocxForTemplate($fallbackDoc);
+            foreach ($locales as $loc) {
+                $file = $dir . '/' . $this->materializedDbAapTemplateFilename($k, $loc);
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+                $legacyName = $this->legacyMaterializedDbAapTemplateFilename($k, $loc);
+                if ($legacyName !== null) {
+                    $legacyPath = $dir . '/' . $legacyName;
+                    if (is_file($legacyPath)) {
+                        @unlink($legacyPath);
+                    }
+                }
+                $technicalLegacy = $this->legacyTechnicalAapTemplateFilename($k, $loc);
+                if ($technicalLegacy !== null) {
+                    $technicalPath = $dir . '/' . $technicalLegacy;
+                    if (is_file($technicalPath)) {
+                        @unlink($technicalPath);
+                    }
+                }
             }
+        }
+
+        if ($kind === null && $templateLocale === null) {
+            foreach (['sarasas_*.docx', 'korteles_*.docx'] as $pat) {
+                foreach (glob($dir . '/' . $pat) ?: [] as $file) {
+                    @unlink($file);
+                }
+            }
+        }
+    }
+
+    /**
+     * Po įkėlimo į DB — iškart užrašo blob į templates/AAP (be PDF peržiūros).
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
+     */
+    public function syncDbAapTemplateToDisk(AapEquipmentWordTemplate $entity): string
+    {
+        $bytes = $entity->getContent();
+        if ($bytes === null || $bytes === '') {
+            throw new \InvalidArgumentException('Tuščias AAP šablono turinys');
+        }
+
+        $path = $this->materializeDbTemplateDocx($entity, $bytes);
+        $this->addWordDocument->ensureTemplateCustomMetadata(
+            $path,
+            $entity->getOriginalFilename() !== '' ? $entity->getOriginalFilename() : basename($path),
+            null,
+            FlowMacroIgnores::aapEquipmentWord()
+        );
+
+        return $path;
+    }
+
+    /**
+     * DB šablono failo pavadinimas po templates/AAP/ — sutampa su {@see tryResolveFilesystemTemplate} pirminiais vardais.
+     *
+     * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES $kind
+     */
+    private function materializedDbAapTemplateFilename(string $kind, string $locale): string
+    {
+        $loc = $this->normalizeAapLocale($locale);
+        $suffix = $loc === 'en' ? ' EN' : ($loc === 'ru' ? ' RU' : '');
+        $relDocx = $kind === self::OUTPUT_SARASAS ? self::TEMPLATE_SARASAS_DOCX : self::TEMPLATE_KORTELES_DOCX;
+        $base = pathinfo($relDocx, PATHINFO_FILENAME);
+        $base = is_string($base) && $base !== ''
+            ? $base
+            : ($kind === self::OUTPUT_SARASAS ? 'AAP sąrašas' : 'AAP kortelės + žiniaraščiai');
+
+        return $base . $suffix . '.docx';
+    }
+
+    /**
+     * Senas DB išmaterialinimo vardas (prieš kanoninį sutapatinimą) — pašalinamas, kad neliktų dviejų skirtingų templateId.
+     *
+     * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES $kind
+     */
+    private function legacyMaterializedDbAapTemplateFilename(string $kind, string $locale): ?string
+    {
+        $loc = $this->normalizeAapLocale($locale);
+        $suffix = $loc === 'en' ? ' EN' : ($loc === 'ru' ? ' RU' : '');
+        if ($kind === self::OUTPUT_SARASAS) {
+            return 'aap S' . "\xC4\x84" . 'RA' . "\xC5\xA0" . 'AS' . $suffix . '.docx';
+        }
+        if ($kind === self::OUTPUT_KORTELES) {
+            return 'aap KORTEL' . "\xC4\x96" . 'S+' . "\xC5\xBD" . 'INIARA' . "\xC5\xA0" . "\xC4\x8C" . 'IAI' . $suffix . '.docx';
         }
 
         return null;
     }
 
     /**
-     * Išvalo iš disko iš DB išmaterializuotus .docx (po įkėlimo / trynimo).
+     * Seni techniniai vardai (sarasas-aap / korteles-ziniarasciai) — pašalinami įrašant naują kanoninį failą.
+     *
+     * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES $kind
      */
-    public function clearMaterializedDbTemplates(?string $kind = null): void
+    private function legacyTechnicalAapTemplateFilename(string $kind, string $locale): ?string
     {
-        $dir = $this->projectDir . '/var/aap-db-templates';
-        if (! is_dir($dir)) {
-            return;
+        $loc = $this->normalizeAapLocale($locale);
+        $suffix = $loc === 'en' ? ' EN' : ($loc === 'ru' ? ' RU' : '');
+        if ($kind === self::OUTPUT_SARASAS) {
+            return 'sarasas-aap' . $suffix . '.docx';
         }
-        $pattern = $kind !== null
-            ? $dir . '/' . preg_quote($kind, '/') . '_*.docx'
-            : $dir . '/*.docx';
-        foreach (glob($pattern) ?: [] as $file) {
-            @unlink($file);
+        if ($kind === self::OUTPUT_KORTELES) {
+            return 'korteles-ziniarasciai' . $suffix . '.docx';
         }
+
+        return null;
     }
 
     public function hasFilesystemTemplate(string $kind, ?string $locale = null): bool
@@ -539,6 +655,16 @@ final class AapEquipmentWordDocumentService
     }
 
     /**
+     * Galutinis .docx kelias po generated/, sutampantis su {@see CreateFile} (įmonės katalogas + AAP + failas).
+     */
+    private function resolveGeneratedAbsoluteAapDocumentPath(CompanyRequisite $company, string $outBasename): string
+    {
+        $seg = trim(str_replace('\\', '/', CreateFile::TEMPLATE_CATALOGUE_AAP), '/');
+
+        return $this->resolveGeneratedAbsoluteOutputDir($company) . '/' . $seg . '/' . ltrim(str_replace('\\', '/', $outBasename), '/');
+    }
+
+    /**
      * Kaip {@see CreateFile::createDocxDocument}: `{šablonoVardasBePlėtinio}_{įmonėsSlug}.docx`.
      */
     private function buildAapGeneratedDocxBasename(CompanyRequisite $company, string $kind, string $documentLocale): string
@@ -559,20 +685,6 @@ final class AapEquipmentWordDocumentService
         $localeCandidates = $loc !== 'lt' ? [$loc, 'lt'] : ['lt'];
 
         foreach ($localeCandidates as $tryLoc) {
-            $fromDb = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $tryLoc);
-            if ($fromDb instanceof AapEquipmentWordTemplate && $fromDb->getContent() !== '') {
-                $orig = trim($fromDb->getOriginalFilename());
-                if ($orig !== '') {
-                    $stem = pathinfo($orig, PATHINFO_FILENAME);
-
-                    return is_string($stem) && $stem !== '' ? $stem : $this->defaultAapTemplateStem($kind);
-                }
-
-                return $this->defaultAapTemplateStem($kind);
-            }
-        }
-
-        foreach ($localeCandidates as $tryLoc) {
             $fs = $this->tryResolveFilesystemTemplate($kind, $tryLoc);
             if ($fs !== null) {
                 $stem = pathinfo($fs, PATHINFO_FILENAME);
@@ -586,7 +698,7 @@ final class AapEquipmentWordDocumentService
 
     private function defaultAapTemplateStem(string $kind): string
     {
-        return $kind === self::OUTPUT_SARASAS ? 'sarasas-aap' : 'korteles-ziniarasciai';
+        return $kind === self::OUTPUT_SARASAS ? 'AAP sąrašas' : 'AAP kortelės + žiniaraščiai';
     }
 
     /**
@@ -606,18 +718,43 @@ final class AapEquipmentWordDocumentService
         }
 
         $outBasename = $this->buildAapGeneratedDocxBasename($company, $kind, $documentLocale);
-        $outPath = $outDir . '/' . $outBasename;
+        $outPath = $this->resolveGeneratedAbsoluteAapDocumentPath($company, $outBasename);
+        $aapDir = dirname($outPath);
+        if (! is_dir($aapDir) && ! mkdir($aapDir, 0775, true) && ! is_dir($aapDir)) {
+            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $aapDir);
+        }
+
+        if ($kind === self::OUTPUT_KORTELES && $this->shouldMergeKortelesPerGroup($payload)) {
+            $groups = $this->filterPayloadGroups($payload);
+            $this->renderKortelesMergedToAbsolutePath(
+                $company,
+                $groups,
+                $kortelesPagrindasOverride,
+                $documentLocale,
+                $outPath
+            );
+
+            return $outPath;
+        }
 
         $stagingPath = $this->createStagingTemplatePath();
         try {
-            $this->renderTemplate($kind, $company, $tableRows, $stagingPath, $kortelesPagrindasOverride, $documentLocale);
+            $templateMetaSource = $this->renderTemplate(
+                $kind,
+                $company,
+                $tableRows,
+                $stagingPath,
+                $kortelesPagrindasOverride,
+                $documentLocale
+            );
             $generatedPath = $this->finalizeAapThroughCreateFile(
                 $stagingPath,
                 $company,
                 $kind,
                 $kortelesPagrindasOverride,
                 $outBasename,
-                $documentLocale
+                $documentLocale,
+                $templateMetaSource
             );
             if ($generatedPath !== $outPath) {
                 throw new \RuntimeException(
@@ -661,18 +798,46 @@ final class AapEquipmentWordDocumentService
         }
 
         $outBasename = $this->buildAapGeneratedDocxBasename($company, $kind, $documentLocale);
-        $outPath = $outDir . '/' . $outBasename;
+        $outPath = $this->resolveGeneratedAbsoluteAapDocumentPath($company, $outBasename);
+        $aapDir = dirname($outPath);
+        if (! is_dir($aapDir) && ! mkdir($aapDir, 0775, true) && ! is_dir($aapDir)) {
+            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $aapDir);
+        }
+
+        if ($kind === self::OUTPUT_KORTELES && $this->shouldMergeKortelesPerGroup($payload)) {
+            $groups = $this->filterPayloadGroups($payload);
+            $this->renderKortelesMergedToAbsolutePath(
+                $company,
+                $groups,
+                $kortelesPagrindasOverride,
+                $documentLocale,
+                $outPath
+            );
+            if (! @copy($outPath, $tmpPath)) {
+                throw new \RuntimeException('Nepavyko nukopijuoti ZIP dalies dokumento');
+            }
+
+            return $tmpPath;
+        }
 
         $stagingPath = $this->createStagingTemplatePath();
         try {
-            $this->renderTemplate($kind, $company, $tableRows, $stagingPath, $kortelesPagrindasOverride, $documentLocale);
+            $templateMetaSource = $this->renderTemplate(
+                $kind,
+                $company,
+                $tableRows,
+                $stagingPath,
+                $kortelesPagrindasOverride,
+                $documentLocale
+            );
             $generatedPath = $this->finalizeAapThroughCreateFile(
                 $stagingPath,
                 $company,
                 $kind,
                 $kortelesPagrindasOverride,
                 $outBasename,
-                $documentLocale
+                $documentLocale,
+                $templateMetaSource
             );
             if ($generatedPath !== $outPath) {
                 throw new \RuntimeException(
@@ -695,6 +860,9 @@ final class AapEquipmentWordDocumentService
      *
      * @param list<array{pareigybe: string, priemones: string, terminas: string}> $tableRows
      */
+    /**
+     * @return string Absoliutus kelias iki šablono (templateMetadataSourcePath CreateFile).
+     */
     private function renderTemplate(
         string $kind,
         CompanyRequisite $company,
@@ -702,7 +870,7 @@ final class AapEquipmentWordDocumentService
         string $stagingOutputPath,
         ?string $kortelesPagrindasOverride = null,
         string $documentLocale = 'lt'
-    ): void {
+    ): string {
         $working = $this->resolveWorkingTemplatePath($kind, $documentLocale);
         $langUpper = $this->documentLanguageUpper($documentLocale);
 
@@ -735,7 +903,18 @@ final class AapEquipmentWordDocumentService
                 ];
             }
             try {
-                $processor->cloneRowAndSetValues('priemones', $kortelesTableRows);
+                $clonedAny = false;
+                for ($region = 0; $region < 50; $region++) {
+                    try {
+                        $processor->cloneRowAndSetValues('priemones', $kortelesTableRows);
+                        $clonedAny = true;
+                    } catch (\Throwable) {
+                        break;
+                    }
+                }
+                if (! $clonedAny) {
+                    throw new \RuntimeException('Nerasta ${priemones} eilutė kortelių šablone');
+                }
                 $mergeKortelesPagrindasColumn = true;
             } catch (\Throwable) {
                 $this->applyOptionalMacroIfPresent(
@@ -781,6 +960,10 @@ final class AapEquipmentWordDocumentService
 
         $processor->saveAs($stagingOutputPath);
 
+        if ($kind === self::OUTPUT_KORTELES) {
+            $this->removeTableCellNoWrapFromDocx($stagingOutputPath);
+        }
+
         if ($mergeKortelesPagrindasColumn && $kortelesPagrindasForMerge !== '') {
             try {
                 $this->mergeKortelesPagrindasColumnInDocx($stagingOutputPath, $kortelesPagrindasForMerge);
@@ -788,16 +971,224 @@ final class AapEquipmentWordDocumentService
                 // Best-effort: dokumentas vis tiek tinkamas, tik be vertikalaus suliejimo.
             }
         }
+
+        return $working;
     }
 
     private function createStagingTemplatePath(): string
     {
-        $dir = $this->projectDir . '/templates/_aap_temp';
-        if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
-            throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $dir);
+        $tmp = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR . '/\\') . DIRECTORY_SEPARATOR
+            . 'lpsk_aap_stage_' . bin2hex(random_bytes(8)) . '.docx';
+
+        return $tmp;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function shouldMergeKortelesPerGroup(array $payload): bool
+    {
+        return count($this->filterPayloadGroups($payload)) >= 2;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function filterPayloadGroups(array $payload): array
+    {
+        $groups = $payload['groups'] ?? null;
+        if (! is_array($groups)) {
+            return [];
+        }
+        $out = [];
+        foreach ($groups as $g) {
+            if (is_array($g)) {
+                $out[] = $g;
+            }
         }
 
-        return $dir . '/stage_' . bin2hex(random_bytes(8)) . '.docx';
+        return $out;
+    }
+
+    /**
+     * Kortelėms su 2+ grupėmis: kiekvienai grupei pilnas šablonas + CreateFile, tada sujungiama į vieną .docx su puslapio lūžiu.
+     *
+     * @param list<array<string, mixed>> $groups
+     */
+    private function renderKortelesMergedToAbsolutePath(
+        CompanyRequisite $company,
+        array $groups,
+        ?string $kortelesPagrindasOverride,
+        string $documentLocale,
+        string $absoluteOutputPath
+    ): void {
+        $outDir = dirname($absoluteOutputPath);
+        $token = bin2hex(random_bytes(4));
+        $partPaths = [];
+        $stagingPath = null;
+
+        try {
+            foreach ($groups as $idx => $g) {
+                $groupRows = $this->buildEquipmentTableRowsFromGroups([$g], $documentLocale, true);
+                $stagingPath = $this->createStagingTemplatePath();
+                $templateMetaSource = $this->renderTemplate(
+                    self::OUTPUT_KORTELES,
+                    $company,
+                    $groupRows,
+                    $stagingPath,
+                    $kortelesPagrindasOverride,
+                    $documentLocale
+                );
+                $partBase = 'aap_kort_part_' . $token . '_' . $idx . '.docx';
+                $generatedPath = $this->finalizeAapThroughCreateFile(
+                    $stagingPath,
+                    $company,
+                    self::OUTPUT_KORTELES,
+                    $kortelesPagrindasOverride,
+                    $partBase,
+                    $documentLocale,
+                    $templateMetaSource
+                );
+                @unlink($stagingPath);
+                $stagingPath = null;
+                if (! is_file($generatedPath) || ! is_readable($generatedPath)) {
+                    throw new \RuntimeException('Nepavyko sugeneruoti AAP kortelių dalies: ' . $partBase);
+                }
+                $partPaths[] = $generatedPath;
+            }
+
+            if ($partPaths === []) {
+                throw new \RuntimeException('Nėra grupių AAP kortelių sujungimui');
+            }
+
+            if (is_file($absoluteOutputPath)) {
+                @unlink($absoluteOutputPath);
+            }
+
+            if (count($partPaths) === 1) {
+                if (! @copy($partPaths[0], $absoluteOutputPath)) {
+                    throw new \RuntimeException('Nepavyko išsaugoti AAP kortelių dokumento');
+                }
+                @unlink($partPaths[0]);
+            } else {
+                if (! @copy($partPaths[0], $absoluteOutputPath)) {
+                    throw new \RuntimeException('Nepavyko išsaugoti AAP kortelių dokumento');
+                }
+                @unlink($partPaths[0]);
+                for ($i = 1, $n = count($partPaths); $i < $n; $i++) {
+                    $this->appendDocxBodyAfterPageBreak($absoluteOutputPath, $partPaths[$i]);
+                    @unlink($partPaths[$i]);
+                }
+            }
+        } finally {
+            if ($stagingPath !== null) {
+                @unlink($stagingPath);
+            }
+        }
+
+        $this->fixLegacyEilNrPlaceholdersInDocx($absoluteOutputPath);
+    }
+
+    /**
+     * Prideda antrojo .docx turinį (word/document.xml body be paskutinio w:sectPr) po puslapio lūžio.
+     * Tinka lentelėms ir tekstui; sudėtingi įterpti objektai / unikalūs relationship ID gali reikalauti papildomo sujungimo.
+     */
+    private function appendDocxBodyAfterPageBreak(string $intoPath, string $fromPath): void
+    {
+        $W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
+        $zipInto = new ZipArchive();
+        $zipFrom = new ZipArchive();
+        if ($zipInto->open($intoPath) !== true) {
+            throw new \RuntimeException('Nepavyko atidaryti DOCX sujungimui: ' . $intoPath);
+        }
+        if ($zipFrom->open($fromPath) !== true) {
+            $zipInto->close();
+            throw new \RuntimeException('Nepavyko atidaryti DOCX sujungimui: ' . $fromPath);
+        }
+
+        $xmlA = $zipInto->getFromName('word/document.xml');
+        $xmlB = $zipFrom->getFromName('word/document.xml');
+        $zipFrom->close();
+        if ($xmlA === false || $xmlB === false || $xmlA === '' || $xmlB === '') {
+            $zipInto->close();
+            throw new \RuntimeException('Trūksta word/document.xml DOCX sujungimui');
+        }
+
+        $domA = new \DOMDocument();
+        $domA->preserveWhiteSpace = false;
+        if (@$domA->loadXML($xmlA, LIBXML_NONET) !== true) {
+            $zipInto->close();
+            throw new \RuntimeException('Netinkamas word/document.xml (pirmas dokumentas)');
+        }
+        $domB = new \DOMDocument();
+        $domB->preserveWhiteSpace = false;
+        if (@$domB->loadXML($xmlB, LIBXML_NONET) !== true) {
+            $zipInto->close();
+            throw new \RuntimeException('Netinkamas word/document.xml (antras dokumentas)');
+        }
+
+        $bodyA = $domA->getElementsByTagNameNS($W, 'body')->item(0);
+        $bodyB = $domB->getElementsByTagNameNS($W, 'body')->item(0);
+        if (! $bodyA instanceof \DOMElement || ! $bodyB instanceof \DOMElement) {
+            $zipInto->close();
+            throw new \RuntimeException('Nerastas w:body');
+        }
+
+        $sectPrA = null;
+        foreach ($bodyA->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->namespaceURI === $W && $child->localName === 'sectPr') {
+                $sectPrA = $child;
+            }
+        }
+        if (! $sectPrA instanceof \DOMElement) {
+            $zipInto->close();
+            throw new \RuntimeException('Nerastas w:sectPr pirmame dokumente');
+        }
+
+        $bChildren = [];
+        foreach ($bodyB->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->namespaceURI === $W && $child->localName === 'sectPr') {
+                continue;
+            }
+            $bChildren[] = $child;
+        }
+
+        $bodyA->removeChild($sectPrA);
+
+        $pageP = $domA->createElementNS($W, 'w:p');
+        $pageR = $domA->createElementNS($W, 'w:r');
+        $pageBr = $domA->createElementNS($W, 'w:br');
+        $pageBr->setAttributeNS($W, 'w:type', 'page');
+        $pageR->appendChild($pageBr);
+        $pageP->appendChild($pageR);
+        $bodyA->appendChild($pageP);
+
+        foreach ($bChildren as $child) {
+            $bodyA->appendChild($domA->importNode($child, true));
+        }
+
+        $bodyA->appendChild($sectPrA);
+
+        $root = $domA->documentElement;
+        if (! $root instanceof \DOMElement) {
+            $zipInto->close();
+            throw new \RuntimeException('Nepavyko suformuoti sujungto document.xml');
+        }
+        $mergedXml = $domA->saveXML($root);
+        if (! is_string($mergedXml) || $mergedXml === '') {
+            $zipInto->close();
+            throw new \RuntimeException('Nepavyko serializuoti sujungto document.xml');
+        }
+
+        $zipInto->deleteName('word/document.xml');
+        if ($zipInto->addFromString('word/document.xml', $mergedXml) !== true) {
+            $zipInto->close();
+            throw new \RuntimeException('Nepavyko įrašyti sujungto word/document.xml');
+        }
+        $zipInto->close();
     }
 
     /**
@@ -843,13 +1234,66 @@ final class AapEquipmentWordDocumentService
         string $kind,
         ?string $kortelesPagrindasOverride,
         string $outputBasename,
-        string $documentLocale = 'lt'
+        string $documentLocale = 'lt',
+        ?string $templateMetadataSourcePath = null,
     ): string {
         $data = $this->buildCreateFileDataForAap($company, $kind, $kortelesPagrindasOverride, $documentLocale);
-        $data['directory'] = '_aap_temp';
-        $data['template'] = basename($stagingAbsolutePath);
+        $data['directory']                      = CreateFile::TEMPLATE_CATALOGUE_AAP;
+        $data['template']                       = basename($stagingAbsolutePath);
+        $data['templateAbsolutePath']           = $stagingAbsolutePath;
+        $data['skipMirrorTemplatePathToOutput'] = false;
+        $data['forceOutputCatalogueSegment']   = CreateFile::TEMPLATE_CATALOGUE_AAP;
+        if ($templateMetadataSourcePath !== null && $templateMetadataSourcePath !== '') {
+            $data['templateMetadataSourcePath'] = str_replace('\\', '/', $templateMetadataSourcePath);
+        }
 
         return $this->createFile->createWordDocument($data, $outputBasename);
+    }
+
+    /**
+     * Pašalina w:noWrap iš lentelių langelių — Word kitaip plečia stulpelį horizontaliai vietoj teksto perkėlimo į naują eilutę.
+     * Apdoroja word/document.xml ir antraštes / poraštes (jei yra).
+     */
+    private function removeTableCellNoWrapFromDocx(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $names = [];
+        for ($i = 0; $i < $zip->numFiles; ++$i) {
+            $n = $zip->getNameIndex($i);
+            if (is_string($n)) {
+                $names[] = $n;
+            }
+        }
+
+        foreach ($names as $name) {
+            if ($name !== 'word/document.xml'
+                && ! preg_match('#^word/header\\d+\\.xml$#', $name)
+                && ! preg_match('#^word/footer\\d+\\.xml$#', $name)) {
+                continue;
+            }
+            $xml = $zip->getFromName($name);
+            if ($xml === false || $xml === '') {
+                continue;
+            }
+            $fixed = preg_replace('#<w:noWrap(?:\\s[^>]*)?/>#u', '', $xml);
+            $fixed = is_string($fixed) ? $fixed : $xml;
+            $fixed = preg_replace('#<w:noWrap(?:\\s[^>]*)?></w:noWrap>#u', '', $fixed);
+            $fixed = is_string($fixed) ? $fixed : $xml;
+            if ($fixed !== $xml) {
+                $zip->deleteName($name);
+                $zip->addFromString($name, $fixed);
+            }
+        }
+
+        $zip->close();
     }
 
     /**
@@ -895,32 +1339,32 @@ final class AapEquipmentWordDocumentService
         $localeCandidates = $loc !== 'lt' ? [$loc, 'lt'] : ['lt'];
 
         foreach ($localeCandidates as $tryLoc) {
-            $fromDb = $this->aapEquipmentWordTemplateRepository->findOneByKindAndLocale($kind, $tryLoc);
-            if ($fromDb instanceof AapEquipmentWordTemplate) {
-                $bytes = $fromDb->getContent();
-                if ($bytes !== '') {
-                    return $this->materializeDbTemplateDocx($fromDb, $bytes);
-                }
-            }
-        }
-
-        foreach ($localeCandidates as $tryLoc) {
             $fs = $this->tryResolveFilesystemTemplate($kind, $tryLoc);
             if ($fs !== null) {
+                $this->addWordDocument->ensureTemplateCustomMetadata(
+                    $fs,
+                    basename($fs),
+                    null,
+                    FlowMacroIgnores::aapEquipmentWord()
+                );
+
                 return $fs;
             }
         }
 
-        $label = $kind === self::OUTPUT_SARASAS ? 'sarasas-aap' : 'korteles-ziniarasciai';
+        $label = $kind === self::OUTPUT_SARASAS ? 'AAP sąrašas' : 'AAP kortelės + žiniaraščiai';
+        $kindLt = $kind === self::OUTPUT_SARASAS ? 'AAP sąrašas (sarasas)' : 'AAP kortelės + žiniaraščiai (korteles)';
 
         throw new \InvalidArgumentException(
-            'Nerastas Word šablonas „' . $label . '“ (.docx arba .doc) kalbai „' . $loc . '“ (arba LT atsarginis). '
-            . 'Įkelkite į templates/otherTemplates/aap-korteles-ziniarasciai/ (pvz. „' . $label . ' EN.docx“) arba administratoriaus skiltyje „Šablonas“.'
+            'Nerastas Word šablonas „' . $label . '.docx“ kalbai „' . $loc . '“ (tik templates/AAP/), '
+            . 'tipui „' . $kindLt . '“. Įkelkite per admin „Šablonas“ (įrašys į templates/AAP) arba padėkite .docx rankiniu būdu į templates/AAP '
+            . '(pvz. „' . $label . '.docx“ arba „' . $label . ' EN.docx“). '
+            . 'Jei generuojate tik korteles, dokumentų kūrime nežymėkite „AAP sąrašas“.'
         );
     }
 
     /**
-     * Absoliutus kelias iki .docx (DB arba diskas) — PDF peržiūrai ir generavimui.
+     * Absoliutus kelias iki .docx templates/AAP — PDF peržiūrai ir generavimui.
      *
      * @param self::OUTPUT_SARASAS|self::OUTPUT_KORTELES $kind
      */
@@ -935,18 +1379,46 @@ final class AapEquipmentWordDocumentService
 
     private function materializeDbTemplateDocx(AapEquipmentWordTemplate $entity, string $blob): string
     {
-        $dir = $this->projectDir . '/var/aap-db-templates';
+        $dir = $this->projectDir . '/templates/AAP';
         if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
             throw new \RuntimeException('Nepavyko sukurti katalogo: ' . $dir);
         }
 
-        $key = md5(
-            $entity->getTemplateKind() . '|' . $entity->getTemplateLocale() . '|' . $blob . '|' . $entity->getUpdatedAt()->format(DATE_ATOM)
+        $filename = $this->materializedDbAapTemplateFilename(
+            $entity->getTemplateKind(),
+            $entity->getTemplateLocale()
         );
-        $path = $dir . '/' . $entity->getTemplateKind() . '_' . $entity->getTemplateLocale() . '_' . $key . '.docx';
-        if (is_file($path) && is_readable($path)) {
-            return $path;
+        $path = $dir . '/' . $filename;
+
+        $legacyName = $this->legacyMaterializedDbAapTemplateFilename(
+            $entity->getTemplateKind(),
+            $entity->getTemplateLocale()
+        );
+        if ($legacyName !== null) {
+            $legacyPath = $dir . '/' . $legacyName;
+            if ($legacyPath !== $path && is_file($legacyPath)) {
+                @unlink($legacyPath);
+            }
         }
+
+        $technicalLegacy = $this->legacyTechnicalAapTemplateFilename(
+            $entity->getTemplateKind(),
+            $entity->getTemplateLocale()
+        );
+        if ($technicalLegacy !== null) {
+            $technicalPath = $dir . '/' . $technicalLegacy;
+            if ($technicalPath !== $path && is_file($technicalPath)) {
+                @unlink($technicalPath);
+            }
+        }
+
+        if (is_file($path) && is_readable($path)) {
+            $existing = @file_get_contents($path);
+            if ($existing !== false && $existing === $blob) {
+                return $path;
+            }
+        }
+
         if (file_put_contents($path, $blob) === false) {
             throw new \RuntimeException('Nepavyko išsaugoti šablono iš DB: ' . $path);
         }
@@ -955,7 +1427,7 @@ final class AapEquipmentWordDocumentService
     }
 
     /**
-     * Viena ${pareigybes} žyma šablone — keli darbuotojai sujungiami per kablelį.
+     * Viena ${pareigybes} žyma šablone — kelios unikalios pareigybės sujungiamos per „ / “ (eilutės langelis gali turėti kelis tipus per eilutės lūžį).
      *
      * @param list<array{pareigybe: string, priemones: string, terminas: string}> $tableRows
      */
@@ -963,14 +1435,22 @@ final class AapEquipmentWordDocumentService
     {
         $names = [];
         foreach ($tableRows as $r) {
-            $n = trim($r['pareigybe']);
-            if ($n !== '' && $n !== '-') {
-                $names[$n] = true;
+            $raw = trim($r['pareigybe']);
+            if ($raw === '' || $raw === '-') {
+                continue;
+            }
+            $parts = preg_split('/\r\n|\r|\n/', $raw) ?: [];
+            $parts = array_values(array_filter(array_map('trim', $parts), static fn (string $p): bool => $p !== '' && $p !== '-'));
+            if ($parts === []) {
+                continue;
+            }
+            foreach ($parts as $p) {
+                $names[$p] = true;
             }
         }
         $list = array_keys($names);
 
-        return $list === [] ? '-' : (count($list) === 1 ? $list[0] : implode(', ', $list));
+        return $list === [] ? '-' : (count($list) === 1 ? $list[0] : implode(self::PAREIGYBES_DISPLAY_SEPARATOR, $list));
     }
 
     /**

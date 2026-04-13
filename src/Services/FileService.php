@@ -4,6 +4,9 @@ declare (strict_types = 1);
 
 namespace App\Services;
 
+use App\Services\Metadata\CustomVariableScanner;
+use App\Services\Metadata\DocxMetadataService;
+
 /**
  * Bendras failÅ³ servisas â€“ operuoja su bet kuriuo katalogu.
  * BaseDir perduodamas per kiekvienÄ… metodÄ… ir tikrinamas.
@@ -17,6 +20,8 @@ final class FileService
 
     public function __construct(
         private readonly string $projectDir,
+        private readonly CustomVariableScanner $customVariableScanner,
+        private readonly DocxMetadataService $docxMetadataService,
     ) {}
 
     /**
@@ -298,12 +303,44 @@ final class FileService
         }
 
         $metadata = $this->readDocxMetadata($resolved);
+        $this->ensureTemplateCustomVariablesMetadata($baseDir, $resolved, $metadata);
 
         return [
             'path'     => $path,
             'filename' => basename($path),
             'metadata' => $metadata,
         ];
+    }
+
+    /**
+     * Šablonams be įrašytos customVariables OOXML savybės – paskaičiuoja ir įrašo į diską,
+     * kad klientui nereikėtų siųstis viso failo tik kintamųjų sąrašui (pvz. createBulk).
+     *
+     * @param array{core: array, custom: array} $metadata
+     */
+    private function ensureTemplateCustomVariablesMetadata(string $baseDir, string $resolved, array &$metadata): void
+    {
+        if ($baseDir !== 'templates') {
+            return;
+        }
+        if (! isset($metadata['custom']) || ! is_array($metadata['custom'])) {
+            $metadata['custom'] = [];
+        }
+        $raw = $metadata['custom']['customVariables'] ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            return;
+        }
+        if ($raw !== null && $raw !== '') {
+            return;
+        }
+
+        try {
+            $names = $this->customVariableScanner->listUnknownPlaceholders($resolved, []);
+            $json  = json_encode(array_values($names), JSON_UNESCAPED_UNICODE) ?: '[]';
+            $this->docxMetadataService->setDocxCustomProperties($resolved, ['customVariables' => $json]);
+            $metadata['custom']['customVariables'] = $json;
+        } catch (\Throwable) {
+        }
     }
 
     /**
