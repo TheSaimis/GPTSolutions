@@ -45,7 +45,7 @@ export interface HealthCertificateCreateInput {
   /** Same as `templatePath`; preferred for new callers. */
   templatePath?: string;
   /**
-   * Overrides default `otherTemplates/pazyma/pazyma.docx` when set. Prefer top-level `templatePath`
+   * Overrides default `AAP/Sveikatos tikrinimo pazyma + knyga.docx` when set. Prefer top-level `templatePath`
    * or Word custom property `templatePath` — not inside `documentData`.
    */
   template?: string;

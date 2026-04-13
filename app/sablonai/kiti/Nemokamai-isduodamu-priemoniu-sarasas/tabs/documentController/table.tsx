@@ -60,8 +60,9 @@ export default function EquipmentTable() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
     const [creating, setCreating] = useState(false);
-    const [wantSarasas, setWantSarasas] = useState(true);
-    const [wantKorteles, setWantKorteles] = useState(false);
+    /** Numatyta „kortelės“: dažnai įkeliamas tik šis šablonas; sąrašui — atskiro „AAP sąrašas“ šablono. */
+    const [wantSarasas, setWantSarasas] = useState(false);
+    const [wantKorteles, setWantKorteles] = useState(true);
     const [documentPagrindas, setDocumentPagrindas] = useState("");
     const [documentLanguage, setDocumentLanguage] = useState<AapTemplateLocale>("lt");
     const [preview, setPreview] = useState<{

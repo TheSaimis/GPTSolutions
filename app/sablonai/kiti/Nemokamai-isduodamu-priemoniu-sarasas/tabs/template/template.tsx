@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/equipment";
 import { MessageStore } from "@/lib/globalVariables/messages";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
+import { downloadBlob } from "@/lib/functions/downloadBlob";
 import DropZone from "@/components/inputFields/dropZone";
 
 function kindLabel(kind: AapEquipmentTemplateKind): string {
@@ -17,11 +18,8 @@ function kindLabel(kind: AapEquipmentTemplateKind): string {
 }
 
 function sourceLabel(row: AapEquipmentTemplateStatusRow): string {
-    if (row.source === "database") {
-        return "DB";
-    }
-    if (row.source === "filesystem") {
-        return "Failai";
+    if (row.source === "templates/AAP") {
+        return "templates/AAP";
     }
     return "Nėra";
 }
@@ -39,6 +37,7 @@ export default function EquipmentTemplate() {
     const [status, setStatus] = useState<AapEquipmentTemplateStatusRow[] | null>(null);
     const [uploading, setUploading] = useState<string | null>(null);
     const [previewingPdf, setPreviewingPdf] = useState<string | null>(null);
+    const [downloadingDocx, setDownloadingDocx] = useState<string | null>(null);
 
     const loadStatus = useCallback(() => {
         EquipmentApi.getAapTemplateStatus()
@@ -77,7 +76,7 @@ export default function EquipmentTemplate() {
             await EquipmentApi.uploadAapTemplate(kind, file, loc);
             MessageStore.push({
                 title: "Įkelta",
-                message: `${kindLabel(kind)} (${loc.toUpperCase()}): šablonas išsaugotas duomenų bazėje.`,
+                message: `${kindLabel(kind)} (${loc.toUpperCase()}): šablonas įrašytas į templates/AAP (kopija ir DB).`,
                 backgroundColor: "#16a34a",
             });
             loadStatus();
@@ -100,6 +99,18 @@ export default function EquipmentTemplate() {
         }
     };
 
+    const onDownloadDocx = async (kind: AapEquipmentTemplateKind, loc: AapTemplateLocale) => {
+        setDownloadingDocx(uploadKey(kind, loc));
+        try {
+            const file = await EquipmentApi.downloadAapTemplateDocx(kind, loc);
+            downloadBlob(file);
+        } catch {
+            /* api.ts jau rodo klaidą */
+        } finally {
+            setDownloadingDocx(null);
+        }
+    };
+
     const onDelete = async (kind: AapEquipmentTemplateKind, loc: AapTemplateLocale) => {
         if (
             !window.confirm(
@@ -112,7 +123,7 @@ export default function EquipmentTemplate() {
             await EquipmentApi.deleteAapTemplate(kind, loc);
             MessageStore.push({
                 title: "Pašalinta",
-                message: "DB šablonas pašalintas.",
+                message: "Šablonas pašalintas iš DB ir templates/AAP.",
                 backgroundColor: "#0ea5e9",
             });
             loadStatus();
@@ -141,7 +152,7 @@ export default function EquipmentTemplate() {
                                                 <strong>{row.locale.toUpperCase()}</strong>
                                                 <p className={styles.mutedSmall} style={{ margin: "6px 0 0" }}>
                                                     {sourceLabel(row)}
-                                                    {row.source === "database" && row.originalFilename ? (
+                                                    {row.source === "templates/AAP" && row.originalFilename ? (
                                                         <>
                                                             {" "}
                                                             — <span>{row.originalFilename}</span>
@@ -151,26 +162,59 @@ export default function EquipmentTemplate() {
                                                                     ({new Date(row.updatedAt).toLocaleString("lt-LT")})
                                                                 </span>
                                                             ) : null}
+                                                            {row.dbCopy && row.dbUpdatedAt ? (
+                                                                <span className={styles.mutedSmall}>
+                                                                    {" "}
+                                                                    (DB kopija:{" "}
+                                                                    {new Date(row.dbUpdatedAt).toLocaleString("lt-LT")})
+                                                                </span>
+                                                            ) : null}
                                                         </>
                                                     ) : null}
                                                 </p>
                                             </div>
                                             <div className={styles.actions}>
                                                 {row.source !== "none" ? (
-                                                    <button
-                                                        type="button"
-                                                        className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonCompact}`}
-                                                        disabled={previewingPdf !== null || uploading !== null}
-                                                        onClick={() => onPreviewPdf(kind, row.locale)}
-                                                    >
-                                                        {previewingPdf === uploadKey(kind, row.locale) ? "PDF…" : "Peržiūrėti PDF"}
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonCompact}`}
+                                                            disabled={
+                                                                previewingPdf !== null ||
+                                                                uploading !== null ||
+                                                                downloadingDocx !== null
+                                                            }
+                                                            onClick={() => onPreviewPdf(kind, row.locale)}
+                                                        >
+                                                            {previewingPdf === uploadKey(kind, row.locale)
+                                                                ? "PDF…"
+                                                                : "Peržiūrėti PDF"}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonCompact}`}
+                                                            disabled={
+                                                                previewingPdf !== null ||
+                                                                uploading !== null ||
+                                                                downloadingDocx !== null
+                                                            }
+                                                            onClick={() => void onDownloadDocx(kind, row.locale)}
+                                                        >
+                                                            {downloadingDocx === uploadKey(kind, row.locale)
+                                                                ? "DOCX…"
+                                                                : "Atsisiųsti .docx"}
+                                                        </button>
+                                                    </>
                                                 ) : null}
                                                 {isAdmin ? (
                                                     <>
                                                         <DropZone
                                                             accept={[".doc", ".docx"]}
-                                                            disabled={uploading !== null}
+                                                            disabled={
+                                                                uploading !== null ||
+                                                                previewingPdf !== null ||
+                                                                downloadingDocx !== null
+                                                            }
                                                             onFiles={(files) => {
                                                                 const f = files[0];
                                                                 if (f) {
@@ -194,7 +238,11 @@ export default function EquipmentTemplate() {
                                                                         type="file"
                                                                         accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                                                         style={{ display: "none" }}
-                                                                        disabled={uploading !== null}
+                                                                        disabled={
+                                                                            uploading !== null ||
+                                                                            previewingPdf !== null ||
+                                                                            downloadingDocx !== null
+                                                                        }
                                                                         onChange={(e) => {
                                                                             const file = e.target.files?.[0];
                                                                             e.target.value = "";
@@ -206,14 +254,18 @@ export default function EquipmentTemplate() {
                                                                 </label>
                                                             </div>
                                                         </DropZone>
-                                                        {row.source === "database" ? (
+                                                        {row.dbCopy ? (
                                                             <button
                                                                 type="button"
                                                                 className={`${styles.button} ${styles.buttonDanger} ${styles.buttonCompact}`}
-                                                                disabled={uploading !== null}
+                                                                disabled={
+                                                                    uploading !== null ||
+                                                                    previewingPdf !== null ||
+                                                                    downloadingDocx !== null
+                                                                }
                                                                 onClick={() => onDelete(kind, row.locale)}
                                                             >
-                                                                Šalinti iš DB
+                                                                Šalinti (DB + failas AAP)
                                                             </button>
                                                         ) : null}
                                                     </>

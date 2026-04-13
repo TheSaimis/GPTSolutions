@@ -5,15 +5,18 @@ import InputFieldText from "@/components/inputFields/inputFieldText";
 import { EquipmentApi } from "@/lib/api/equipment";
 import { CompanyApi } from "@/lib/api/companies";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
+import { WorkersApi } from "@/lib/api/workers";
+import { MessageStore } from "@/lib/globalVariables/messages";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { AapEquipmentGroupCatalogRow } from "@/lib/api/equipment";
 import { useEquipment } from "../../equipmentContext";
-import { EQUIPMENT_UNIT_OPTIONS, equipmentUnitLabel } from "../equipmentController/equipmentUnits";
+import { equipmentUnitLabel } from "../equipmentController/equipmentUnits";
 import type { Equipment } from "@/lib/types/equipment/equipment";
 import styles from "../../page.module.scss";
 import ctrl from "../../../pazyma/controllers.module.scss";
 import type { Company, CompanyWorker } from "@/lib/types/Company";
 import type { AapEquipmentGroupRow } from "@/lib/types/aapEquipmentGroup";
+import type { Worker } from "@/lib/types/Worker";
 
 function mergeGroupContext(prev: AapEquipmentGroupRow, next: AapEquipmentGroupRow): AapEquipmentGroupRow {
     return {
@@ -50,6 +53,7 @@ type GroupEditorProps = {
     onReplaceGroup: (g: AapEquipmentGroupRow) => void;
     onRemoveGroup: (groupId: number, companyId: number) => void;
     onEquipmentUpdated: (updated: Equipment) => void | Promise<void>;
+    onWorkerTypeCreated: (worker: Worker) => void | Promise<void>;
 };
 
 function AapGroupEditor({
@@ -60,8 +64,11 @@ function AapGroupEditor({
     onReplaceGroup,
     onRemoveGroup,
     onEquipmentUpdated,
+    onWorkerTypeCreated,
 }: GroupEditorProps) {
     const [workerId, setWorkerId] = useState("");
+    const [newWorkerTypeName, setNewWorkerTypeName] = useState("");
+    const [creatingWorkerType, setCreatingWorkerType] = useState(false);
     const [equipmentId, setEquipmentId] = useState("");
     const [addEquipmentQty, setAddEquipmentQty] = useState("1");
     const [busy, setBusy] = useState(false);
@@ -91,6 +98,31 @@ function AapGroupEditor({
             setWorkerId("");
         } finally {
             setBusy(false);
+        }
+    }
+
+    async function createWorkerType() {
+        const name = newWorkerTypeName.trim();
+        if (!name) return;
+        setCreatingWorkerType(true);
+        try {
+            const created = await WorkersApi.create({ name });
+            await onWorkerTypeCreated(created);
+            setNewWorkerTypeName("");
+            setWorkerId(String(created.id));
+            MessageStore.push({
+                title: "Sėkmingai",
+                message: "Darbuotojo tipas sukurtas",
+                backgroundColor: "#22C55E",
+            });
+        } catch {
+            MessageStore.push({
+                title: "Klaida",
+                message: "Nepavyko sukurti darbuotojo tipo.",
+                backgroundColor: "#DC2626",
+            });
+        } finally {
+            setCreatingWorkerType(false);
         }
     }
 
@@ -296,6 +328,21 @@ function AapGroupEditor({
                     Pridėti
                 </button>
             </div>
+            <div className={`${ctrl.formRow}`} style={{ marginBottom: 10 }}>
+                <InputFieldText
+                    value={newWorkerTypeName}
+                    onChange={setNewWorkerTypeName}
+                    placeholder="Naujas darbuotojo tipas"
+                />
+                <button
+                    type="button"
+                    className={`${ctrl.button} ${ctrl.buttonGhost}`}
+                    disabled={busy || creatingWorkerType || !newWorkerTypeName.trim()}
+                    onClick={() => void createWorkerType()}
+                >
+                    {creatingWorkerType ? "Kuriama…" : "Sukurti tipą"}
+                </button>
+            </div>
             <ul className={styles.assignmentList}>
                 {(group.workers ?? []).map((row) => (
                     <li key={row.id} className={styles.aapCompactRow}>
@@ -378,13 +425,10 @@ function AapGroupEditor({
                                         onChange={setEditExpiration}
                                         placeholder="Tinkamumo periodas (pvz. 12 mėn.)"
                                     />
-                                    <InputFieldSelect
-                                        label="Mato vienetas"
-                                        options={[...EQUIPMENT_UNIT_OPTIONS]}
-                                        selected={
-                                            EQUIPMENT_UNIT_OPTIONS.find((o) => o.value === editUnit)?.label ?? "Vnt"
-                                        }
+                                    <InputFieldText
+                                        value={editUnit}
                                         onChange={setEditUnit}
+                                        placeholder="Mato vienetas (pvz. vnt, poros, kg)"
                                     />
                                 </div>
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -457,8 +501,10 @@ function AapGroupEditor({
 /**
  * AAP grupės: kurti grupę, susieti su įmone (daug-su-daug), pridėti darbuotojų tipus ir priemones, pervadinti, pašalinti ryšį.
  */
+const WORKER_NOT_IN_COMPANY_SUFFIX = " (nepriskirta įmonei)";
+
 export default function AapEquipmentGroupsSection() {
-    const { equipment, setEquipment } = useEquipment();
+    const { equipment, setEquipment, workers: allWorkers, addWorker } = useEquipment();
     const [companies, setCompanies] = useState<Company[]>([]);
     const [companyId, setCompanyId] = useState<string>("");
     const [companyWorkers, setCompanyWorkers] = useState<CompanyWorker[]>([]);
@@ -524,14 +570,25 @@ export default function AapEquipmentGroupsSection() {
         [groups, selectedGroupId],
     );
 
-    const workerOptions = useMemo(
+    const companyWorkerIds = useMemo(
         () =>
-            companyWorkers
-                .map((cw) => cw.worker)
-                .filter((w): w is NonNullable<typeof w> => w != null && Boolean(w.id))
-                .map((w) => ({ value: String(w.id), label: w.name })),
+            new Set(
+                companyWorkers
+                    .map((cw) => cw.worker?.id)
+                    .filter((id): id is number => id != null && id > 0),
+            ),
         [companyWorkers],
     );
+
+    const workerOptions = useMemo(() => {
+        return [...allWorkers]
+            .filter((w) => w.id != null && w.id > 0)
+            .map((w) => ({
+                value: String(w.id),
+                label: `${w.name ?? ""}${companyWorkerIds.has(w.id) ? "" : WORKER_NOT_IN_COMPANY_SUFFIX}`,
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, "lt"));
+    }, [allWorkers, companyWorkerIds]);
 
     const equipmentOptions = useMemo(
         () =>
@@ -631,6 +688,23 @@ export default function AapEquipmentGroupsSection() {
         setGroups((prev) => prev.filter((g) => !(g.id === groupId)));
     }
 
+    const handleWorkerTypeCreated = useCallback(
+        async (worker: Worker) => {
+            addWorker(worker);
+            const cid = Number(companyId);
+            if (!cid) return;
+            try {
+                const cw = await CompanyWorkersApi.create({ companyId: cid, workerId: worker.id });
+                setCompanyWorkers((prev) =>
+                    prev.some((p) => p.worker?.id === worker.id) ? prev : [...prev, cw],
+                );
+            } catch {
+                /* jau priskirta arba serverio klaida */
+            }
+        },
+        [addWorker, companyId],
+    );
+
     return (
         <div className={`${ctrl.workerLayout}`}>
             <aside className={ctrl.workerMenu} aria-label="AAP grupės — įmonė ir sąrašas">
@@ -727,6 +801,7 @@ export default function AapEquipmentGroupsSection() {
                         onReplaceGroup={replaceGroup}
                         onRemoveGroup={removeGroup}
                         onEquipmentUpdated={onEquipmentUpdated}
+                        onWorkerTypeCreated={handleWorkerTypeCreated}
                     />
                 ) : null}
             </section>

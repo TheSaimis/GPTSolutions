@@ -37,7 +37,8 @@ type CustomMetadata = {
     templateId?: string;
     documentId?: string;
     modifiedAt?: string;
-    customVariables?: CustomVariable | undefined;
+    /** Šablone likę neįmonės makro vardai (JSON masyvas OOXML); gali būti ir įrašyta kaip JSON eilutė skaityme iš ZIP. */
+  customVariables?: CustomVariable | string | string[] | undefined;
     documentData?: string;
     /** Pažyma / health-certificate flow: `DOCUMENT_TYPES.healthCertificate` in its own property (not inside `documentData`). */
     templateType?: DocumentTypeId | string;

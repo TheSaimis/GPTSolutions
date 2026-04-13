@@ -10,7 +10,9 @@ type Props = {
   placeholder?: string;
   onChange: (v: string) => void;
   onFocus?: (b: boolean) => void;
-  onKeyDown?: Record<string, () => void>;
+  /** Current input value (avoids stale React state if blur runs before the last change commits). */
+  onBlur?: (value: string) => void;
+  onKeyDown?: Record<string, (value?: string) => void>;
   type?: string;
   icon?: LucideIcon;
   disabled?: boolean;
@@ -18,7 +20,7 @@ type Props = {
 
 const InputFieldText = forwardRef<HTMLInputElement, Props>(
   (
-    { value, placeholder, onChange, type, icon: Icon, regex, onFocus, onKeyDown, disabled },
+    { value, placeholder, onChange, type, icon: Icon, regex, onFocus, onBlur, onKeyDown, disabled },
     ref
   ) => {
     function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -53,12 +55,15 @@ const InputFieldText = forwardRef<HTMLInputElement, Props>(
             e.target.select();
             onFocus?.(true);
           }}
-          onBlur={() => onFocus?.(false)}
+          onBlur={(e) => {
+            onFocus?.(false);
+            onBlur?.(e.currentTarget.value);
+          }}
           onKeyDown={(e) => {
             const fn = onKeyDown?.[e.key];
             if (!fn) return;
             e.preventDefault();
-            fn();
+            fn(e.currentTarget.value);
           }}
         />
       </div>

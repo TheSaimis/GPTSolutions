@@ -1,17 +1,26 @@
-export const EQUIPMENT_UNIT_OPTIONS = [
-    { value: "vnt", label: "Vnt" },
-    { value: "poros", label: "Poros" },
-] as const;
-
 export type EquipmentDocLang = "LT" | "EN" | "RU";
 
+/** Dokumente: vnt/poros (bet koks registras) verčiami; kitas tekstas rodomas kaip įvesta. */
 export function equipmentUnitLabel(stored?: string, docLang: EquipmentDocLang = "LT"): string {
-    const isPoros = stored === "poros";
-    if (docLang === "EN") {
-        return isPoros ? "Pairs" : "Pcs.";
+    const s = (stored ?? "").trim();
+    const lower = s.toLowerCase();
+    if (lower === "poros") {
+        if (docLang === "EN") {
+            return "Pairs";
+        }
+        if (docLang === "RU") {
+            return "Пары";
+        }
+        return "Poros";
     }
-    if (docLang === "RU") {
-        return isPoros ? "Пары" : "шт.";
+    if (s === "" || lower === "vnt") {
+        if (docLang === "EN") {
+            return "Pcs.";
+        }
+        if (docLang === "RU") {
+            return "шт.";
+        }
+        return "Vnt";
     }
-    return isPoros ? "Poros" : "Vnt";
+    return s;
 }

@@ -4,9 +4,7 @@ import { EquipmentApi } from "@/lib/api/equipment";
 import { useEquipment } from "../../equipmentContext";
 import { useState } from "react";
 import InputFieldText from "@/components/inputFields/inputFieldText";
-import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import styles from "../../page.module.scss";
-import { EQUIPMENT_UNIT_OPTIONS, equipmentUnitLabel } from "./equipmentUnits";
 import type { Equipment } from "@/lib/types/equipment/equipment";
 
 function hasPair(name: string, expiration: string): boolean {
@@ -57,6 +55,8 @@ export default function EquipmentController() {
     const [eExpEn, setEExpEn] = useState("");
     const [eExpRu, setEExpRu] = useState("");
     const [editUnit, setEditUnit] = useState("vnt");
+    /** Inline list unit field: draft while typing; persist on blur only. */
+    const [unitDraftById, setUnitDraftById] = useState<Record<number, string>>({});
 
     const canCreate =
         hasPair(nameLt, expLt) || hasPair(nameEn, expEn) || hasPair(nameRu, expRu);
@@ -100,7 +100,17 @@ export default function EquipmentController() {
         setEExpLt(item.expirationDate ?? "");
         setEExpEn(item.expirationDateEn?.trim() ?? "");
         setEExpRu(item.expirationDateRu?.trim() ?? "");
-        setEditUnit(item.unitOfMeasurement ?? "vnt");
+        const inline = unitDraftById[item.id];
+        setEditUnit(inline !== undefined ? inline : (item.unitOfMeasurement ?? "vnt"));
+        if (inline !== undefined) {
+            setUnitDraftById((prev) => {
+                if (prev[item.id] === undefined) {
+                    return prev;
+                }
+                const { [item.id]: _, ...rest } = prev;
+                return rest;
+            });
+        }
     }
 
     function cancelEdit() {
@@ -157,6 +167,23 @@ export default function EquipmentController() {
         }
     }
 
+    /** Inline unit: use DOM value on blur/Enter so the last keystroke is never lost to stale React state. */
+    function commitInlineUnit(id: number, raw: string) {
+        const next = raw.trim();
+        const item = equipment.find((x) => x.id === id);
+        const server = (item?.unitOfMeasurement ?? "vnt").trim();
+        setUnitDraftById((prev) => {
+            if (!(id in prev)) {
+                return prev;
+            }
+            const { [id]: _, ...rest } = prev;
+            return rest;
+        });
+        if (next !== server) {
+            void changeUnit(id, next);
+        }
+    }
+
     function formatEquipmentLine(item: (typeof equipment)[0]): string {
         const parts = [`${item.name} — ${item.expirationDate}`];
         if (item.nameEn?.trim()) {
@@ -203,12 +230,7 @@ export default function EquipmentController() {
             {nameRow(nameLt, setNameLt, nameEn, setNameEn, nameRu, setNameRu)}
             {expRow(expLt, setExpLt, expEn, setExpEn, expRu, setExpRu)}
             <div className={styles.row} style={{ marginTop: 12, alignItems: "flex-end" }}>
-                <InputFieldSelect
-                    label="Mato vienetas"
-                    options={[...EQUIPMENT_UNIT_OPTIONS]}
-                    selected={EQUIPMENT_UNIT_OPTIONS.find((o) => o.value === unitOfMeasurement)?.label ?? "Vnt"}
-                    onChange={(v) => setUnitOfMeasurement(v)}
-                />
+                <InputFieldText value={unitOfMeasurement} onChange={setUnitOfMeasurement} placeholder="Mato vienetas" />
                 <button
                     type="button"
                     className={styles.button}
@@ -222,6 +244,7 @@ export default function EquipmentController() {
             <div className={styles.list}>
                 {equipment.map((item) => {
                     const u = item.unitOfMeasurement ?? "vnt";
+                    const unitDisplay = unitDraftById[item.id] ?? u;
                     const isEditing = editingId === item.id;
                     return (
                         <div key={item.id} className={styles.equipmentItemRow}>
@@ -230,12 +253,17 @@ export default function EquipmentController() {
                                     <>
                                         <p className={styles.itemText}>{formatEquipmentLine(item)}</p>
                                         <div className={styles.equipmentUnitSelect}>
-                                            <InputFieldSelect
-                                                label="Mato vienetas"
-                                                options={[...EQUIPMENT_UNIT_OPTIONS]}
-                                                selected={equipmentUnitLabel(u)}
-                                                onChange={(v) => changeUnit(item.id, v)}
+                                            <InputFieldText
+                                                value={unitDisplay}
+                                                onChange={(v) =>
+                                                    setUnitDraftById((prev) => ({ ...prev, [item.id]: v }))
+                                                }
+                                                onBlur={(v) => commitInlineUnit(item.id, v)}
+                                                onKeyDown={{
+                                                    Enter: (v) => commitInlineUnit(item.id, v ?? ""),
+                                                }}
                                                 disabled={updatingId === item.id}
+                                                placeholder="Mato vienetas"
                                             />
                                         </div>
                                         <button
@@ -253,14 +281,10 @@ export default function EquipmentController() {
                                         {nameRow(eNameLt, setENameLt, eNameEn, setENameEn, eNameRu, setENameRu)}
                                         {expRow(eExpLt, setEExpLt, eExpEn, setEExpEn, eExpRu, setEExpRu)}
                                         <div className={styles.row} style={{ marginTop: 12 }}>
-                                            <InputFieldSelect
-                                                label="Mato vienetas"
-                                                options={[...EQUIPMENT_UNIT_OPTIONS]}
-                                                selected={
-                                                    EQUIPMENT_UNIT_OPTIONS.find((o) => o.value === editUnit)?.label ??
-                                                    "Vnt"
-                                                }
-                                                onChange={(v) => setEditUnit(v)}
+                                            <InputFieldText
+                                                value={editUnit}
+                                                onChange={setEditUnit}
+                                                placeholder="Mato vienetas (pvz. vnt, poros, kg)"
                                             />
                                             <button
                                                 type="button"

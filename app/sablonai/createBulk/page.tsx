@@ -5,6 +5,7 @@ import { TemplateApi, type BulkTemplateItem } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
 import { extractUnknownVariablesFromOfficeFile } from "@/lib/functions/wordVariableParser";
+import { templateCustomVariableNamesFromMetadata } from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import type { CustomVariable, Company } from "@/lib/types/Company";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
@@ -39,6 +40,20 @@ export default function TemplatePage() {
             const next: Record<string, string[]> = {};
             await Promise.all(
                 selectedDirectories.map(async (path) => {
+                    try {
+                        const doc = await FilesApi.getFileData("templates", path);
+                        const fromMeta = templateCustomVariableNamesFromMetadata(
+                            doc.metadata?.custom as Record<string, unknown> | undefined,
+                        );
+                        if (fromMeta !== null) {
+                            if (!cancelled) {
+                                next[path] = fromMeta;
+                            }
+                            return;
+                        }
+                    } catch {
+                        /* fall back */
+                    }
                     try {
                         const cacheKey = `templates/${path}`;
                         const { blob } = await FilesApi.downloadFile(cacheKey);

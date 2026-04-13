@@ -145,6 +145,16 @@ export default function InputFieldSelect({
         }}
         onKeyDown={(e) => {
           if (effectivelyDisabled) return;
+          if (e.key === "Escape") {
+            setVisible(false);
+            return;
+          }
+          // Paieškos lauke „Space“ / „Enter“ neturi būti sustabdyti — kitaip neįvedamas tarpas.
+          const typingInSearch =
+            search &&
+            e.target instanceof HTMLInputElement &&
+            e.target.type === "text";
+          if (typingInSearch) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             if (search) {
@@ -153,7 +163,6 @@ export default function InputFieldSelect({
               setVisible((prev) => !prev);
             }
           }
-          if (e.key === "Escape") setVisible(false);
         }}
         role="combobox"
         aria-expanded={visible && !isEmpty}

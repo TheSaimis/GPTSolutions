@@ -4,8 +4,15 @@ import type {
   HealthCertificateDocumentDataFillPayload,
 } from "@/lib/types/healthCertificate";
 
-/** Matches backend default; only needed for UI that still sends `template`. */
-export const HEALTH_CERTIFICATE_TEMPLATE_PATH = "otherTemplates/pazyma/pazyma.docx";
+/** Must match backend `WorkplaceFactorsCertificateController` įkelto šablono vardas. */
+export const HEALTH_CERTIFICATE_TEMPLATE_BASENAME =
+  "Sveikatos tikrinimo pazyma + knyga.docx";
+
+export const HEALTH_CERTIFICATE_TEMPLATE_PATH = `AAP/${HEALTH_CERTIFICATE_TEMPLATE_BASENAME}`;
+
+function encodeTemplatesRelPathForApi(relPath: string): string {
+  return relPath.split("/").map((s) => encodeURIComponent(s)).join("/");
+}
 
 export const HealthCertificateApi = {
   /**
@@ -15,7 +22,7 @@ export const HealthCertificateApi = {
   createDocument(input: HealthCertificateCreateInput) {
     return api.postBlob("/api/workplace-factors-certificate/create", input as unknown as Json, {
       loadingMessage: "Kuriama pažyma...",
-      fallbackFilename: "sveikatos-tikrinimo-pazyma.docx",
+      fallbackFilename: "Sveikatos tikrinimo pazyma + knyga.docx",
     });
   },
 
@@ -48,16 +55,22 @@ export const HealthCertificateApi = {
   },
 
   getTemplatePdf() {
-    return api.getBlob("/api/files/pdf/templates/otherTemplates/pazyma/pazyma.docx", {
-      loadingMessage: "Ruošiama šablono PDF peržiūra...",
-      fallbackFilename: "pazyma.pdf",
-    });
+    return api.getBlob(
+      `/api/files/pdf/templates/${encodeTemplatesRelPathForApi(HEALTH_CERTIFICATE_TEMPLATE_PATH)}`,
+      {
+        loadingMessage: "Ruošiama šablono PDF peržiūra...",
+        fallbackFilename: "Sveikatos tikrinimo pazyma + knyga.pdf",
+      }
+    );
   },
 
   downloadTemplate() {
-    return api.getBlob("/api/files/download/templates/otherTemplates/pazyma/pazyma.docx", {
-      loadingMessage: "Atsiunčiamas šablonas...",
-      fallbackFilename: "pazyma.docx",
-    });
+    return api.getBlob(
+      `/api/files/download/templates/${encodeTemplatesRelPathForApi(HEALTH_CERTIFICATE_TEMPLATE_PATH)}`,
+      {
+        loadingMessage: "Atsiunčiamas šablonas...",
+        fallbackFilename: HEALTH_CERTIFICATE_TEMPLATE_BASENAME,
+      }
+    );
   },
 };

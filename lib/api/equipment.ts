@@ -19,9 +19,14 @@ export type AapTemplateLocale = "lt" | "en" | "ru";
 export type AapEquipmentTemplateStatusRow = {
     kind: AapEquipmentTemplateKind;
     locale: AapTemplateLocale;
-    source: "database" | "filesystem" | "none";
+    /** Generavimas skaito tik šį kelią (templates/AAP). */
+    source: "templates/AAP" | "none";
+    path: string | null;
     originalFilename: string | null;
     updatedAt: string | null;
+    /** Ar DB vis dar turi šablono kopiją (įkėlimo istorija). */
+    dbCopy: boolean;
+    dbUpdatedAt: string | null;
 };
 
 /** Visos sistemos AAP grupės (katalogas susieti su įmone) */
@@ -144,8 +149,8 @@ export const EquipmentApi = {
                 outputs.length > 1
                     ? "aap-dokumentai.zip"
                     : outputs[0] === "korteles"
-                      ? "aap-korteles-ziniarasciai.docx"
-                      : "aap-sarasas.docx",
+                      ? "AAP kortelės + žiniaraščiai.docx"
+                      : "AAP sąrašas.docx",
         });
     },
     getAapTemplateStatus: () =>
@@ -181,6 +186,15 @@ export const EquipmentApi = {
                 kind === "korteles"
                     ? `AAP_korteles_sablonas_${locale.toUpperCase()}.pdf`
                     : `AAP_sarasas_sablonas_${locale.toUpperCase()}.pdf`,
+        }),
+
+    downloadAapTemplateDocx: (kind: AapEquipmentTemplateKind, locale: AapTemplateLocale = "lt") =>
+        api.getBlob(`/api/equipment-template/aap-template/${kind}/docx?locale=${encodeURIComponent(locale)}`, {
+            loadingMessage: "Atsisiunčiamas šablonas...",
+            fallbackFilename:
+                kind === "korteles"
+                    ? `AAP_korteles_sablonas_${locale.toUpperCase()}.docx`
+                    : `AAP_sarasas_sablonas_${locale.toUpperCase()}.docx`,
         }),
 
     getCompanyData: (companyId: number) =>

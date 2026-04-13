@@ -430,7 +430,7 @@ export default function KaipNaudotiPage() {
                             Modulis: <Link href="/sablonai/kiti/Nemokamai-isduodamu-priemoniu-sarasas">AAP Kortelės+Žiniaraščiai</Link>. Generuojami <strong>du atskiri</strong> Word failai pagal jūsų pasirinkimą: <strong>sąrašas</strong> (lentelėje{" "}
                             <code>${"${pareigybe}"}</code>, <code>${"${priemones}"}</code>, <code>${"${terminas}"}</code> — duomenys iš įmonės darbuotojų tipų ir jiems priskirtų priemonių) ir <strong>kortelės / žiniaraščiai</strong> (antras šablonas serveryje). Įmonės laukai kaip šablone, pvz.{" "}
                             <code>${"${kompanija}"}</code>, <code>${"${Kompanija}"}</code>, <code>${"${TIPASKOMPAKTISKAS}"}</code>, <code>${"${kodas}"}</code>, <code>${"${tipas}"}</code>, <code>${"${role}"}</code>, <code>${"${data}"}</code>. Abu šablonai laikomi kataloge{" "}
-                            <code>templates/otherTemplates/aap-korteles-ziniarasciai/</code> (<code>sarasas-aap</code> ir <code>korteles-ziniarasciai</code>).
+                            <code>templates/AAP/</code> — <code>AAP sąrašas</code> ir <code>AAP kortelės + žiniaraščiai</code> (EN/RU: priesagos „ EN“, „ RU“ prie bazinio vardo).
                         </p>
                     </div>
                     <div>

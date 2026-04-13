@@ -3,7 +3,11 @@
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import { CompanyApi } from "@/lib/api/companies";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
-import { HealthCertificateApi, HealthCertificateWorkerRisksApi } from "@/lib/api/healthCertificate";
+import {
+  HealthCertificateApi,
+  HEALTH_CERTIFICATE_TEMPLATE_PATH,
+  HealthCertificateWorkerRisksApi,
+} from "@/lib/api/healthCertificate";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
 import type { Company, CompanyWorker } from "@/lib/types/Company";
 import type { HealthCertificateWorkerRisk } from "@/lib/types/healthCertificate";
@@ -200,7 +204,7 @@ export default function DocumentController() {
 
       const { blob, filename } = await HealthCertificateApi.createDocument({
         companyId: selectedCompanyId,
-        template: "otherTemplates/pazyma/pazyma.docx",
+        template: HEALTH_CERTIFICATE_TEMPLATE_PATH,
         checkPeriods: normalizedPeriods,
         rows: rows.map((row) => ({
           workerId: row.workerId,

@@ -7,6 +7,7 @@ import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
 import { extractUnknownVariablesFromOfficeFile } from "@/lib/functions/wordVariableParser";
+import { templateCustomVariableNamesFromMetadata } from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import type { CustomVariable, Company } from "@/lib/types/Company";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
@@ -39,14 +40,41 @@ export default function TemplatePage() {
     }, []);
 
     useEffect(() => {
+        let cancelled = false;
         async function getTemplateWord() {
-            const cacheKey = `templates/${directory}`;
-            const { blob } = await FilesApi.downloadFile(cacheKey);
-            const result = await extractUnknownVariablesFromOfficeFile(blob);
-            setCustomFields(result);
+            try {
+                const doc = await FilesApi.getFileData("templates", directory);
+                const fromMeta = templateCustomVariableNamesFromMetadata(
+                    doc.metadata?.custom as Record<string, unknown> | undefined,
+                );
+                if (!cancelled && fromMeta !== null) {
+                    setCustomFields(fromMeta);
+                    return;
+                }
+            } catch {
+                /* fall back to blob scan */
+            }
+            if (cancelled) {
+                return;
+            }
+            try {
+                const cacheKey = `templates/${directory}`;
+                const { blob } = await FilesApi.downloadFile(cacheKey);
+                const result = await extractUnknownVariablesFromOfficeFile(blob);
+                if (!cancelled) {
+                    setCustomFields(result);
+                }
+            } catch {
+                if (!cancelled) {
+                    setCustomFields([]);
+                }
+            }
         }
 
-        getTemplateWord();
+        void getTemplateWord();
+        return () => {
+            cancelled = true;
+        };
     }, [directory]);
 
 
