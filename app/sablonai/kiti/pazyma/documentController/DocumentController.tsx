@@ -1,8 +1,14 @@
 "use client";
 
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import InputFieldText from "@/components/inputFields/inputFieldText";
 import { CompanyApi } from "@/lib/api/companies";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
+import { FilesApi } from "@/lib/api/files";
+import {
+  templateCustomVariableKindsFromMetadata,
+  type TemplateCustomVariableMap,
+} from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import {
   HealthCertificateApi,
   HEALTH_CERTIFICATE_TEMPLATE_PATH,
@@ -33,9 +39,12 @@ export default function DocumentController() {
   );
   const [checkPeriods, setCheckPeriods] = useState<Record<number, string>>({});
   const [addingWorker, setAddingWorker] = useState(false);
+  const [removingWorkerIds, setRemovingWorkerIds] = useState<number[]>([]);
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [customFieldKinds, setCustomFieldKinds] = useState<TemplateCustomVariableMap>({});
+  const [customValues, setCustomValues] = useState<Record<string, string | string[]>>({});
 
   useEffect(() => {
     async function loadData() {
@@ -58,6 +67,34 @@ export default function DocumentController() {
     }
 
     loadData();
+  }, []);
+
+  useEffect(() => {
+    FilesApi.getFileData("templates", HEALTH_CERTIFICATE_TEMPLATE_PATH)
+      .then((res) => {
+        const kinds = templateCustomVariableKindsFromMetadata(res.metadata?.custom);
+        setCustomFieldKinds(kinds ?? {});
+        if (!kinds) {
+          setCustomValues({});
+          return;
+        }
+        setCustomValues((prev) => {
+          const next: Record<string, string | string[]> = {};
+          Object.entries(kinds).forEach(([name, kind]) => {
+            const current = prev[name];
+            if (kind === "array") {
+              next[name] = Array.isArray(current) ? current : [];
+            } else {
+              next[name] = typeof current === "string" ? current : "";
+            }
+          });
+          return next;
+        });
+      })
+      .catch(() => {
+        setCustomFieldKinds({});
+        setCustomValues({});
+      });
   }, []);
 
   useEffect(() => {
@@ -113,6 +150,16 @@ export default function DocumentController() {
         })),
     [workers, assignedWorkerIds]
   );
+  const companyWorkerIdByWorkerId = useMemo(() => {
+    const map = new Map<number, number>();
+    companyWorkers.forEach((item) => {
+      const workerId = item.worker?.id;
+      if (workerId && item.id) {
+        map.set(workerId, item.id);
+      }
+    });
+    return map;
+  }, [companyWorkers]);
 
   const rows = useMemo<WorkerCertificateRow[]>(() => {
     const map = new Map<number, WorkerCertificateRow>(
@@ -158,9 +205,6 @@ export default function DocumentController() {
     });
   }, [rows]);
 
-  const allCheckPeriodsFilled =
-    rows.length > 0 && rows.every((row) => (checkPeriods[row.workerId] ?? "").trim() !== "");
-
   function toggleWorkerSelectForAdd(workerId: number) {
     setSelectedWorkerIdsToAdd((prev) =>
       prev.includes(workerId)
@@ -191,8 +235,23 @@ export default function DocumentController() {
     }
   }
 
+  async function removeWorkerFromCompany(workerId: number) {
+    const companyWorkerId = companyWorkerIdByWorkerId.get(workerId);
+    if (!companyWorkerId) return;
+    setRemovingWorkerIds((prev) => [...prev, workerId]);
+    setError(null);
+    try {
+      await CompanyWorkersApi.delete(companyWorkerId);
+      setCompanyWorkers((prev) => prev.filter((item) => item.id !== companyWorkerId));
+    } catch {
+      setError("Nepavyko pašalinti darbuotojo tipo iš įmonės.");
+    } finally {
+      setRemovingWorkerIds((prev) => prev.filter((id) => id !== workerId));
+    }
+  }
+
   async function createHealthRiskFactorCertificate() {
-    if (!selectedCompanyId || !allCheckPeriodsFilled) return;
+    if (!selectedCompanyId) return;
 
     setCreatingDocument(true);
     setError(null);
@@ -206,6 +265,7 @@ export default function DocumentController() {
         companyId: selectedCompanyId,
         template: HEALTH_CERTIFICATE_TEMPLATE_PATH,
         checkPeriods: normalizedPeriods,
+        replacements: customValues,
         rows: rows.map((row) => ({
           workerId: row.workerId,
           checkPeriod: normalizedPeriods[row.workerId],
@@ -236,10 +296,50 @@ export default function DocumentController() {
           type="button"
           className={`${styles.button} ${styles.buttonPrimary}`}
           onClick={createHealthRiskFactorCertificate}
-          disabled={creatingDocument || selectedCompanyId === null || !allCheckPeriodsFilled}
+          disabled={creatingDocument || selectedCompanyId === null}
         >
           {creatingDocument ? "Kuriama..." : "Generuoti pažymą"}
         </button>
+        {Object.keys(customFieldKinds).length > 0 ? (
+          <div className={styles.customFieldsWrap}>
+            {Object.entries(customFieldKinds).map(([name, kind]) =>
+              kind === "array" ? (
+                <div key={name} className={styles.customFieldBlock}>
+                  <label className={styles.customFieldLabel} htmlFor={`health-custom-${name}`}>
+                    {name}
+                  </label>
+                  <textarea
+                    id={`health-custom-${name}`}
+                    className={styles.customFieldTextarea}
+                    value={Array.isArray(customValues[name]) ? customValues[name].join("\n") : ""}
+                    onChange={(e) =>
+                      setCustomValues((prev) => ({
+                        ...prev,
+                        [name]: e.target.value
+                          .split(/\r?\n/)
+                          .map((v) => v.trim())
+                          .filter((v) => v !== ""),
+                      }))
+                    }
+                    placeholder="Kiekviena reikšmė naujoje eilutėje"
+                  />
+                </div>
+              ) : (
+                <InputFieldText
+                  key={name}
+                  value={typeof customValues[name] === "string" ? customValues[name] : ""}
+                  onChange={(value) =>
+                    setCustomValues((prev) => ({
+                      ...prev,
+                      [name]: value,
+                    }))
+                  }
+                  placeholder={name}
+                />
+              )
+            )}
+          </div>
+        ) : null}
       </div>
       <div className={`${styles.panel} ${styles.workerAddPanel}`}>
         <p className={styles.workerAddTitle}>
@@ -323,7 +423,19 @@ export default function DocumentController() {
           </div>
           {rows.map((row) => (
             <div key={row.workerId} className={styles.documentRow}>
-              <div className={styles.documentCell}>{row.workerName}</div>
+              <div className={styles.documentCell}>
+                <div className={styles.workerCellHeader}>
+                  <span>{row.workerName}</span>
+                  <button
+                    type="button"
+                    className={`${styles.button} ${styles.buttonDanger} ${styles.buttonCompact}`}
+                    onClick={() => removeWorkerFromCompany(row.workerId)}
+                    disabled={removingWorkerIds.includes(row.workerId)}
+                  >
+                    {removingWorkerIds.includes(row.workerId) ? "Šalinama..." : "Šalinti iš įmonės"}
+                  </button>
+                </div>
+              </div>
               <div className={styles.documentCell}>
                 {row.risks.length > 0 ? (
                   <div className={styles.documentListCell}>

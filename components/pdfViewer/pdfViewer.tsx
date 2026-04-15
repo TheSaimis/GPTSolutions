@@ -43,6 +43,10 @@ export default function PdfViewer() {
         <div className={styles.container}>
             <div onClick={() => usePDFToView.setState({ blob: null })} className={`${styles.pdfViewer} ${blob ? styles.open : ""}`}>
                 <button onClick={(e) => { usePDFToView.setState({ blob: null }), e.stopPropagation() }}><X /></button>
+                <div className={styles.notice} onClick={(e) => e.stopPropagation()}>
+                    Pastaba: PDF peržiūra gali netiksliai atvaizduoti <code>.docx</code> dokumentus.
+                    Galutiniam vaizdui visada tikrinkite originalų Word failą.
+                </div>
                 <iframe
                     src={url}
                     style={{ width: "100%", height: "100vh", border: "none" }}

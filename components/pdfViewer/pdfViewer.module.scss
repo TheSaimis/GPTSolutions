@@ -29,6 +29,31 @@
     }
 }
 
+.notice {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92%, 860px);
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #fcd34d;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 13px;
+    line-height: 1.4;
+    z-index: 2;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+
+    code {
+        font-size: 0.95em;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid #fef3c7;
+        border-radius: 6px;
+        padding: 1px 5px;
+    }
+}
+
 .pdfViewer.open {
     opacity: 1;
 }

@@ -7,7 +7,10 @@ import { TemplateApi } from "@/lib/api/templates";
 import { CompanyApi } from "@/lib/api/companies";
 import { FilesApi } from "@/lib/api/files";
 import { extractUnknownVariablesFromOfficeFile } from "@/lib/functions/wordVariableParser";
-import { templateCustomVariableNamesFromMetadata } from "@/lib/functions/templateCustomVariableNamesFromMetadata";
+import {
+    templateCustomVariableKindsFromMetadata,
+    type TemplateCustomVariableKind,
+} from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import type { CustomVariable, Company } from "@/lib/types/Company";
 import { setPDFToView } from "@/lib/globalVariables/pdfToView";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
@@ -23,32 +26,34 @@ export default function TemplatePage() {
     const { template } = useParams();
     const templatePath = Array.isArray(template) ? template.join("/") : template;
     const fileName = Array.isArray(template) ? template.at(-1) : template;
-    const [directory, setDirectory] = useState(decodeURIComponent(templatePath || ""));
-    const [documentName, setDocumentName] = useState(fileName);
+    const directory = decodeURIComponent(templatePath || "");
+    const documentName = decodeURIComponent(fileName || "");
     const [customFields, setCustomFields] = useState<string[]>([]);
     const [customVariables, setCustomVariables] = useState<CustomVariable>({});
+    const [customFieldKinds, setCustomFieldKinds] = useState<Record<string, TemplateCustomVariableKind>>({});
+    const [arrayRowCount, setArrayRowCount] = useState(1);
     const [companies, setCompanies] = useState<Company[]>([]);
     const [company, setCompany] = useState("");
 
     useEffect(() => {
-        getCompanies();
-        const decoded = decodeURIComponent(templatePath || "");
-        const decodedFileName = decodeURIComponent(fileName || "");
-        setDocumentName(decodedFileName);
-        setDirectory(decoded);
-        document.title = decodedFileName;
-    }, []);
+        void CompanyApi.getAll().then((data) => {
+            setCompanies(data);
+        });
+        document.title = documentName;
+    }, [documentName]);
 
     useEffect(() => {
         let cancelled = false;
         async function getTemplateWord() {
             try {
                 const doc = await FilesApi.getFileData("templates", directory);
-                const fromMeta = templateCustomVariableNamesFromMetadata(
+                const fromMeta = templateCustomVariableKindsFromMetadata(
                     doc.metadata?.custom as Record<string, unknown> | undefined,
                 );
                 if (!cancelled && fromMeta !== null) {
-                    setCustomFields(fromMeta);
+                    const names = Object.keys(fromMeta);
+                    setCustomFields(names);
+                    setCustomFieldKinds(fromMeta);
                     return;
                 }
             } catch {
@@ -63,10 +68,14 @@ export default function TemplatePage() {
                 const result = await extractUnknownVariablesFromOfficeFile(blob);
                 if (!cancelled) {
                     setCustomFields(result);
+                    setCustomFieldKinds(
+                        Object.fromEntries(result.map((name) => [name, "constant" as const])),
+                    );
                 }
             } catch {
                 if (!cancelled) {
                     setCustomFields([]);
+                    setCustomFieldKinds({});
                 }
             }
         }
@@ -76,13 +85,6 @@ export default function TemplatePage() {
             cancelled = true;
         };
     }, [directory]);
-
-
-    async function getCompanies() {
-        const data = await CompanyApi.getAll();
-        setCompanies(data);
-    }
-
     function updateCustomField(fieldName: string, value: string) {
         setCustomVariables((prev) => ({
             ...prev,
@@ -90,15 +92,38 @@ export default function TemplatePage() {
         }));
     }
 
+    function updateArrayFieldCell(fieldName: string, rowIndex: number, value: string) {
+        setCustomVariables((prev) => {
+            const current = prev[fieldName];
+            const rows = Array.isArray(current) ? [...current] : [];
+            while (rows.length <= rowIndex) {
+                rows.push("");
+            }
+            rows[rowIndex] = value;
+            return {
+                ...prev,
+                [fieldName]: rows,
+            };
+        });
+    }
+
     async function viewPDF() {
-        FilesApi.getPDF("templates", directory).then((res: any) => {
+        FilesApi.getPDF("templates", directory).then((res) => {
             setPDFToView(res);
         });
     }
 
     async function createDocument() {
         const cleanedCustomVariables = Object.fromEntries(
-            Object.entries(customVariables).filter(([, value]) => value.trim() !== "")
+            Object.entries(customVariables).filter(([, value]) => {
+                if (typeof value === "string") {
+                    return value.trim() !== "";
+                }
+                if (Array.isArray(value)) {
+                    return value.some((item) => item.trim() !== "");
+                }
+                return false;
+            })
         );
         const companyId =
             company.trim() !== "" && Number.isFinite(Number(company)) && Number(company) > 0
@@ -111,6 +136,9 @@ export default function TemplatePage() {
         );
         downloadBlob({ blob, filename });
     }
+
+    const constantFields = customFields.filter((field) => customFieldKinds[field] !== "array");
+    const arrayFields = customFields.filter((field) => customFieldKinds[field] === "array");
 
     return (
         <div className={styles.page}>
@@ -161,15 +189,54 @@ export default function TemplatePage() {
                             <div className={styles.divider} />
                             <div className={styles.customFields}>
                                 <h1>Papildomi laukai</h1>
-                                {customFields.map((field, index) => (
-                                    <div key={index} className={styles.field}>
+                                {constantFields.map((field, index) => (
+                                    <div key={`${field}-${index}`} className={styles.field}>
                                         <InputFieldText
                                             placeholder={field}
-                                            value={customVariables[field] ?? ""}
+                                            value={typeof customVariables[field] === "string" ? customVariables[field] : ""}
                                             onChange={(value) => updateCustomField(field, value)}
                                         />
                                     </div>
                                 ))}
+
+                                {arrayFields.length > 0 && (
+                                    <div className={styles.arraySection}>
+                                        <p className={styles.arrayTitle}>Eilučių laukai</p>
+                                        <div className={styles.arrayGrid}>
+                                            <div className={styles.arrayHeaderRow}>
+                                                {arrayFields.map((field) => (
+                                                    <span key={`head-${field}`} className={styles.arrayHeaderCell}>
+                                                        {field}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {Array.from({ length: arrayRowCount }).map((_, rowIndex) => (
+                                                <div key={`row-${rowIndex}`} className={styles.arrayValueRow}>
+                                                    {arrayFields.map((field) => (
+                                                        <input
+                                                            key={`${field}-${rowIndex}`}
+                                                            className={styles.arrayInput}
+                                                            value={
+                                                                Array.isArray(customVariables[field])
+                                                                    ? customVariables[field][rowIndex] ?? ""
+                                                                    : ""
+                                                            }
+                                                            onChange={(e) => updateArrayFieldCell(field, rowIndex, e.target.value)}
+                                                            placeholder={`${field} ${rowIndex + 1}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={styles.addArrayRow}
+                                            onClick={() => setArrayRowCount((prev) => prev + 1)}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </>
                     }

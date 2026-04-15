@@ -1,3 +1,4 @@
+import type { CustomVariableValue } from "../Company";
 export interface HealthCertificateWorkerPeriodRow {
   workerId: number;
   checkPeriod: string;
@@ -25,7 +26,7 @@ export interface HealthCertificateDocumentDataFillPayload {
     lastName?: string | null;
   };
   name?: string | null;
-  customReplacements?: Record<string, string>;
+  customReplacements?: Record<string, CustomVariableValue>;
   /** When non-empty, table text is taken from here instead of WorkerRisk DB rows. */
   workerRows?: HealthCertificateWorkerSnapshotRow[];
 }
@@ -51,7 +52,7 @@ export interface HealthCertificateCreateInput {
   template?: string;
   checkPeriods?: Record<number, string>;
   rows?: HealthCertificateWorkerPeriodRow[];
-  replacements?: Record<string, string>;
+  replacements?: Record<string, CustomVariableValue>;
   /**
    * From Word custom property `documentData` (fill-only JSON). Non-empty `workerRows` uses that table
    * text instead of WorkerRisk DB rows; company letterhead loads by request `companyId`.

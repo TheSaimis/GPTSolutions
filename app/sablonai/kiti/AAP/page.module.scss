@@ -300,6 +300,45 @@
   width: 100%;
 }
 
+.customFieldsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customFieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customFieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customFieldTextarea {
+  width: 100%;
+  min-height: 88px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+}
+
+.customFieldTextarea:focus {
+  border-color: #d42225;
+  box-shadow: 0 0 0 3px rgba(212, 34, 37, 0.12);
+  background: #ffffff;
+}
+
 .createDocumentButton {
   width: 100%;
   border: none;

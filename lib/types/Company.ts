@@ -93,6 +93,7 @@ export const COMPANY_TYPES = [
 
 export const wordVariables = [
     "${kompanija}",
+    "${imone}",
     "${companyName}",
     "${companyDirectory}",
     "${atliktiDarbai}",
@@ -112,6 +113,9 @@ export const wordVariables = [
     "${documentDate}",
     "${pagrindas}",
     "${dataSkaitmenimis}",
+    "${eilNr}",
+    "${pareigybes}",
+    "${pareigybe}",
 
     "${role}",
     "${lytis}",
@@ -162,4 +166,5 @@ export type CompanyCategory = {
 };
 
 // this is not exactly related to companies but its used everywhere where companies are involved
-export type CustomVariable = Record<string, string>;
+export type CustomVariableValue = string | string[];
+export type CustomVariable = Record<string, CustomVariableValue>;

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
 import InputFieldText from "@/components/inputFields/inputFieldText";
+import { WorkersApi } from "@/lib/api/workers";
 import { usePazyma } from "../pazymaContext";
 import { updateRisk } from "../riskController/CRUD/updateRisk";
 import { createWorkerRisk } from "./CRUD/createWorkerRisk";
@@ -18,6 +19,7 @@ export default function WorkerController() {
         workerRisks,
         selectedWorkerId,
         setSelectedWorkerId,
+        setWorkers,
         setRiskFactors,
         setWorkerRisks,
     } = usePazyma();
@@ -26,6 +28,8 @@ export default function WorkerController() {
     const [busyId, setBusyId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [workerSearch, setWorkerSearch] = useState("");
+    const [newWorkerName, setNewWorkerName] = useState("");
+    const [isCreatingWorkerType, setIsCreatingWorkerType] = useState(false);
     const selectedRiskFactor = riskFactors.find((riskFactor) => riskFactor.id === riskFactorId);
     const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId) ?? null;
     const filteredWorkers = useMemo(() => {
@@ -120,10 +124,43 @@ export default function WorkerController() {
         }
     }
 
+    async function handleCreateWorkerType() {
+        const name = newWorkerName.trim();
+        if (name === "") return;
+
+        setIsCreatingWorkerType(true);
+        setError(null);
+        try {
+            const created = await WorkersApi.create({ name });
+            setWorkers((prev) => [...prev, created]);
+            setSelectedWorkerId(created.id);
+            setNewWorkerName("");
+        } catch {
+            setError("Nepavyko sukurti darbuotojo tipo.");
+        } finally {
+            setIsCreatingWorkerType(false);
+        }
+    }
+
     return (
         <div className={`${styles.controller} ${styles.workerLayout}`}>
             <aside className={styles.workerMenu}>
                 <h3 className={styles.title}>Darbuotojų tipai</h3>
+                <div className={styles.workerCreateSection}>
+                    <InputFieldText
+                        value={newWorkerName}
+                        onChange={setNewWorkerName}
+                        placeholder="Naujas darbuotojo tipas"
+                    />
+                    <button
+                        type="button"
+                        className={`${styles.button} ${styles.buttonSecondary}`}
+                        onClick={handleCreateWorkerType}
+                        disabled={isCreatingWorkerType || newWorkerName.trim() === ""}
+                    >
+                        {isCreatingWorkerType ? "Kuriama..." : "Sukurti"}
+                    </button>
+                </div>
                 <InputFieldText
                     value={workerSearch}
                     onChange={setWorkerSearch}
@@ -156,6 +193,7 @@ export default function WorkerController() {
                             value: String(riskFactor.id),
                             label: `${riskFactor.name} (${riskFactor.cipher})`,
                         }))}
+                        search={true}
                         selected={selectedRiskFactor ? `${selectedRiskFactor.name} (${selectedRiskFactor.cipher})` : ""}
                         placeholder="Pasirinkite rizikos faktorių"
                         onChange={(value) => setRiskFactorId(Number(value) || 0)}

@@ -1,9 +1,15 @@
 "use client";
 
 import InputFieldSelect from "@/components/inputFields/inputFieldSelect";
+import InputFieldText from "@/components/inputFields/inputFieldText";
 import { CompanyApi } from "@/lib/api/companies";
 import { EquipmentApi, type AapTemplateLocale } from "@/lib/api/equipment";
+import { FilesApi } from "@/lib/api/files";
 import { downloadBlob } from "@/lib/functions/downloadBlob";
+import {
+    templateCustomVariableKindsFromMetadata,
+    type TemplateCustomVariableMap,
+} from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import type { Company } from "@/lib/types/Company";
 import { useEffect, useMemo, useState } from "react";
 import styles from "../../page.module.scss";
@@ -65,6 +71,8 @@ export default function EquipmentTable() {
     const [wantKorteles, setWantKorteles] = useState(true);
     const [documentPagrindas, setDocumentPagrindas] = useState("");
     const [documentLanguage, setDocumentLanguage] = useState<AapTemplateLocale>("lt");
+    const [customFieldKinds, setCustomFieldKinds] = useState<TemplateCustomVariableMap>({});
+    const [customValues, setCustomValues] = useState<Record<string, string | string[]>>({});
     const [preview, setPreview] = useState<{
         company: {
             companyName?: string | null;
@@ -116,6 +124,50 @@ export default function EquipmentTable() {
         setDocumentPagrindas(preview.company.pagrindas ?? "");
     }, [preview]);
 
+    useEffect(() => {
+        const kindsMerged: TemplateCustomVariableMap = {};
+        const paths: string[] = [];
+        const suffix = documentLanguage === "lt" ? "" : ` ${documentLanguage.toUpperCase()}`;
+        if (wantSarasas) {
+            paths.push(`AAP/AAP sąrašas${suffix}.docx`, "AAP/AAP sąrašas.docx");
+        }
+        if (wantKorteles) {
+            paths.push(`AAP/AAP kortelės + žiniaraščiai${suffix}.docx`, "AAP/AAP kortelės + žiniaraščiai.docx");
+        }
+        const uniquePaths = Array.from(new Set(paths));
+        if (uniquePaths.length === 0) {
+            setCustomFieldKinds({});
+            setCustomValues({});
+            return;
+        }
+
+        Promise.allSettled(uniquePaths.map((path) => FilesApi.getFileData("templates", path))).then((results) => {
+            results.forEach((r) => {
+                if (r.status !== "fulfilled") return;
+                const kinds = templateCustomVariableKindsFromMetadata(r.value.metadata?.custom);
+                if (!kinds) return;
+                Object.entries(kinds).forEach(([name, kind]) => {
+                    if (!(name in kindsMerged)) {
+                        kindsMerged[name] = kind;
+                    }
+                });
+            });
+            setCustomFieldKinds(kindsMerged);
+            setCustomValues((prev) => {
+                const next: Record<string, string | string[]> = {};
+                Object.entries(kindsMerged).forEach(([name, kind]) => {
+                    const current = prev[name];
+                    if (kind === "array") {
+                        next[name] = Array.isArray(current) ? current : [];
+                    } else {
+                        next[name] = typeof current === "string" ? current : "";
+                    }
+                });
+                return next;
+            });
+        });
+    }, [documentLanguage, wantKorteles, wantSarasas]);
+
     const companyOptions = useMemo(
         () =>
             companies
@@ -150,6 +202,7 @@ export default function EquipmentTable() {
             const result = await EquipmentApi.createTemplateDocument(companyId, outputs, {
                 ...(pagrindasOpt ?? {}),
                 language: documentLanguage,
+                custom: customValues,
             });
             downloadBlob(result);
         } finally {
@@ -207,6 +260,46 @@ export default function EquipmentTable() {
                             spellCheck
                             disabled={!selectedCompanyId}
                         />
+                    </div>
+                ) : null}
+                {Object.keys(customFieldKinds).length > 0 ? (
+                    <div className={styles.customFieldsWrap}>
+                        {Object.entries(customFieldKinds).map(([name, kind]) =>
+                            kind === "array" ? (
+                                <div key={name} className={styles.customFieldBlock}>
+                                    <label className={styles.customFieldLabel} htmlFor={`aap-word-custom-${name}`}>
+                                        {name}
+                                    </label>
+                                    <textarea
+                                        id={`aap-word-custom-${name}`}
+                                        className={styles.customFieldTextarea}
+                                        value={Array.isArray(customValues[name]) ? customValues[name].join("\n") : ""}
+                                        onChange={(e) =>
+                                            setCustomValues((prev) => ({
+                                                ...prev,
+                                                [name]: e.target.value
+                                                    .split(/\r?\n/)
+                                                    .map((v) => v.trim())
+                                                    .filter((v) => v !== ""),
+                                            }))
+                                        }
+                                        placeholder="Kiekviena reikšmė naujoje eilutėje"
+                                    />
+                                </div>
+                            ) : (
+                                <InputFieldText
+                                    key={name}
+                                    value={typeof customValues[name] === "string" ? customValues[name] : ""}
+                                    onChange={(value) =>
+                                        setCustomValues((prev) => ({
+                                            ...prev,
+                                            [name]: value,
+                                        }))
+                                    }
+                                    placeholder={name}
+                                />
+                            )
+                        )}
                     </div>
                 ) : null}
                 <button

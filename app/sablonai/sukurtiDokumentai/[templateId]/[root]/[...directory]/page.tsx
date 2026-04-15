@@ -58,6 +58,21 @@ export default function Page({ params }: PageProps) {
     return String(v).trim();
   }
 
+  function normalizeCustomVariablesForState(raw: unknown): CustomVariable | null {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      return null;
+    }
+    const out: CustomVariable = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v === "string") {
+        out[k] = v;
+      } else if (Array.isArray(v)) {
+        out[k] = v.filter((item): item is string => typeof item === "string");
+      }
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  }
+
   useEffect(() => {
     async function getItems() {
       const res = await FilesApi.getFileData(root, fullPath);
@@ -72,7 +87,7 @@ export default function Page({ params }: PageProps) {
       );
       setCompanyId(metaString(custom.companyId));
       setUserId(metaString(custom.userId));
-      setCustomVariables(custom.customVariables ?? null);
+      setCustomVariables(normalizeCustomVariablesForState(custom.customVariables ?? null));
       setEditorFromMetadata(
         metaString(custom.createdBy) || metaString(core.lastModifiedBy) || ""
       );
@@ -95,25 +110,35 @@ export default function Page({ params }: PageProps) {
   }, [templateId]);
 
   useEffect(() => {
-    const id = Number(companyId);
-    if (!companyId || !Number.isFinite(id) || id <= 0) {
-      setCompany(null);
-      return;
-    }
-    void CompanyApi.getById(id)
-      .then((c) => setCompany(c ?? null))
-      .catch(() => setCompany(null));
+    void (async () => {
+      const id = Number(companyId);
+      if (!companyId || !Number.isFinite(id) || id <= 0) {
+        setCompany(null);
+        return;
+      }
+      try {
+        const c = await CompanyApi.getById(id);
+        setCompany(c ?? null);
+      } catch {
+        setCompany(null);
+      }
+    })();
   }, [companyId]);
 
   useEffect(() => {
-    const id = Number(userId);
-    if (!userId || !Number.isFinite(id) || id <= 0) {
-      setUser(null);
-      return;
-    }
-    void UsersApi.getById(id)
-      .then((u) => setUser(u))
-      .catch(() => setUser(null));
+    void (async () => {
+      const id = Number(userId);
+      if (!userId || !Number.isFinite(id) || id <= 0) {
+        setUser(null);
+        return;
+      }
+      try {
+        const u = await UsersApi.getById(id);
+        setUser(u);
+      } catch {
+        setUser(null);
+      }
+    })();
   }, [userId]);
 
   useEffect(() => {
@@ -149,6 +174,52 @@ export default function Page({ params }: PageProps) {
     }
   }
 
+  function getStoredCustomValues(meta: Metadata | null, fallbackCustomVariables: CustomVariable | null): CustomVariable {
+    const rawDocumentData = meta?.custom?.documentData;
+    if (typeof rawDocumentData === "string" && rawDocumentData.trim() !== "") {
+      try {
+        const parsed = JSON.parse(rawDocumentData) as {
+          custom?: Record<string, unknown>;
+          replacements?: Record<string, unknown>;
+        };
+        const source = parsed.custom ?? parsed.replacements;
+        if (source && typeof source === "object") {
+          const out: CustomVariable = {};
+          for (const [k, v] of Object.entries(source)) {
+            if (typeof v === "string") {
+              out[k] = v;
+            } else if (Array.isArray(v)) {
+              out[k] = v.filter((item): item is string => typeof item === "string");
+            }
+          }
+          if (Object.keys(out).length > 0) {
+            return out;
+          }
+        }
+      } catch {
+        // ignore malformed legacy metadata
+      }
+    }
+
+    if (fallbackCustomVariables && typeof fallbackCustomVariables === "object") {
+      const out: CustomVariable = {};
+      for (const [k, v] of Object.entries(fallbackCustomVariables)) {
+        if (typeof v === "string") {
+          // Ignore template variable type markers accidentally stored in this field.
+          if (v === "array" || v === "constant") {
+            continue;
+          }
+          out[k] = v;
+        } else if (Array.isArray(v)) {
+          out[k] = v.filter((item): item is string => typeof item === "string");
+        }
+      }
+      return out;
+    }
+
+    return {};
+  }
+
   async function updateDocument() {
 
     let res: DownloadResult | undefined;
@@ -158,7 +229,13 @@ export default function Page({ params }: PageProps) {
         metadata?.custom?.documentData as string,
       );
     } else if (templatePath) {
-      res = await TemplateApi.createDocument(Number(companyId), [templatePath], {}, fullPath.split("/").pop());
+      const storedCustom = getStoredCustomValues(metadata, customVariables);
+      res = await TemplateApi.createDocument(
+        Number(companyId),
+        [templatePath],
+        storedCustom,
+        fullPath.split("/").pop()
+      );
     }
       if (res) setModifiedDate(nowSqlDate());
       setUser(currentUser);

@@ -14,6 +14,11 @@ import InputFieldFile from "@/components/inputFields/inputFieldFile";
 import DropZone from "@/components/inputFields/dropZone";
 import { WorkersApi } from "@/lib/api/workers";
 import { CompanyWorkersApi } from "@/lib/api/companyWorkers";
+import { FilesApi } from "@/lib/api/files";
+import {
+  templateCustomVariableKindsFromMetadata,
+  type TemplateCustomVariableMap,
+} from "@/lib/functions/templateCustomVariableNamesFromMetadata";
 import styles from "./page.module.scss";
 
 export default function WorkerTypes() {
@@ -40,9 +45,8 @@ export default function WorkerTypes() {
   const [pendingWorkerIds, setPendingWorkerIds] = useState<Set<number>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [deletingWorkerIds, setDeletingWorkerIds] = useState<Set<number>>(new Set());
-  /** Parašų laukai eksporte: vardas ir pavardė, pareigos */
-  const [exportNameAndSurname, setExportNameAndSurname] = useState("");
-  const [exportRole, setExportRole] = useState("");
+  const [customFieldKinds, setCustomFieldKinds] = useState<TemplateCustomVariableMap>({});
+  const [customValues, setCustomValues] = useState<Record<string, string | string[]>>({});
 
   useEffect(() => {
     setIsAdmin(
@@ -98,6 +102,34 @@ export default function WorkerTypes() {
     runImport().catch(() => undefined);
   }, [importFile, refresh]);
 
+  useEffect(() => {
+    FilesApi.getFileData("templates", "AAP/AAP.xlsx")
+      .then((res) => {
+        const kinds = templateCustomVariableKindsFromMetadata(res.metadata?.custom);
+        setCustomFieldKinds(kinds ?? {});
+        if (!kinds) {
+          setCustomValues({});
+          return;
+        }
+        setCustomValues((prev) => {
+          const next: Record<string, string | string[]> = {};
+          Object.entries(kinds).forEach(([name, kind]) => {
+            const current = prev[name];
+            if (kind === "array") {
+              next[name] = Array.isArray(current) ? current : [];
+            } else {
+              next[name] = typeof current === "string" ? current : "";
+            }
+          });
+          return next;
+        });
+      })
+      .catch(() => {
+        setCustomFieldKinds({});
+        setCustomValues({});
+      });
+  }, []);
+
   const companyWorkerByWorkerId = useMemo(() => {
     const map = new Map<number, CompanyWorker>();
     companyWorkers.forEach((item) => {
@@ -122,11 +154,11 @@ export default function WorkerTypes() {
     setCreatingDocument(true);
     try {
       await refresh();
-      const signer =
-        exportNameAndSurname.trim() !== "" || exportRole.trim() !== ""
-          ? { nameAndSurname: exportNameAndSurname, role: exportRole }
-          : undefined;
-      const { blob, filename } = await TemplateApi.createAPPDocument(selectedCompanyId, signer);
+      const { blob, filename } = await TemplateApi.createAPPDocument(
+        selectedCompanyId,
+        undefined,
+        customValues
+      );
       downloadBlob({ blob, filename });
       MessageStore.push({
         title: "Sėkmingai",
@@ -266,18 +298,46 @@ export default function WorkerTypes() {
                   onChange={(value) => setSelectedCompanyId(Number(value) || null)}
                 />
               </div>
-              <div className={styles.documentSignerFields}>
-                <InputFieldText
-                  value={exportNameAndSurname}
-                  onChange={setExportNameAndSurname}
-                  placeholder="Vardas ir pavardė (parašas) — neprivaloma"
-                />
-                <InputFieldText
-                  value={exportRole}
-                  onChange={setExportRole}
-                  placeholder="Pareigos — neprivaloma"
-                />
-              </div>
+              {Object.keys(customFieldKinds).length > 0 ? (
+                <div className={styles.customFieldsWrap}>
+                  {Object.entries(customFieldKinds).map(([name, kind]) =>
+                    kind === "array" ? (
+                      <div key={name} className={styles.customFieldBlock}>
+                        <label className={styles.customFieldLabel} htmlFor={`aap-custom-${name}`}>
+                          {name}
+                        </label>
+                        <textarea
+                          id={`aap-custom-${name}`}
+                          className={styles.customFieldTextarea}
+                          value={Array.isArray(customValues[name]) ? customValues[name].join("\n") : ""}
+                          onChange={(e) =>
+                            setCustomValues((prev) => ({
+                              ...prev,
+                              [name]: e.target.value
+                                .split(/\r?\n/)
+                                .map((v) => v.trim())
+                                .filter((v) => v !== ""),
+                            }))
+                          }
+                          placeholder="Kiekviena reikšmė naujoje eilutėje"
+                        />
+                      </div>
+                    ) : (
+                      <InputFieldText
+                        key={name}
+                        value={typeof customValues[name] === "string" ? customValues[name] : ""}
+                        onChange={(value) =>
+                          setCustomValues((prev) => ({
+                            ...prev,
+                            [name]: value,
+                          }))
+                        }
+                        placeholder={name}
+                      />
+                    )
+                  )}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={styles.createDocumentButton}

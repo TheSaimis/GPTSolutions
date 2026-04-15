@@ -107,9 +107,20 @@ export const TemplateApi = {
         const cleaned =
           per != null
             ? Object.fromEntries(
-                Object.entries(per).filter(
-                  ([, v]) => typeof v === "string" && v.trim() !== ""
-                )
+                Object.entries(per)
+                  .map(([k, v]) => {
+                    if (typeof v === "string") {
+                      return [k, v] as const;
+                    }
+                    if (Array.isArray(v)) {
+                      const cleanedArray = v
+                        .map((item) => (typeof item === "string" ? item.trim() : ""))
+                        .filter((item) => item !== "");
+                      return [k, cleanedArray] as const;
+                    }
+                    return [k, ""] as const;
+                  })
+                  .filter(([, v]) => (typeof v === "string" ? v.trim() !== "" : v.length > 0))
               )
             : {};
         return Object.keys(cleaned).length > 0
@@ -120,9 +131,20 @@ export const TemplateApi = {
     };
     if (custom != null) {
       const cleanedGlobal = Object.fromEntries(
-        Object.entries(custom).filter(
-          ([, v]) => typeof v === "string" && v.trim() !== ""
-        )
+        Object.entries(custom)
+          .map(([k, v]) => {
+            if (typeof v === "string") {
+              return [k, v] as const;
+            }
+            if (Array.isArray(v)) {
+              const cleanedArray = v
+                .map((item) => (typeof item === "string" ? item.trim() : ""))
+                .filter((item) => item !== "");
+              return [k, cleanedArray] as const;
+            }
+            return [k, ""] as const;
+          })
+          .filter(([, v]) => (typeof v === "string" ? v.trim() !== "" : v.length > 0))
       );
       if (Object.keys(cleanedGlobal).length > 0) {
         body.custom = cleanedGlobal;
@@ -144,15 +166,37 @@ export const TemplateApi = {
   createAPPDocument: (
     companyId: number,
     signer?: { nameAndSurname?: string; role?: string },
+    custom?: CustomVariable,
   ) => {
+    const cleanedCustom =
+      custom != null
+        ? Object.fromEntries(
+            Object.entries(custom)
+              .map(([k, v]) => {
+                if (typeof v === "string") {
+                  return [k, v.trim()] as const;
+                }
+                if (Array.isArray(v)) {
+                  const cleanedArray = v
+                    .map((item) => (typeof item === "string" ? item.trim() : ""))
+                    .filter((item) => item !== "");
+                  return [k, cleanedArray] as const;
+                }
+                return [k, ""] as const;
+              })
+              .filter(([, v]) => (typeof v === "string" ? v !== "" : v.length > 0))
+          )
+        : {};
+    const hasCustom = Object.keys(cleanedCustom).length > 0;
     const hasSigner =
       signer &&
       ((signer.nameAndSurname != null && signer.nameAndSurname.trim() !== "") ||
         (signer.role != null && signer.role.trim() !== ""));
-    if (hasSigner) {
+    if (hasSigner || hasCustom) {
       return api.postBlob(`/api/risk/export/${companyId}`, {
         nameAndSurname: signer?.nameAndSurname?.trim() ?? "",
         role: signer?.role?.trim() ?? "",
+        ...(hasCustom ? { createFileExtras: { replacements: cleanedCustom } } : {}),
       });
     }
     return api.getBlob(`/api/risk/export/${companyId}`);

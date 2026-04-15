@@ -83,6 +83,144 @@
   color: #0f172a;
 }
 
+.usageCard {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.usageTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.usageLead {
+  margin: 0 0 10px;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.usageSubTitle {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.usageList {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.45;
+
+  li + li {
+    margin-top: 4px;
+  }
+
+  code {
+    font-size: 0.92em;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1px 5px;
+    color: #0f172a;
+  }
+}
+
+.examplesGrid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.exampleCard {
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.exampleButton {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  background: transparent;
+  display: block;
+  cursor: zoom-in;
+}
+
+.exampleImage {
+  display: block;
+  width: 100%;
+  height: 420px;
+  object-fit: contain;
+  object-position: center top;
+  background: #fff;
+}
+
+.exampleCaption {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #334155;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(2, 6, 23, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+
+.lightboxImage {
+  max-width: min(96vw, 1400px);
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  background: #0f172a;
+}
+
+.lightboxClose {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 28px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .exampleImage {
+    height: 320px;
+  }
+}
+
 @media (max-width: 640px) {
   .workflowNav {
     flex-direction: column;
@@ -191,6 +329,45 @@
     background: #fff;
     box-shadow: 0 0 0 2px rgba(212, 34, 37, 0.12);
   }
+}
+
+.customFieldsWrap {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customFieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customFieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customFieldTextarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+}
+
+.customFieldTextarea:focus {
+  border-color: #d42225;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(212, 34, 37, 0.12);
 }
 
 .actions {

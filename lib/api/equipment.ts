@@ -1,4 +1,5 @@
 import { api, DownloadResult, type Json } from "./api";
+import type { CustomVariable } from "../types/Company";
 import {
     CreateFileResponse,
     CreateFilesResponse,
@@ -133,15 +134,17 @@ export const EquipmentApi = {
     createTemplateDocument: (
         companyId: number,
         outputs: ("sarasas" | "korteles")[],
-        options?: { pagrindas?: string | null; language?: AapTemplateLocale },
+        options?: { pagrindas?: string | null; language?: AapTemplateLocale; custom?: CustomVariable },
     ) => {
         const p = options?.pagrindas;
         const lang = options?.language;
+        const custom = options?.custom;
         const body: Json = {
             companyId,
             outputs,
             ...(typeof p === "string" && p.trim() !== "" ? { pagrindas: p.trim() } : {}),
             ...(lang === "en" || lang === "ru" || lang === "lt" ? { language: lang } : {}),
+            ...(custom != null ? { custom } : {}),
         };
         return api.postBlob("/api/equipment-template/createTemplate", body, {
             loadingMessage: "Kuriamas AAP dokumentas...",
