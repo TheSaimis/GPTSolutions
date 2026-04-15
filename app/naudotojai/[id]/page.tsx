@@ -65,6 +65,12 @@ export default function NaudotojoRedagavimasPage({ params }: { params: PageParam
         if (Number.isNaN(id)) return;
         try {
             await UsersApi.userUpdate(id, { email, firstName, lastName, role, ...(password && { password }) });
+            const myId = parseInt(localStorage.getItem("id") ?? "", 10);
+            if (Number.isFinite(myId) && myId === id) {
+                localStorage.setItem("role", role);
+                window.location.reload();
+                return;
+            }
             MessageStore.push({ title: "Sėkmingai", message: "Naudotojas atnaujintas", backgroundColor: "#22C55E" });
             router.push("/naudotojai/sarasas");
         } catch {

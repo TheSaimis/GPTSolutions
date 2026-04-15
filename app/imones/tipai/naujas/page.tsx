@@ -26,11 +26,10 @@ export default function NaujasImonesTipasPage() {
 
   useEffect(() => {
     document.title = "Naujas įmonės tipas";
-    setRole(localStorage.getItem("role") || "");
   }, []);
 
   async function handleSubmit() {
-    if (role !== "ROLE_ADMIN") return;
+    if (sessionRole !== "ROLE_ADMIN") return;
     if (!typeShort.trim() || !type.trim()) {
       MessageStore.push({
         title: "Klaida",
