@@ -10,7 +10,13 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: HealthRiskFactorRepository::class)]
-#[ORM\Table(name: 'health_risk_factor')]
+#[ORM\Table(
+    name: 'health_risk_factor',
+    uniqueConstraints: [
+        new ORM\UniqueConstraint(name: 'uniq_health_risk_factor_name', columns: ['name']),
+        new ORM\UniqueConstraint(name: 'uniq_health_risk_factor_code', columns: ['code']),
+    ]
+)]
 class HealthRiskFactor
 {
     #[ORM\Id]

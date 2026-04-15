@@ -62,7 +62,7 @@ final class EquipmentTemplate extends AbstractController
 
     /**
      * POST /api/equipment-template/createTemplate
-     * Body: { "companyId": 1, "outputs": ["sarasas", "korteles"], "pagrindas": "...", "language": "lt"|"en"|"ru" }
+     * Body: { "companyId": 1, "outputs": ["sarasas", "korteles"], "pagrindas": "...", "language": "lt"|"en"|"ru", "custom": {...}, "replacements": {...} }
      * outputs neprivalomas: numatyta ["sarasas"]. Abu tipai → ZIP su dviem .docx.
      * pagrindas neprivalomas: vienkartinis ${pagrindas} tekstas kortelėms (kitaip — iš įmonės arba numatytasis).
      * language / locale / documentLanguage — dokumento ir šablono kalba (LT/EN/RU).
@@ -109,13 +109,18 @@ final class EquipmentTemplate extends AbstractController
         $documentLocale = $this->normalizeAapLocaleParam(
             $data['language'] ?? $data['locale'] ?? $data['documentLanguage'] ?? 'lt'
         );
+        $custom = $data['replacements'] ?? $data['custom'] ?? [];
+        if (! is_array($custom)) {
+            $custom = [];
+        }
 
         try {
             $result = $this->aapEquipmentWordDocumentService->generate(
                 (int) $companyId,
                 $normalized,
                 $kortelesPagrindasOverride,
-                $documentLocale
+                $documentLocale,
+                $custom
             );
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);

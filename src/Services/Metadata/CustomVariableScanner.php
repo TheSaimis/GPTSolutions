@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Metadata;
 
 /**
- * Iš OOXML (.docx / .xlsx) ištraukia ${vardas} žymas, kurios nėra įmonės rekvizitų sąraše
+ * Iš OOXML (.docx / .xlsx) ištraukia ${vardas} ir %{vardas} žymas, kurios nėra įmonės rekvizitų sąraše
  * ir nėra papildomame ignoravimo sąraše (žr. {@see FlowMacroIgnores}).
  *
  * Logika suderinta su frontend {@code wordVariableParser.ts}.
@@ -51,6 +51,7 @@ final class CustomVariableScanner
      */
     private const COMPANY_REQUISITE_PLACEHOLDERS = [
         '${kompanija}',
+        '${imone}',
         '${companyName}',
         '${companyDirectory}',
         '${atliktiDarbai}',
@@ -70,6 +71,9 @@ final class CustomVariableScanner
         '${documentDate}',
         '${pagrindas}',
         '${dataSkaitmenimis}',
+        '${eilNr}',
+        '${pareigybes}',
+        '${pareigybe}',
 
         '${role}',
         '${lytis}',
@@ -130,7 +134,32 @@ final class CustomVariableScanner
             return [];
         }
 
-        return $this->extractUnknownVariableNames($text, $ignorePlaceholders);
+        return array_keys($this->extractUnknownVariableDefinitions($text, $ignorePlaceholders));
+    }
+
+    /**
+     * @param list<string> $ignorePlaceholders
+     *
+     * @return array<string, 'constant'|'array'>
+     */
+    public function listUnknownPlaceholderDefinitions(string $absolutePath, array $ignorePlaceholders = []): array
+    {
+        $absolutePath = str_replace('\\', '/', $absolutePath);
+        if ($absolutePath === '' || ! is_file($absolutePath) || ! is_readable($absolutePath)) {
+            return [];
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $text = match ($ext) {
+            'docx' => $this->extractTextFromDocx($absolutePath),
+            'xlsx' => $this->extractTextFromXlsx($absolutePath),
+            default => '',
+        };
+        if ($text === '') {
+            return [];
+        }
+
+        return $this->extractUnknownVariableDefinitions($text, $ignorePlaceholders);
     }
 
     /**
@@ -140,25 +169,61 @@ final class CustomVariableScanner
      */
     public function extractUnknownVariableNames(string $text, array $ignorePlaceholders = []): array
     {
+        return array_keys($this->extractUnknownVariableDefinitions($text, $ignorePlaceholders));
+    }
+
+    /**
+     * @param list<string> $ignorePlaceholders
+     *
+     * @return array<string, 'constant'|'array'>
+     */
+    public function extractUnknownVariableDefinitions(string $text, array $ignorePlaceholders = []): array
+    {
         $ignoreLower = $this->buildIgnoredFullLowerSet($ignorePlaceholders);
 
         $result  = [];
-        $seenKey = [];
+        $nameByLower = [];
 
         if (preg_match_all('/\$\{([^}]+)\}/', $text, $matches, PREG_SET_ORDER) !== false) {
             foreach ($matches as $match) {
                 $full       = $match[0];
-                $inner = $match[1];
+                $inner      = trim((string) $match[1]);
+                if ($inner === '') {
+                    continue;
+                }
                 $fullLower  = mb_strtolower($full, 'UTF-8');
                 if (isset($ignoreLower[$fullLower])) {
                     continue;
                 }
                 $dedupeKey = mb_strtolower($inner, 'UTF-8');
-                if (isset($seenKey[$dedupeKey])) {
+                if (! isset($nameByLower[$dedupeKey])) {
+                    $nameByLower[$dedupeKey] = $inner;
+                }
+                $actualName = $nameByLower[$dedupeKey];
+                if (isset($result[$actualName])) {
                     continue;
                 }
-                $seenKey[$dedupeKey] = true;
-                $result[]            = $inner;
+                $result[$actualName] = 'constant';
+            }
+        }
+
+        if (preg_match_all('/%\{([^}]+)\}/', $text, $matches, PREG_SET_ORDER) !== false) {
+            foreach ($matches as $match) {
+                $full      = $match[0];
+                $inner     = trim((string) $match[1]);
+                if ($inner === '') {
+                    continue;
+                }
+                $fullLower = mb_strtolower($full, 'UTF-8');
+                if (isset($ignoreLower[$fullLower])) {
+                    continue;
+                }
+                $dedupeKey = mb_strtolower($inner, 'UTF-8');
+                if (! isset($nameByLower[$dedupeKey])) {
+                    $nameByLower[$dedupeKey] = $inner;
+                }
+                $actualName = $nameByLower[$dedupeKey];
+                $result[$actualName] = 'array';
             }
         }
 

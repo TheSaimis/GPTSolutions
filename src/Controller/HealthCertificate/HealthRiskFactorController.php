@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\HealthCertificate;
 
 use App\Entity\HealthRiskFactor;
+use App\Repository\HealthRiskFactorRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,6 +18,7 @@ final class HealthRiskFactorController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly HealthRiskFactorRepository $healthRiskFactorRepository,
     ) {}
 
     #[Route('', name: 'health_certificate_risk_factor_index', methods: ['GET'])]
@@ -61,6 +64,12 @@ final class HealthRiskFactorController extends AbstractController
         if ($name === '' || $code === '') {
             return $this->json(['message' => 'Būtini laukai „name“ ir „code“ / „cipher“'], 400);
         }
+        if ($this->healthRiskFactorRepository->existsByName($name)) {
+            return $this->json(['message' => 'Toks rizikos veiksnys jau egzistuoja'], 409);
+        }
+        if ($this->healthRiskFactorRepository->existsByCode($code)) {
+            return $this->json(['message' => 'Toks rizikos veiksnys jau egzistuoja'], 409);
+        }
 
         $item = new HealthRiskFactor();
         $item->setName($name);
@@ -68,7 +77,11 @@ final class HealthRiskFactorController extends AbstractController
         $item->setLineNumber($lineNumber);
 
         $this->em->persist($item);
-        $this->em->flush();
+        try {
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException) {
+            return $this->json(['message' => 'Rizikos veiksnys jau egzistuoja'], 409);
+        }
 
         return $this->json(self::serializeItem($item), 201);
     }
@@ -91,6 +104,9 @@ final class HealthRiskFactorController extends AbstractController
             if ($name === '') {
                 return $this->json(['message' => 'Laukas „name“ negali būti tuščias'], 400);
             }
+            if ($this->healthRiskFactorRepository->existsByName($name, $id)) {
+                return $this->json(['message' => 'Toks rizikos veiksnys jau egzistuoja'], 409);
+            }
             $item->setName($name);
         }
 
@@ -99,6 +115,9 @@ final class HealthRiskFactorController extends AbstractController
             if ($code === '') {
                 return $this->json(['message' => 'Laukas „code“ / „cipher“ negali būti tuščias'], 400);
             }
+            if ($this->healthRiskFactorRepository->existsByCode($code, $id)) {
+                return $this->json(['message' => 'Toks rizikos veiksnys jau egzistuoja'], 409);
+            }
             $item->setCode($code);
         }
 
@@ -106,7 +125,11 @@ final class HealthRiskFactorController extends AbstractController
             $item->setLineNumber((int) $payload['lineNumber']);
         }
 
-        $this->em->flush();
+        try {
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException) {
+            return $this->json(['message' => 'Rizikos veiksnys jau egzistuoja'], 409);
+        }
 
         return $this->json(self::serializeItem($item));
     }

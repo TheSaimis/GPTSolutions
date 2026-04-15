@@ -103,12 +103,12 @@ final class AddWordDocument
                     'mimeType'     => $existing['mimeType'] ?? $file->getClientMimeType(),
                 ];
 
-                $unknown = $this->customVariableScanner->listUnknownPlaceholders(
+                $unknown = $this->customVariableScanner->listUnknownPlaceholderDefinitions(
                     $targetPath,
                     $ignoreCustomVariablePlaceholders
                 );
                 $metadataToEnsure['customVariables'] = json_encode(
-                    array_values($unknown),
+                    $unknown,
                     JSON_UNESCAPED_UNICODE
                 ) ?: '[]';
 
@@ -184,12 +184,12 @@ final class AddWordDocument
                 'mimeType'     => $existing['mimeType'] ?? $mime,
             ];
 
-            $unknown = $this->customVariableScanner->listUnknownPlaceholders(
+            $unknown = $this->customVariableScanner->listUnknownPlaceholderDefinitions(
                 $absolutePath,
                 $ignoreCustomVariablePlaceholders
             );
             $metadataToEnsure['customVariables'] = json_encode(
-                array_values($unknown),
+                $unknown,
                 JSON_UNESCAPED_UNICODE
             ) ?: '[]';
 
@@ -320,4 +320,5 @@ final class AddWordDocument
 
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
+
 }

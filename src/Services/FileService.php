@@ -335,8 +335,8 @@ final class FileService
         }
 
         try {
-            $names = $this->customVariableScanner->listUnknownPlaceholders($resolved, []);
-            $json  = json_encode(array_values($names), JSON_UNESCAPED_UNICODE) ?: '[]';
+            $definitions = $this->customVariableScanner->listUnknownPlaceholderDefinitions($resolved, []);
+            $json  = json_encode($definitions, JSON_UNESCAPED_UNICODE) ?: '[]';
             $this->docxMetadataService->setDocxCustomProperties($resolved, ['customVariables' => $json]);
             $metadata['custom']['customVariables'] = $json;
         } catch (\Throwable) {

@@ -57,10 +57,12 @@ final class FlowMacroIgnores
     {
         return [
             'eilNr',
+            'pareigybes',
             'pareigybe',
             'veiksniai',
             'sifrai',
             'veiksniaiSuSifrais',
+            'veiksniaiPilnas',
             'periodiskumas',
             'workerType',
             'riskFactors',

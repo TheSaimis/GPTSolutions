@@ -17,12 +17,12 @@ use ZipArchive;
  * (konstantos TEMPLATE_SARASAS_DOCX, TEMPLATE_KORTELES_DOCX ir EN/RU variantai tame pačiame aplanke).
  * Admin įkėlimas saugo kopiją DB, bet vientisas šaltinis generavimui yra failas templates/AAP (žr. syncDbAapTemplateToDisk).
  *
- * Sąrašas (pasirinktinai): lentelė su ${pareigybe}/${pareigybes}, ${priemones}, ${terminas}, ${eilNr} ir cloneRow;
+ * Sąrašas (pasirinktinai): lentelė su ${pareigybe}/${pareigybes}, ${priemones}, ${terminas} ir cloneRow;
  *   jei lentelės nėra — užpildoma tik ${sarasas_turinys} arba ${sarasas_duomenys} arba ${aap_sarasas} (laisvas tekstas).
  * Be DB grupių — viena eilutė vienam darbuotojų tipui; su grupėmis — viena eilutė vienai grupei.
  * Kortelėse — viena lentelės eilutė vienai priemonei (sąraše galima sujungti kelias į vieną eilutę).
  * Kelios reikšmės langelyje — \\n (Word lūžis per PhpWord).
- * Kortelės: ${pareigybes} + lentelė ${priemones}, ${terminas}, ${kiekis}, ${vnt}, ${pagrindas}, ${eilNr} (eilės Nr. 1, 2, 3… — šablone rašyti be #1, klonavimas prideda) arba ${korteles_turinys}/${aap_korteles}.
+ * Kortelės: ${pareigybes} + lentelė ${priemones}, ${terminas}, ${kiekis}, ${vnt}, ${pagrindas} arba ${korteles_turinys}/${aap_korteles}.
  * Kelios AAP grupės (kortelėms): kiekvienai grupei generuojamas visas šablonas iš naujo ir sujungiamas su puslapio lūžiu (ne viena bendra lentelė ir ne antras puslapis rankiniu kopijavimu — PhpWord užpildo tik pirmą kintamųjų sritį).
  * Po lentelės generavimo „Pagrindas išduoti“ stulpelis su tuo pačiu tekstu visose eilutėse automatiškai sujungiamas vertikaliai (w:vMerge).
  * Įmonės rekvizitai ir bendri šablono laukai užpildomi per CreateFile (tarpinis .docx — laikinas katalogas, ne šablonas).
@@ -309,10 +309,17 @@ final class AapEquipmentWordDocumentService
     /**
      * @param list<self::OUTPUT_*> $outputs
      * @param string|null         $kortelesPagrindasOverride ne null ir ne tuščia — perrašo ${pagrindas} tik kortelių dokumente (vienkartinis generavimas)
+     * @param array<string, mixed> $customReplacements Papildomi custom/replacements laukai iš API.
      *
      * @return array{path: string, filename: string, mime: string, deleteAfterSend?: bool} deleteAfterSend — tik laikinam ZIP atsisiuntimui (nebėra saugoma generated/)
      */
-    public function generate(int $companyId, array $outputs, ?string $kortelesPagrindasOverride = null, ?string $documentLocale = null): array
+    public function generate(
+        int $companyId,
+        array $outputs,
+        ?string $kortelesPagrindasOverride = null,
+        ?string $documentLocale = null,
+        array $customReplacements = []
+    ): array
     {
         $documentLocale = $this->normalizeAapLocale($documentLocale ?? 'lt');
         $normalized = [];
@@ -334,14 +341,22 @@ final class AapEquipmentWordDocumentService
         }
 
         $payload = $this->createEquipmentDocument->buildDataByCompanyId($companyId);
-        $tableRowsSarasas = $this->buildEquipmentTableRows($payload, $documentLocale, false);
+        $tableRowsSarasas = $this->buildEquipmentTableRows($payload, $documentLocale, true);
         $tableRowsKorteles = $this->buildEquipmentTableRows($payload, $documentLocale, true);
 
         if (count($list) === 1) {
             $kind = $list[0];
             $rows = $kind === self::OUTPUT_KORTELES ? $tableRowsKorteles : $tableRowsSarasas;
 
-            return $this->singleOutput($kind, $company, $rows, $payload, $kortelesPagrindasOverride, $documentLocale);
+            return $this->singleOutput(
+                $kind,
+                $company,
+                $rows,
+                $payload,
+                $kortelesPagrindasOverride,
+                $documentLocale,
+                $customReplacements
+            );
         }
 
         $paths = [];
@@ -353,7 +368,8 @@ final class AapEquipmentWordDocumentService
                 $rows,
                 $payload,
                 $kind === self::OUTPUT_KORTELES ? $kortelesPagrindasOverride : null,
-                $documentLocale
+                $documentLocale,
+                $customReplacements
             );
         }
 
@@ -406,7 +422,15 @@ final class AapEquipmentWordDocumentService
      *
      * @return array{path: string, filename: string, mime: string, deleteAfterSend: false}
      */
-    private function singleOutput(string $kind, CompanyRequisite $company, array $tableRows, array $payload, ?string $kortelesPagrindasOverride, string $documentLocale): array
+    private function singleOutput(
+        string $kind,
+        CompanyRequisite $company,
+        array $tableRows,
+        array $payload,
+        ?string $kortelesPagrindasOverride,
+        string $documentLocale,
+        array $customReplacements = []
+    ): array
     {
         $path = $this->renderToFinalPath(
             $kind,
@@ -414,7 +438,8 @@ final class AapEquipmentWordDocumentService
             $tableRows,
             $payload,
             $kind === self::OUTPUT_KORTELES ? $kortelesPagrindasOverride : null,
-            $documentLocale
+            $documentLocale,
+            $customReplacements
         );
 
         return [
@@ -710,7 +735,8 @@ final class AapEquipmentWordDocumentService
         array $tableRows,
         array $payload,
         ?string $kortelesPagrindasOverride = null,
-        string $documentLocale = 'lt'
+        string $documentLocale = 'lt',
+        array $customReplacements = []
     ): string {
         $outDir = $this->resolveGeneratedAbsoluteOutputDir($company);
         if (! is_dir($outDir) && ! mkdir($outDir, 0775, true) && ! is_dir($outDir)) {
@@ -731,7 +757,8 @@ final class AapEquipmentWordDocumentService
                 $groups,
                 $kortelesPagrindasOverride,
                 $documentLocale,
-                $outPath
+                $outPath,
+                $customReplacements
             );
 
             return $outPath;
@@ -754,14 +781,14 @@ final class AapEquipmentWordDocumentService
                 $kortelesPagrindasOverride,
                 $outBasename,
                 $documentLocale,
-                $templateMetaSource
+                $templateMetaSource,
+                $customReplacements
             );
             if ($generatedPath !== $outPath) {
                 throw new \RuntimeException(
                     'Sugeneruotas kelias neatitinka laukto: ' . $generatedPath . ' (laukta ' . $outPath . ')'
                 );
             }
-            $this->fixLegacyEilNrPlaceholdersInDocx($outPath);
         } finally {
             @unlink($stagingPath);
         }
@@ -781,7 +808,8 @@ final class AapEquipmentWordDocumentService
         array $tableRows,
         array $payload,
         ?string $kortelesPagrindasOverride = null,
-        string $documentLocale = 'lt'
+        string $documentLocale = 'lt',
+        array $customReplacements = []
     ): string {
         $tmpDir = $this->projectDir . '/var/aap-word-tmp';
         if (! is_dir($tmpDir) && ! mkdir($tmpDir, 0775, true) && ! is_dir($tmpDir)) {
@@ -811,7 +839,8 @@ final class AapEquipmentWordDocumentService
                 $groups,
                 $kortelesPagrindasOverride,
                 $documentLocale,
-                $outPath
+                $outPath,
+                $customReplacements
             );
             if (! @copy($outPath, $tmpPath)) {
                 throw new \RuntimeException('Nepavyko nukopijuoti ZIP dalies dokumento');
@@ -837,14 +866,14 @@ final class AapEquipmentWordDocumentService
                 $kortelesPagrindasOverride,
                 $outBasename,
                 $documentLocale,
-                $templateMetaSource
+                $templateMetaSource,
+                $customReplacements
             );
             if ($generatedPath !== $outPath) {
                 throw new \RuntimeException(
                     'Sugeneruotas kelias neatitinka laukto: ' . $generatedPath . ' (laukta ' . $outPath . ')'
                 );
             }
-            $this->fixLegacyEilNrPlaceholdersInDocx($generatedPath);
             if (! @copy($generatedPath, $tmpPath)) {
                 throw new \RuntimeException('Nepavyko nukopijuoti ZIP dalies dokumento');
             }
@@ -894,12 +923,13 @@ final class AapEquipmentWordDocumentService
                     $kiekisCell = '1';
                 }
                 $kortelesTableRows[] = [
-                    'eilNr' => (string) ($rowIndex + 1),
                     'priemones' => $r['priemones'],
                     'terminas' => $r['terminas'],
                     'kiekis' => $kiekisCell,
                     'vnt' => Equipment::documentUnitLabel($r['unitOfMeasurement'] ?? 'vnt', $langUpper),
                     'pagrindas' => $pagrindasText,
+                    'Pagrindas' => $pagrindasText,
+                    'PAGRINDAS' => mb_strtoupper($pagrindasText, 'UTF-8'),
                 ];
             }
             try {
@@ -925,40 +955,32 @@ final class AapEquipmentWordDocumentService
             }
         } else {
             $sarasasRows = [];
-            foreach ($tableRows as $rowIndex => $r) {
+            foreach ($tableRows as $r) {
                 $sarasasRows[] = [
-                    'eilNr' => (string) ($rowIndex + 1),
                     'pareigybe' => $r['pareigybe'],
                     'priemones' => $r['priemones'],
                     'terminas' => $r['terminas'],
                 ];
             }
             try {
-                $processor->cloneRowAndSetValues('pareigybe', $sarasasRows);
-            } catch (\Throwable) {
-                try {
-                    $alt = [];
-                    foreach ($tableRows as $rowIndex => $r) {
-                        $alt[] = [
-                            'eilNr' => (string) ($rowIndex + 1),
-                            'pareigybes' => $r['pareigybe'],
-                            'priemones' => $r['priemones'],
-                            'terminas' => $r['terminas'],
-                        ];
-                    }
-                    $processor = new TemplateProcessor($working);
-                    $processor->cloneRowAndSetValues('pareigybes', $alt);
-                } catch (\Throwable) {
-                    $this->applyOptionalMacroIfPresent(
-                        $processor,
-                        ['sarasas_turinys', 'sarasas_duomenys', 'aap_sarasas'],
-                        $this->buildSarasasFreeformText($tableRows)
-                    );
+                if (! $this->cloneSarasasRowsWithMarkerVariants($processor, $sarasasRows)) {
+                    throw new \RuntimeException('Nerasta sąrašo lentelės markerio eilutė');
                 }
+            } catch (\Throwable) {
+                $this->applyOptionalMacroIfPresent(
+                    $processor,
+                    ['sarasas_turinys', 'sarasas_duomenys', 'aap_sarasas'],
+                    $this->buildSarasasFreeformText($tableRows)
+                );
             }
         }
 
         $processor->saveAs($stagingOutputPath);
+        $this->convertPareigybeCellBreaksToParagraphsInDocx($stagingOutputPath);
+        if ($kind === self::OUTPUT_SARASAS) {
+            $this->mergeSarasasPareigybeColumnInDocx($stagingOutputPath);
+            $this->normalizeSarasasRowBordersInDocx($stagingOutputPath);
+        }
 
         if ($kind === self::OUTPUT_KORTELES) {
             $this->removeTableCellNoWrapFromDocx($stagingOutputPath);
@@ -973,6 +995,79 @@ final class AapEquipmentWordDocumentService
         }
 
         return $working;
+    }
+
+    /**
+     * @param list<array{pareigybe:string, priemones:string, terminas:string}> $rows
+     */
+    private function cloneSarasasRowsWithMarkerVariants(TemplateProcessor $processor, array $rows): bool
+    {
+        $baseMarkers = ['pareigybe', 'pareigybes', 'priemones'];
+        $markers = [];
+        foreach ($baseMarkers as $m) {
+            $markers[] = $m;
+            $markers[] = mb_strtolower($m, 'UTF-8');
+            $markers[] = mb_strtoupper($m, 'UTF-8');
+            $markers[] = mb_convert_case($m, MB_CASE_TITLE, 'UTF-8');
+        }
+        $markers = array_values(array_unique($markers));
+
+        foreach ($markers as $marker) {
+            try {
+                $processor->cloneRowAndSetValues($marker, $rows);
+                $this->applyIndexedSarasasValuesWithCaseVariants($processor, $rows);
+
+                return true;
+            } catch (\Throwable) {
+            }
+        }
+
+        foreach ($markers as $marker) {
+            try {
+                $processor->cloneRow($marker, count($rows));
+                $this->applyIndexedSarasasValuesWithCaseVariants($processor, $rows);
+
+                return true;
+            } catch (\Throwable) {
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<array{pareigybe:string, priemones:string, terminas:string}> $rows
+     */
+    private function applyIndexedSarasasValuesWithCaseVariants(TemplateProcessor $processor, array $rows): void
+    {
+        $idx = 1;
+        foreach ($rows as $row) {
+            $this->setIndexedSarasasPlaceholderWithCaseVariants($processor, 'pareigybe', $idx, $row['pareigybe']);
+            $this->setIndexedSarasasPlaceholderWithCaseVariants($processor, 'pareigybes', $idx, $row['pareigybe']);
+            $this->setIndexedSarasasPlaceholderWithCaseVariants($processor, 'priemones', $idx, $row['priemones']);
+            $this->setIndexedSarasasPlaceholderWithCaseVariants($processor, 'terminas', $idx, $row['terminas']);
+            $idx++;
+        }
+    }
+
+    private function setIndexedSarasasPlaceholderWithCaseVariants(
+        TemplateProcessor $processor,
+        string $placeholder,
+        int $index,
+        string $value
+    ): void {
+        $variants = [
+            $placeholder,
+            mb_strtolower($placeholder, 'UTF-8'),
+            mb_strtoupper($placeholder, 'UTF-8'),
+            mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
+        ];
+        foreach (array_unique($variants) as $variant) {
+            $val = $variant !== '' && $variant === mb_strtoupper($variant, 'UTF-8')
+                ? mb_strtoupper($value, 'UTF-8')
+                : $value;
+            $processor->setValue($variant . '#' . $index, $val);
+        }
     }
 
     private function createStagingTemplatePath(): string
@@ -1022,7 +1117,8 @@ final class AapEquipmentWordDocumentService
         array $groups,
         ?string $kortelesPagrindasOverride,
         string $documentLocale,
-        string $absoluteOutputPath
+        string $absoluteOutputPath,
+        array $customReplacements = []
     ): void {
         $outDir = dirname($absoluteOutputPath);
         $token = bin2hex(random_bytes(4));
@@ -1049,7 +1145,8 @@ final class AapEquipmentWordDocumentService
                     $kortelesPagrindasOverride,
                     $partBase,
                     $documentLocale,
-                    $templateMetaSource
+                    $templateMetaSource,
+                    $customReplacements
                 );
                 @unlink($stagingPath);
                 $stagingPath = null;
@@ -1088,7 +1185,6 @@ final class AapEquipmentWordDocumentService
             }
         }
 
-        $this->fixLegacyEilNrPlaceholdersInDocx($absoluteOutputPath);
     }
 
     /**
@@ -1198,7 +1294,8 @@ final class AapEquipmentWordDocumentService
         CompanyRequisite $company,
         string $kind,
         ?string $kortelesPagrindasOverride,
-        string $documentLocale = 'lt'
+        string $documentLocale = 'lt',
+        array $customReplacements = []
     ): array {
         $documentDate = $company->getDocumentDate() ?? (new \DateTimeImmutable())->format('Y-m-d');
 
@@ -1207,6 +1304,9 @@ final class AapEquipmentWordDocumentService
             $ov = $kortelesPagrindasOverride !== null ? trim($kortelesPagrindasOverride) : '';
             $pagrindasText = $ov !== '' ? $ov : $company->resolveAapKortelesPagrindas();
             $replacements['pagrindas'] = $pagrindasText;
+        }
+        if ($customReplacements !== []) {
+            $replacements = array_merge($replacements, $customReplacements);
         }
 
         return [
@@ -1236,8 +1336,15 @@ final class AapEquipmentWordDocumentService
         string $outputBasename,
         string $documentLocale = 'lt',
         ?string $templateMetadataSourcePath = null,
+        array $customReplacements = [],
     ): string {
-        $data = $this->buildCreateFileDataForAap($company, $kind, $kortelesPagrindasOverride, $documentLocale);
+        $data = $this->buildCreateFileDataForAap(
+            $company,
+            $kind,
+            $kortelesPagrindasOverride,
+            $documentLocale,
+            $customReplacements
+        );
         $data['directory']                      = CreateFile::TEMPLATE_CATALOGUE_AAP;
         $data['template']                       = basename($stagingAbsolutePath);
         $data['templateAbsolutePath']           = $stagingAbsolutePath;
@@ -1293,43 +1400,6 @@ final class AapEquipmentWordDocumentService
             }
         }
 
-        $zip->close();
-    }
-
-    /**
-     * Senesniuose šablonuose kartais įrašyta ${eil Nr# 1} — PhpWord klonuodamas paverčia į ${eil Nr# 1#2} ir nebepakeičia.
-     * Pakeičiame į gryną eilės numerį pagal paskutinį indeksą (#2 → „2“).
-     */
-    private function fixLegacyEilNrPlaceholdersInDocx(string $docxPath): void
-    {
-        if (! is_file($docxPath) || ! is_readable($docxPath)) {
-            return;
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($docxPath) !== true) {
-            return;
-        }
-
-        $xml = $zip->getFromName('word/document.xml');
-        if ($xml === false || $xml === '') {
-            $zip->close();
-
-            return;
-        }
-
-        $step1 = preg_replace('/\$\{eil\s+Nr\s*#\s*\d+\s*#\s*(\d+)\}/u', '$1', $xml);
-        $fixed = is_string($step1) ? $step1 : $xml;
-        $step2 = preg_replace('/\$\{eilNr\s*#\s*\d+\s*#\s*(\d+)\}/u', '$1', $fixed);
-        $fixed = is_string($step2) ? $step2 : $fixed;
-        if ($fixed === $xml) {
-            $zip->close();
-
-            return;
-        }
-
-        $zip->deleteName('word/document.xml');
-        $zip->addFromString('word/document.xml', $fixed);
         $zip->close();
     }
 
@@ -1830,4 +1900,534 @@ final class AapEquipmentWordDocumentService
         $p = $dom->createElementNS(self::OOXML_W_NS, 'w:p');
         $tc->appendChild($p);
     }
+
+    /**
+     * In some templates `${PAREIGYBE}` values contain multiple worker types in one cell.
+     * TemplateProcessor inserts `\n` as `<w:br/>` (line break inside one paragraph), which
+     * does not use paragraph spacing. Convert these breaks to real `<w:p>` paragraphs.
+     */
+    private function convertPareigybeCellBreaksToParagraphsInDocx(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        if (! is_string($xml) || $xml === '') {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $dom->preserveWhiteSpace = true;
+        $dom->formatOutput = false;
+        if (@$dom->loadXML($xml) !== true) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', self::OOXML_W_NS);
+
+        $tables = $xpath->query('//w:tbl');
+        if ($tables === false) {
+            $zip->close();
+            return;
+        }
+
+        foreach ($tables as $tbl) {
+            if (! $tbl instanceof \DOMElement) {
+                continue;
+            }
+
+            $rowsNode = $xpath->query('w:tr', $tbl);
+            if ($rowsNode === false || $rowsNode->length < 2) {
+                continue;
+            }
+
+            $rows = [];
+            foreach ($rowsNode as $tr) {
+                if ($tr instanceof \DOMElement) {
+                    $rows[] = $tr;
+                }
+            }
+            if (count($rows) < 2) {
+                continue;
+            }
+
+            $header = $rows[0];
+            $pareigybeCol = $this->findPareigybeHeaderColumn($header);
+            if ($pareigybeCol === null) {
+                continue;
+            }
+
+            for ($i = 1, $n = count($rows); $i < $n; $i++) {
+                $cell = $this->getTableCellAtLogicalColumn($rows[$i], $pareigybeCol);
+                if (! $cell instanceof \DOMElement) {
+                    continue;
+                }
+                $this->convertLineBreaksToParagraphsInTableCell($dom, $cell);
+            }
+        }
+
+        $out = $dom->saveXML();
+        if (! is_string($out) || $out === '') {
+            $zip->close();
+            return;
+        }
+
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $out);
+        $zip->close();
+    }
+
+    private function findPareigybeHeaderColumn(\DOMElement $headerRow): ?int
+    {
+        $cells = $this->trDirectTableCells($headerRow);
+        $logicalCol = 0;
+        foreach ($cells as $cell) {
+            $text = mb_strtolower(trim($this->extractPlainTextFromTableCell($cell)), 'UTF-8');
+            if ($text !== '' && (
+                str_contains($text, 'pareigybe')
+                || str_contains($text, 'pareigybė')
+                || str_contains($text, 'pareigos')
+                || str_contains($text, 'worker type')
+            )) {
+                return $logicalCol;
+            }
+            $logicalCol += $this->tableCellGridSpan($cell);
+        }
+
+        return null;
+    }
+
+    private function convertLineBreaksToParagraphsInTableCell(\DOMDocument $dom, \DOMElement $tc): void
+    {
+        $paragraphs = $this->tcDirectParagraphs($tc);
+        if ($paragraphs === []) {
+            return;
+        }
+
+        $firstRunProps = null;
+        foreach ($paragraphs as $p) {
+            foreach ($p->childNodes as $child) {
+                if (! $child instanceof \DOMElement || $child->namespaceURI !== self::OOXML_W_NS || $child->localName !== 'r') {
+                    continue;
+                }
+                foreach ($child->childNodes as $rn) {
+                    if ($rn instanceof \DOMElement && $rn->namespaceURI === self::OOXML_W_NS && $rn->localName === 'rPr') {
+                        $firstRunProps = $rn;
+                        break 3;
+                    }
+                }
+            }
+        }
+
+        $segments = [];
+        foreach ($paragraphs as $p) {
+            $line = '';
+            foreach ($p->childNodes as $child) {
+                if (! $child instanceof \DOMElement || $child->namespaceURI !== self::OOXML_W_NS || $child->localName !== 'r') {
+                    continue;
+                }
+                foreach ($child->childNodes as $rn) {
+                    if (! $rn instanceof \DOMElement || $rn->namespaceURI !== self::OOXML_W_NS) {
+                        continue;
+                    }
+                    if ($rn->localName === 't') {
+                        $line .= $rn->textContent;
+                    } elseif ($rn->localName === 'br') {
+                        $segments[] = $line;
+                        $line = '';
+                    }
+                }
+            }
+            $segments[] = $line;
+        }
+
+        $hasBreaks = false;
+        foreach ($paragraphs as $p) {
+            if ($p->getElementsByTagNameNS(self::OOXML_W_NS, 'br')->length > 0) {
+                $hasBreaks = true;
+                break;
+            }
+        }
+        if (! $hasBreaks) {
+            return;
+        }
+
+        $normalized = [];
+        foreach ($segments as $s) {
+            $normalized[] = trim((string) $s);
+        }
+        $normalized = array_values(array_filter($normalized, static fn (string $v): bool => $v !== ''));
+        if ($normalized === []) {
+            return;
+        }
+
+        $firstPPr = null;
+        foreach ($paragraphs[0]->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->namespaceURI === self::OOXML_W_NS && $child->localName === 'pPr') {
+                $firstPPr = $child;
+                break;
+            }
+        }
+
+        foreach ($paragraphs as $p) {
+            $tc->removeChild($p);
+        }
+
+        foreach ($normalized as $lineText) {
+            $p = $dom->createElementNS(self::OOXML_W_NS, 'w:p');
+            if ($firstPPr instanceof \DOMElement) {
+                $p->appendChild($firstPPr->cloneNode(true));
+            }
+            $r = $dom->createElementNS(self::OOXML_W_NS, 'w:r');
+            if ($firstRunProps instanceof \DOMElement) {
+                $r->appendChild($firstRunProps->cloneNode(true));
+            }
+            $t = $dom->createElementNS(self::OOXML_W_NS, 'w:t');
+            if (preg_match('/^\s|\s$/u', $lineText) === 1) {
+                $t->setAttribute('xml:space', 'preserve');
+            }
+            $t->appendChild($dom->createTextNode($lineText));
+            $r->appendChild($t);
+            $p->appendChild($r);
+            $tc->appendChild($p);
+        }
+    }
+
+    /**
+     * @return list<\DOMElement>
+     */
+    private function tcDirectParagraphs(\DOMElement $tc): array
+    {
+        $out = [];
+        foreach ($tc->childNodes as $n) {
+            if ($n instanceof \DOMElement && $n->namespaceURI === self::OOXML_W_NS && $n->localName === 'p') {
+                $out[] = $n;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * For AAP "sarasas" layout: keep `${priemones}` / `${terminas}` as separate rows, but merge
+     * `${PAREIGYBE}` vertically so neighboring columns can list items row-by-row.
+     * Also merge the immediate left column with the same span so both cells keep equal height.
+     */
+    private function mergeSarasasPareigybeColumnInDocx(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        if (! is_string($xml) || $xml === '') {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $dom->preserveWhiteSpace = true;
+        $dom->formatOutput = false;
+        if (@$dom->loadXML($xml) !== true) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', self::OOXML_W_NS);
+        $tables = $xpath->query('//w:tbl');
+        if ($tables === false) {
+            $zip->close();
+            return;
+        }
+
+        foreach ($tables as $tbl) {
+            if (! $tbl instanceof \DOMElement) {
+                continue;
+            }
+
+            $rowsNode = $xpath->query('w:tr', $tbl);
+            if ($rowsNode === false || $rowsNode->length < 2) {
+                continue;
+            }
+
+            $rows = [];
+            foreach ($rowsNode as $tr) {
+                if ($tr instanceof \DOMElement) {
+                    $rows[] = $tr;
+                }
+            }
+            if (count($rows) < 2) {
+                continue;
+            }
+
+            $pareigybeCol = $this->findPareigybeHeaderColumn($rows[0]);
+            if ($pareigybeCol === null) {
+                continue;
+            }
+            $leftCol = $pareigybeCol > 0 ? $pareigybeCol - 1 : null;
+            $dataRows = array_slice($rows, 1);
+            $runPareigybeCells = [];
+            $runLeftCells = [];
+            $runKey = null;
+
+            $flush = function () use (&$runPareigybeCells, &$runLeftCells, $dom): void {
+                if ($runPareigybeCells === []) {
+                    $runPareigybeCells = [];
+                    $runLeftCells = [];
+                    return;
+                }
+                if (count($runPareigybeCells) > 1) {
+                    $this->applyVerticalMergeToTableCells($dom, $runPareigybeCells);
+                }
+                if (count($runLeftCells) > 1) {
+                    $this->applyVerticalMergeToTableCells($dom, $runLeftCells);
+                }
+                $runPareigybeCells = [];
+                $runLeftCells = [];
+            };
+
+            foreach ($dataRows as $tr) {
+                $tc = $this->getTableCellAtLogicalColumn($tr, $pareigybeCol);
+                if (! $tc instanceof \DOMElement) {
+                    $flush();
+                    $runKey = null;
+                    continue;
+                }
+
+                $text = trim($this->extractPlainTextFromTableCell($tc));
+                // Merge groups must follow PAREIGYBE block spans only.
+                $key = mb_strtolower($text, 'UTF-8');
+                if ($key === '' || $key === '-') {
+                    $flush();
+                    $runKey = null;
+                    continue;
+                }
+
+                if ($runKey === null || $runKey !== $key) {
+                    $flush();
+                    $runKey = $key;
+                    $runPareigybeCells = [$tc];
+                    if ($leftCol !== null) {
+                        $leftCell = $this->getTableCellAtLogicalColumn($tr, $leftCol);
+                        if ($leftCell instanceof \DOMElement) {
+                            $runLeftCells = [$leftCell];
+                        }
+                    }
+                    continue;
+                }
+
+                $runPareigybeCells[] = $tc;
+                if ($leftCol !== null) {
+                    $leftCell = $this->getTableCellAtLogicalColumn($tr, $leftCol);
+                    if ($leftCell instanceof \DOMElement) {
+                        $runLeftCells[] = $leftCell;
+                    }
+                }
+            }
+            $flush();
+        }
+
+        $out = $dom->saveXML();
+        if (! is_string($out) || $out === '') {
+            $zip->close();
+            return;
+        }
+
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $out);
+        $zip->close();
+    }
+
+    /**
+     * For AAP sarasas rows, remove per-cell top/bottom borders only in PRIEMONES/TERMINAS inner data rows.
+     * Keep outer table border (first-row top, last-row bottom) and do not touch PAREIGYBE column borders.
+     */
+    private function normalizeSarasasRowBordersInDocx(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        if (! is_string($xml) || $xml === '') {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $dom->preserveWhiteSpace = true;
+        $dom->formatOutput = false;
+        if (@$dom->loadXML($xml) !== true) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', self::OOXML_W_NS);
+        $tables = $xpath->query('//w:tbl');
+        if ($tables === false) {
+            $zip->close();
+            return;
+        }
+
+        foreach ($tables as $tbl) {
+            if (! $tbl instanceof \DOMElement) {
+                continue;
+            }
+            $rowsNode = $xpath->query('w:tr', $tbl);
+            if ($rowsNode === false || $rowsNode->length < 2) {
+                continue;
+            }
+
+            $rows = [];
+            foreach ($rowsNode as $tr) {
+                if ($tr instanceof \DOMElement) {
+                    $rows[] = $tr;
+                }
+            }
+            if (count($rows) < 2) {
+                continue;
+            }
+
+            $header = $rows[0];
+            $priemonesCol = $this->findHeaderColumnByKeywords($header, ['priemones', 'priemonės', 'aap']);
+            $terminasCol = $this->findHeaderColumnByKeywords($header, ['terminas', 'terminai']);
+
+            if ($priemonesCol === null && $terminasCol === null) {
+                continue;
+            }
+
+            $pareigybeCol = $this->findPareigybeHeaderColumn($header);
+            if ($pareigybeCol === null) {
+                continue;
+            }
+
+            // Group rows by PAREIGYBE merged blocks: row with non-empty PAREIGYBE starts a group.
+            $groups = [];
+            $groupStart = null;
+            for ($i = 1, $n = count($rows); $i < $n; $i++) {
+                $pCell = $this->getTableCellAtLogicalColumn($rows[$i], $pareigybeCol);
+                $pText = $pCell instanceof \DOMElement ? trim($this->extractPlainTextFromTableCell($pCell)) : '';
+                if ($pText !== '') {
+                    if ($groupStart !== null) {
+                        $groups[] = [$groupStart, $i - 1];
+                    }
+                    $groupStart = $i;
+                }
+            }
+            if ($groupStart !== null) {
+                $groups[] = [$groupStart, count($rows) - 1];
+            }
+            if ($groups === []) {
+                continue;
+            }
+
+            foreach ($groups as [$groupFrom, $groupTo]) {
+                $targets = array_filter([$priemonesCol, $terminasCol], static fn ($v): bool => $v !== null);
+                for ($i = $groupFrom; $i <= $groupTo; $i++) {
+                    foreach ($targets as $col) {
+                        $tc = $this->getTableCellAtLogicalColumn($rows[$i], (int) $col);
+                        if (! $tc instanceof \DOMElement) {
+                            continue;
+                        }
+                        if ($i > $groupFrom) {
+                            $this->setTableCellBorder($dom, $tc, 'top', 'nil');
+                        }
+                        if ($i < $groupTo) {
+                            $this->setTableCellBorder($dom, $tc, 'bottom', 'nil');
+                        } else {
+                            // End of each worker group keeps visible bottom border.
+                            $this->setTableCellBorder($dom, $tc, 'bottom', 'single');
+                        }
+                    }
+                }
+            }
+        }
+
+        $out = $dom->saveXML();
+        if (! is_string($out) || $out === '') {
+            $zip->close();
+            return;
+        }
+
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $out);
+        $zip->close();
+    }
+
+    private function findHeaderColumnByKeywords(\DOMElement $headerRow, array $keywords): ?int
+    {
+        $cells = $this->trDirectTableCells($headerRow);
+        $logicalCol = 0;
+        foreach ($cells as $cell) {
+            $text = mb_strtolower(trim($this->extractPlainTextFromTableCell($cell)), 'UTF-8');
+            foreach ($keywords as $kw) {
+                if ($text !== '' && str_contains($text, mb_strtolower($kw, 'UTF-8'))) {
+                    return $logicalCol;
+                }
+            }
+            $logicalCol += $this->tableCellGridSpan($cell);
+        }
+
+        return null;
+    }
+
+
+    private function setTableCellBorder(\DOMDocument $dom, \DOMElement $tc, string $side, string $value): void
+    {
+        $tcPr = null;
+        foreach ($tc->childNodes as $n) {
+            if ($n instanceof \DOMElement && $n->namespaceURI === self::OOXML_W_NS && $n->localName === 'tcPr') {
+                $tcPr = $n;
+                break;
+            }
+        }
+        if (! $tcPr instanceof \DOMElement) {
+            $tcPr = $dom->createElementNS(self::OOXML_W_NS, 'w:tcPr');
+            $tc->insertBefore($tcPr, $tc->firstChild);
+        }
+
+        $tcBorders = null;
+        foreach ($tcPr->childNodes as $n) {
+            if ($n instanceof \DOMElement && $n->namespaceURI === self::OOXML_W_NS && $n->localName === 'tcBorders') {
+                $tcBorders = $n;
+                break;
+            }
+        }
+        if (! $tcBorders instanceof \DOMElement) {
+            $tcBorders = $dom->createElementNS(self::OOXML_W_NS, 'w:tcBorders');
+            $tcPr->appendChild($tcBorders);
+        }
+
+        $edge = null;
+        foreach ($tcBorders->childNodes as $n) {
+            if ($n instanceof \DOMElement && $n->namespaceURI === self::OOXML_W_NS && $n->localName === $side) {
+                $edge = $n;
+                break;
+            }
+        }
+        if (! $edge instanceof \DOMElement) {
+            $edge = $dom->createElementNS(self::OOXML_W_NS, 'w:' . $side);
+            $tcBorders->appendChild($edge);
+        }
+        $edge->setAttribute('w:val', $value);
+    }
+
 }

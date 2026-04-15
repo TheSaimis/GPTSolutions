@@ -10,7 +10,6 @@ use App\Entity\WorkerRisk;
 use App\Services\Metadata\DocxMetadataService;
 use App\Services\Metadata\FlowMacroIgnores;
 use Doctrine\ORM\EntityManagerInterface;
-use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 /**
@@ -36,6 +35,7 @@ final class WorkplaceFactorsCertificateService
         'veiksniai',
         'sifrai',
         'veiksniaiSuSifrais',
+        'veiksniaiPilnas',
         'periodiskumas',
         'workerType',
         'riskFactors',
@@ -148,7 +148,6 @@ final class WorkplaceFactorsCertificateService
 
         $outputPath = $this->createFile->createWordDocument($companyData, $effective['name']);
         $this->applyWorkerRowsToOutput($outputPath, $numberedRows, $healthReplacements);
-        $this->appendWorkerRiskTablePage($outputPath, $numberedRows);
 
         $documentDataJson = json_encode(
             $documentDataPayload,
@@ -337,10 +336,6 @@ final class WorkplaceFactorsCertificateService
             if ($riskWithCodes === '') {
                 $riskWithCodes = '-';
             }
-            if ($checkPeriod === '') {
-                throw new \InvalidArgumentException('Each workerRows entry must include checkPeriod');
-            }
-
             $numberedRows[] = [
                 'eilNr' => (string) ($index + 1),
                 'workerName' => $workerName,
@@ -411,6 +406,10 @@ final class WorkplaceFactorsCertificateService
             static fn (array $row): string => $row['workerName'] . ': ' . $row['riskCodes'],
             $numberedRows
         );
+        $factorsWithCodesPerWorker = array_map(
+            static fn (array $row): string => $row['workerName'] . ': ' . $row['riskWithCodes'],
+            $numberedRows
+        );
         $periodsPerWorker = array_map(
             static fn (array $row): string => $row['workerName'] . ': ' . $row['checkPeriod'],
             $numberedRows
@@ -422,6 +421,7 @@ final class WorkplaceFactorsCertificateService
             'veiksniai'                 => implode("\n", $veiksniaiLines),
             'sifrai'                    => implode("\n", $sifraiLines),
             'veiksniaiSuSifrais'        => implode("\n", $veiksniaiSuSifraisLines),
+            'veiksniaiPilnas'           => implode("\n", $factorsWithCodesPerWorker),
             'periodiskumas'             => implode("\n", $periodiskumasLines),
 
             'workerType'                => implode("\n", $pareigybeLines),
@@ -475,21 +475,12 @@ final class WorkplaceFactorsCertificateService
             throw new \InvalidArgumentException('Įmonei nepriskirti darbuotojų tipai');
         }
 
-        $missingPeriods = [];
         $normalizedPeriods = [];
         foreach ($workers as $workerId => $worker) {
             $period = isset($checkPeriodsByWorkerId[$workerId]) ? trim((string) $checkPeriodsByWorkerId[$workerId]) : '';
-            if ($period === '') {
-                $missingPeriods[] = $worker->getName();
-            } else {
+            if ($period !== '') {
                 $normalizedPeriods[$workerId] = $period;
             }
-        }
-
-        if ($missingPeriods !== []) {
-            throw new \InvalidArgumentException(
-                'Trūksta tikrinimo periodo šiems darbuotojų tipams: ' . implode(', ', $missingPeriods)
-            );
         }
 
         $riskRows = $this->em->getRepository(WorkerRisk::class)
@@ -557,7 +548,7 @@ final class WorkplaceFactorsCertificateService
                 'riskNames' => $riskNames !== [] ? implode("\n", $riskNames) : '-',
                 'riskCodes' => $riskCodes !== [] ? implode("\n", $riskCodes) : '-',
                 'riskWithCodes' => $riskWithCodes !== [] ? implode("\n", $riskWithCodes) : '-',
-                'checkPeriod' => $normalizedPeriods[$workerId],
+                'checkPeriod' => $normalizedPeriods[$workerId] ?? '',
             ];
         }
 
@@ -618,6 +609,7 @@ final class WorkplaceFactorsCertificateService
                 'veiksniai' => $row['riskNames'],
                 'sifrai' => $row['riskCodes'],
                 'veiksniaiSuSifrais' => $row['riskWithCodes'],
+                'veiksniaiPilnas' => $row['workerName'] . ': ' . $row['riskWithCodes'],
                 'periodiskumas' => $row['checkPeriod'],
                 'workerType' => $row['workerName'],
                 'riskFactors' => $row['riskNames'],
@@ -654,6 +646,7 @@ final class WorkplaceFactorsCertificateService
                         $this->setPareigybePair($processor, '#' . (string) $index, $row['pareigybe']);
                         $processor->setValue('veiksniai#' . $index, $row['veiksniai']);
                         $processor->setValue('sifrai#' . $index, $row['sifrai']);
+                        $processor->setValue('veiksniaiPilnas#' . $index, $row['veiksniaiPilnas']);
                         $processor->setValue('periodiskumas#' . $index, $row['periodiskumas']);
                         $index++;
                     }
@@ -667,6 +660,7 @@ final class WorkplaceFactorsCertificateService
                             $this->setPareigybePair($processor, '#' . (string) $index, $row['pareigybe']);
                             $processor->setValue('veiksniai#' . $index, $row['veiksniai']);
                             $processor->setValue('sifrai#' . $index, $row['sifrai']);
+                            $processor->setValue('veiksniaiPilnas#' . $index, $row['veiksniaiPilnas']);
                             $processor->setValue('periodiskumas#' . $index, $row['periodiskumas']);
                             $index++;
                         }
@@ -695,6 +689,7 @@ final class WorkplaceFactorsCertificateService
             $processor->setValue('veiksniai', $fallbackReplacements['veiksniai'] ?? '');
             $processor->setValue('sifrai', $fallbackReplacements['sifrai'] ?? '');
             $processor->setValue('veiksniaiSuSifrais', $fallbackReplacements['veiksniaiSuSifrais'] ?? '');
+            $processor->setValue('veiksniaiPilnas', $fallbackReplacements['veiksniaiPilnas'] ?? '');
             $processor->setValue('periodiskumas', $fallbackReplacements['periodiskumas'] ?? '');
             $processor->setValue('workerType', $fallbackReplacements['workerType'] ?? '');
             $processor->setValue('riskFactors', $fallbackReplacements['riskFactors'] ?? '');
@@ -710,115 +705,5 @@ final class WorkplaceFactorsCertificateService
     {
         $processor->setValue('pareigybe' . $suffix, $value);
         $processor->setValue('pareigybė' . $suffix, $value);
-    }
-
-    /**
-     * @param array<int, array{
-     *   eilNr:string,
-     *   workerName:string,
-     *   riskNames:string,
-     *   riskCodes:string,
-     *   riskWithCodes:string,
-     *   checkPeriod:string
-     * }> $numberedRows
-     */
-    private function appendWorkerRiskTablePage(string $outputPath, array $numberedRows): void
-    {
-        if ($numberedRows === [] || ! is_file($outputPath)) {
-            return;
-        }
-
-        $phpWord = WordIOFactory::load($outputPath);
-        $sectionStyle = $this->buildNextPageSectionStyleFromTemplate($phpWord);
-        $section = $phpWord->addSection($sectionStyle);
-        $fontStyle = ['name' => 'Times New Roman', 'size' => 12];
-
-        $tableStyleName = 'WorkerRiskSummaryTable';
-        $phpWord->addTableStyle(
-            $tableStyleName,
-            [
-                'borderSize'  => 6,
-                'borderColor' => '999999',
-                'cellMargin'  => 80,
-            ]
-        );
-
-        $table = $section->addTable($tableStyleName);
-
-        foreach ($numberedRows as $row) {
-            $table->addRow();
-            // 7 columns total: first is worker type, next 6 are copies of the second column.
-            $table->addCell(2800)->addText((string) $row['workerName'], $fontStyle);
-
-            $riskLines = array_values(array_filter(array_map(
-                static fn (string $line): string => trim($line),
-                explode("\n", (string) ($row['riskWithCodes'] ?? ''))
-            )));
-
-            for ($copy = 0; $copy < 6; $copy++) {
-                $riskCell = $table->addCell(2200);
-                if ($riskLines === []) {
-                    $riskCell->addText('-', $fontStyle);
-                    continue;
-                }
-
-                $run = $riskCell->addTextRun();
-                foreach ($riskLines as $index => $line) {
-                    if ($index > 0) {
-                        $run->addTextBreak();
-                    }
-                    $run->addText($line, $fontStyle);
-                }
-            }
-        }
-
-        $writer = WordIOFactory::createWriter($phpWord, 'Word2007');
-        $writer->save($outputPath);
-    }
-
-    /**
-     * Keep generated page format identical to template section format.
-     *
-     * @return array<string, mixed>
-     */
-    private function buildNextPageSectionStyleFromTemplate(\PhpOffice\PhpWord\PhpWord $phpWord): array
-    {
-        $sections = $phpWord->getSections();
-        if ($sections === []) {
-            return ['breakType' => 'nextPage'];
-        }
-
-        $lastSection = $sections[count($sections) - 1];
-        if (! method_exists($lastSection, 'getStyle')) {
-            return ['breakType' => 'nextPage'];
-        }
-
-        $style = $lastSection->getStyle();
-        if ($style === null) {
-            return ['breakType' => 'nextPage'];
-        }
-
-        $result = [
-            'orientation'  => $style->getOrientation(),
-            'pageSizeW'    => $style->getPageSizeW(),
-            'pageSizeH'    => $style->getPageSizeH(),
-            'marginTop'    => $style->getMarginTop(),
-            'marginLeft'   => $style->getMarginLeft(),
-            'marginRight'  => $style->getMarginRight(),
-            'marginBottom' => $style->getMarginBottom(),
-            'gutter'       => $style->getGutter(),
-            'headerHeight' => $style->getHeaderHeight(),
-            'footerHeight' => $style->getFooterHeight(),
-            'colsNum'      => $style->getColsNum(),
-            'colsSpace'    => $style->getColsSpace(),
-            'vAlign'       => $style->getVAlign(),
-            // Always force new page for the extra worker risk table.
-            'breakType'    => 'nextPage',
-        ];
-
-        return array_filter(
-            $result,
-            static fn (mixed $value): bool => $value !== null && $value !== ''
-        );
     }
 }

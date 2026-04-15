@@ -142,6 +142,7 @@ final class RiskExcelService
         $mirror = $this->outputMirrorPartsRelativeToProject($templatePath);
         $createData = $this->buildCreateFilePayloadForRiskExport(
             $company,
+            $workers,
             $stagingPath,
             $templatePath,
             $role,
@@ -236,6 +237,7 @@ final class RiskExcelService
 
     private function buildCreateFilePayloadForRiskExport(
         CompanyRequisite $company,
+        array $workers,
         string $templateAbsolutePath,
         string $sourceTemplateAbsoluteForMetadata,
         ?string $roleOverride,
@@ -252,6 +254,10 @@ final class RiskExcelService
         $role = $roleOverride !== null && trim($roleOverride) !== ''
             ? trim($roleOverride)
             : (string) ($company->getRole() ?? '');
+        $documentDate = trim((string) ($company->getDocumentDate() ?? ''));
+        if ($documentDate === '') {
+            $documentDate = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Vilnius')))->format('Y-m-d');
+        }
 
         $base = [
             'directory'                      => $mirrorDirectory,
@@ -265,7 +271,7 @@ final class RiskExcelService
             'companyName'                    => $companyName,
             'companyId'                      => (string) ($company->getId() ?? ''),
             'kodas'                          => (string) ($company->getCode() ?? ''),
-            'data'                           => (string) ($company->getDocumentDate() ?? ''),
+            'data'                           => $documentDate,
             'role'                           => $role,
             'vardas'                         => (string) ($company->getManagerFirstName() ?? ''),
             'pavarde'                        => (string) ($company->getManagerLastName() ?? ''),
@@ -283,6 +289,9 @@ final class RiskExcelService
         $base = array_merge($base, $extras);
 
         $mergedRep = $extraRep;
+        if (! array_key_exists('veiksniaiPilnas', $mergedRep) || trim((string) $mergedRep['veiksniaiPilnas']) === '') {
+            $mergedRep['veiksniaiPilnas'] = $this->buildVeiksniaiPilnasForWorkers($workers);
+        }
         if ($nameAndSurname !== null && trim($nameAndSurname) !== '') {
             $mergedRep['eksportoPasirasiusioVardas'] = trim($nameAndSurname);
         }
@@ -1486,64 +1495,7 @@ final class RiskExcelService
             $sheet->getColumnDimension($this->colLetter($c))->setWidth($width);
         }
 
-        // ── Footer (tie patys AAP stulpelių plotiai kaip fillWorkerBlock: D–G, H–Q, R–AH)
-        $row++;
-        $dateText = date('Y') . 'm. ' . $this->lithuanianMonth((int) date('m')) . ' ' . date('d') . ' d';
-        $sheet->setCellValue('A' . $row, $dateText);
-        $sheet->mergeCells('A' . $row . ':' . $lastColLetter . $row);
-        $sheet->getStyle('A' . $row . ':' . $lastColLetter . $row)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-
-        $row += 2;
-        $sheet->mergeCells('A' . $row . ':B' . $row);
-        $sheet->setCellValue('A' . $row, 'Lentelę užpildė:');
-        $sheet->getStyle('A' . $row . ':B' . $row)->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setWrapText(true);
-
-        $signatureLineRow  = $row + 1;
-        $signatureLabelRow = $row + 2;
-
-        [
-            $leftStartCol,
-            $leftEndCol,
-            $midStartCol,
-            $midEndCol,
-            $rightStartCol,
-            $rightEndCol,
-        ] = $this->resolveAapSignatureColumnBounds($totalCols);
-
-        $this->writeSignatureFieldPair(
-            $sheet,
-            $this->colLetter($leftStartCol),
-            $this->colLetter($leftEndCol),
-            $signatureLineRow,
-            $signatureLabelRow,
-            '',
-            '(pareigos)'
-        );
-        $this->writeSignatureFieldPair(
-            $sheet,
-            $this->colLetter($midStartCol),
-            $this->colLetter($midEndCol),
-            $signatureLineRow,
-            $signatureLabelRow,
-            '',
-            '(parašas)'
-        );
-        $this->writeSignatureFieldPair(
-            $sheet,
-            $this->colLetter($rightStartCol),
-            $this->colLetter($rightEndCol),
-            $signatureLineRow,
-            $signatureLabelRow,
-            '',
-            '(vardo raidė, pavardė)'
-        );
-
-        return $signatureLabelRow;
+        return $dataEndRow;
     }
 
     private function boldCenter(
@@ -1601,6 +1553,69 @@ final class RiskExcelService
                 ->setFillType(Fill::FILL_SOLID)
                 ->getStartColor()->setRGB(self::GRAY_FILL);
         }
+    }
+
+    /**
+     * @param Worker[] $workers
+     */
+    private function buildVeiksniaiPilnasForWorkers(array $workers): string
+    {
+        $lines = [];
+
+        foreach ($workers as $worker) {
+            $workerName = trim($worker->getName());
+            if ($workerName === '') {
+                $workerName = 'Nenurodytas darbuotojo tipas';
+            }
+
+            $riskRows = $this->em->getRepository(RiskList::class)
+                ->createQueryBuilder('rl')
+                ->leftJoin('rl.riskSubcategory', 'rs')
+                ->where('rl.worker = :worker')
+                ->setParameter('worker', $worker)
+                ->orderBy('rs.lineNumber', 'ASC')
+                ->addOrderBy('rs.id', 'ASC')
+                ->getQuery()
+                ->getResult();
+
+            /** @var array<string, true> $seen */
+            $seen = [];
+            $workerLines = [];
+
+            foreach ($riskRows as $riskRow) {
+                if (! $riskRow instanceof RiskList) {
+                    continue;
+                }
+
+                $subcategory = $riskRow->getRiskSubcategory();
+                if ($subcategory === null) {
+                    continue;
+                }
+
+                $factorName = trim($subcategory->getName());
+                if ($factorName === '') {
+                    continue;
+                }
+
+                $sifras = (string) $subcategory->getLineNumber();
+                $dedupeKey = mb_strtolower($factorName, 'UTF-8') . '|' . $sifras;
+                if (isset($seen[$dedupeKey])) {
+                    continue;
+                }
+                $seen[$dedupeKey] = true;
+
+                $workerLines[] = $factorName . ' (' . $sifras . ')';
+            }
+
+            if ($workerLines === []) {
+                $lines[] = $workerName . ':';
+                continue;
+            }
+
+            $lines[] = $workerName . ': ' . implode(', ', $workerLines);
+        }
+
+        return implode("\n", $lines);
     }
 
     private function lithuanianMonth(int $month): string

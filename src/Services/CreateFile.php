@@ -5,6 +5,8 @@ declare (strict_types = 1);
 namespace App\Services;
 
 use App\Entity\CompanyRequisite;
+use App\Entity\CompanyWorker;
+use App\Entity\Worker;
 use App\Services\Metadata\DocxMetadataService;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
@@ -39,7 +41,7 @@ use PhpOffice\PhpWord\TemplateProcessor;
  *     sąrašo pastraipas (DocxMultilineListParagraphSplitter), kad kiekviena eilutė turėtų „-“ kaip Word sąraše
  *   - managerType – struktūrinis tipas (vadovas/vadovė, …); jei tuščia, naudojama role (laisvas pareigų tekstas)
  *
- * Šablone: ${kompanija}, ${companyDirectory} (iš DB, kai companyId), ${atliktiDarbai}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
+ * Šablone: ${kompanija}, ${imone}, ${companyDirectory} (iš DB, kai companyId), ${atliktiDarbai}, ${kodas}, ${data}, ${role}, ${vardas}, ${pavarde},
  * ${tipas}, ${tipasPilnas}, ${tipasKompaktiskas}, ${TIPASPILNAS}, ${adresas}, ${vadovas}, ${lytis},
  * ${vadovo} (pareigų kilm.), ${vadovui}, ${vadovą}, ${vadovu}, ${vadove} (viet. vyr. pareigai),
  * ${vadovėje}, ${vadovei}, ${vadovę}, ${vadovasNom}, ${vadovasKreip} (šauksm.), ${vadoves} (= vadovo, ASCII),
@@ -163,8 +165,9 @@ final class CreateFile
             mkdir($outputDir, 0775, true);
         }
 
-        $baseName   = pathinfo($template, PATHINFO_FILENAME);
-        $outputName = $this->resolveGeneratedOutputFilename($name, $baseName, $companySlug, 'docx');
+        $baseName     = pathinfo($template, PATHINFO_FILENAME);
+        $defaultSuffix = $this->resolveDefaultGeneratedSuffix($companySlug, $companyName, $companyId);
+        $outputName   = $this->resolveGeneratedOutputFilename($name, $baseName, $defaultSuffix, 'docx');
         $outputPath = $outputDir . '/' . $outputName;
 
         $existingOutputMeta = [];
@@ -175,6 +178,9 @@ final class CreateFile
         $lang                = $this->resolveDocumentLanguage($data, $directory, $template);
         $parsedDocumentDate  = $this->parseDateTimeFromString(trim($documentDate));
         $documentDateDisplay = $this->formatLocalizedLongDate($parsedDocumentDate, $documentDate, $lang);
+        $dataSkaitmenimisValue = trim($documentDate) !== ''
+            ? ($parsedDocumentDate !== null ? $parsedDocumentDate->format('Y-m-d') : $documentDate)
+            : '';
 
         if ($lang !== 'LT') {
             $vardas  = $this->formatTitleCaseName($vardas);
@@ -290,6 +296,7 @@ final class CreateFile
         }
 
         $this->setValueCaseInsensitive($processor, 'kompanija', $companyName);
+        $this->setValueCaseInsensitive($processor, 'imone', $companyName);
         $this->setValueCaseInsensitive($processor, 'kodas', $code);
         $this->setValueCaseInsensitive($processor, 'data', $documentDateDisplay);
         $this->setValueCaseInsensitive($processor, 'vardas', $vardas);
@@ -302,17 +309,27 @@ final class CreateFile
         $this->setValueCaseInsensitive($processor, 'companyName', $companyName);
         $this->setValueCaseInsensitive($processor, 'code', $code);
         $this->setValueCaseInsensitive($processor, 'documentDate', $documentDateDisplay);
-        if (trim($documentDate) !== '') {
-            $this->setValueCaseInsensitive(
-                $processor,
-                'dataSkaitmenimis',
-                $parsedDocumentDate !== null ? $parsedDocumentDate->format('Y-m-d') : $documentDate
-            );
+        if ($dataSkaitmenimisValue !== '') {
+            $this->setValueCaseInsensitive($processor, 'dataSkaitmenimis', $dataSkaitmenimisValue);
+        }
+        $workerRows = $this->buildAssignedWorkerTableRows($data);
+        if ($workerRows !== []) {
+            $workersApplied = $this->applyAssignedWorkerRowsToOutput($processor, $workerRows);
+            if (! $workersApplied) {
+                $pareigybesLines = array_map(
+                    static fn (array $row): string => (string) ($row['pareigybes'] ?? ''),
+                    $workerRows
+                );
+                $this->setValueCaseInsensitive($processor, 'pareigybes', implode("\n", $pareigybesLines));
+                $this->setValueCaseInsensitive($processor, 'pareigybe', implode("\n", $pareigybesLines));
+            }
         }
 
-        $this->applyReplacements($processor, $data['replacements'] ?? []);
+        $replacementPairs = $this->normalizeReplacementPairs($data['replacements'] ?? []);
+        $this->applyReplacements($processor, $replacementPairs);
 
         $processor->saveAs($outputPath);
+        $this->applyArrayCustomVariablesInDocx($outputPath, $replacementPairs);
 
         $tipasPilnasOut       = $tipasPilnasTr;
         $tipasKompaktiskasOut = $tipasKompaktiskasTr;
@@ -330,7 +347,9 @@ final class CreateFile
             }
         }
         $this->docxSplitMacroReplacer->apply($outputPath, $splitMacros);
+        $this->ensureXmlSpacePreserveForEdgeWhitespaceTextRuns($outputPath);
         $this->docxMultilineListParagraphSplitter->expandInDocx($outputPath);
+        $this->applySequentialEilNrPlaceholdersInDocx($outputPath);
 
         $templateId = $this->readTemplateIdFromTemplateSources($data, $workingTemplatePath);
 
@@ -350,6 +369,11 @@ final class CreateFile
             'company'    => $companyName,
             'companyId'  => $companyId,
             'language'   => $lang,
+            'documentData' => $this->buildStandardDocumentDataJson(
+                $directory,
+                $template,
+                $replacementPairs
+            ),
         ]);
         $this->archiveCopyOfGenerated($outputPath, $parsedDocumentDate);
 
@@ -416,8 +440,9 @@ final class CreateFile
         }
 
         $ext      = strtolower(pathinfo($templatePath, PATHINFO_EXTENSION));
-        $baseName = pathinfo($templatePath, PATHINFO_FILENAME);
-        $outputName = $this->resolveGeneratedOutputFilename($name, $baseName, $companySlug, $ext);
+        $baseName      = pathinfo($templatePath, PATHINFO_FILENAME);
+        $defaultSuffix = $this->resolveDefaultGeneratedSuffix($companySlug, $companyName, $companyId);
+        $outputName    = $this->resolveGeneratedOutputFilename($name, $baseName, $defaultSuffix, $ext);
         $outputPath = $outputDir . '/' . $outputName;
 
         $existingOutputMeta = [];
@@ -443,6 +468,7 @@ final class CreateFile
 
         $replacements = [
             'kompanija'    => $companyName,
+            'imone'        => $companyName,
             'companyName'  => $companyName,
             'companyDirectory' => $companyDirectory,
             'atliktiDarbai'    => $atliktiDarbai,
@@ -602,6 +628,7 @@ final class CreateFile
 
         if (strtolower(pathinfo($outputPath, PATHINFO_EXTENSION)) === 'xlsx') {
             $templateId = $this->readTemplateIdFromTemplateSources($data, $templatePath);
+            $replacementPairs = $this->normalizeReplacementPairs($data['replacements'] ?? []);
 
             $timezone   = new \DateTimeZone('Europe/Vilnius');
             $now        = (new \DateTimeImmutable('now', $timezone))->format(DATE_ATOM);
@@ -619,6 +646,11 @@ final class CreateFile
                 'company'    => $companyName,
                 'companyId'  => $companyId,
                 'language'   => $lang,
+                'documentData' => $this->buildStandardDocumentDataJson(
+                    $directory,
+                    $template,
+                    $replacementPairs
+                ),
             ]);
         }
 
@@ -661,13 +693,13 @@ final class CreateFile
      * Ensures a custom $name without extension still gets the correct output suffix (e.g. .xlsx).
      *
      * @param non-empty-string $defaultBaseName
-     * @param non-empty-string $companySlug
+     * @param non-empty-string $defaultSuffix
      * @param non-empty-string $outputExt Extension without leading dot (e.g. docx, xlsx)
      */
     private function resolveGeneratedOutputFilename(
         ?string $name,
         string $defaultBaseName,
-        string $companySlug,
+        string $defaultSuffix,
         string $outputExt,
     ): string {
         $outputExt = strtolower(ltrim($outputExt, '.'));
@@ -675,14 +707,28 @@ final class CreateFile
             $outputExt = 'bin';
         }
         if ($name === null || trim($name) === '') {
-            return $defaultBaseName . '_' . $companySlug . '.' . $outputExt;
+            return $defaultBaseName . '_' . $defaultSuffix . '.' . $outputExt;
         }
         $stem = pathinfo(trim($name), PATHINFO_FILENAME);
         if ($stem === '') {
-            $stem = $defaultBaseName . '_' . $companySlug;
+            $stem = $defaultBaseName . '_' . $defaultSuffix;
         }
 
         return $stem . '.' . $outputExt;
+    }
+
+    private function resolveDefaultGeneratedSuffix(string $companySlug, string $companyName, string $companyId): string
+    {
+        $companyIdNum = ctype_digit($companyId) ? (int) $companyId : 0;
+        $normalizedCompanyName = mb_strtolower(trim($companyName), 'UTF-8');
+        $isNoCompanyName = in_array($normalizedCompanyName, ['nenurodyta įmonė', 'nenurodyta imone'], true);
+        if ($companyIdNum <= 0 && ($companySlug === '' || $isNoCompanyName)) {
+            $timezone = new \DateTimeZone('Europe/Vilnius');
+
+            return (new \DateTimeImmutable('now', $timezone))->format('Y-m-d_His');
+        }
+
+        return $companySlug !== '' ? $companySlug : 'be_kodo';
     }
 
     /**
@@ -1032,30 +1078,351 @@ final class CreateFile
     }
 
     /**
-     * Pritaiko savavališkus pakeitimus iš $replacements.
-     *
-     * @param array<string, string>|array<int, array{0: string, 1: string}> $replacements
+     * @return array<string, mixed>
      */
-    private function applyReplacements(TemplateProcessor $processor, mixed $replacements): void
+    private function normalizeReplacementPairs(mixed $replacements): array
     {
         if (! is_array($replacements)) {
-            return;
+            return [];
         }
 
         $pairs = [];
         foreach ($replacements as $key => $value) {
             if (is_int($key) && is_array($value) && count($value) >= 2) {
-                $pairs[(string) $value[0]] = (string) $value[1];
+                $pairs[(string) $value[0]] = $value[1];
             } elseif (is_string($key)) {
-                $pairs[$key] = (string) $value;
+                $pairs[$key] = $value;
             }
         }
 
-        foreach ($pairs as $placeholder => $replacement) {
-            if (trim($placeholder) !== '') {
-                $this->setValueCaseInsensitive($processor, $placeholder, $replacement);
+        return $pairs;
+    }
+
+    /**
+     * Pritaiko savavališkus pakeitimus iš $replacements.
+     *
+     * @param array<string, mixed> $replacements
+     */
+    private function applyReplacements(TemplateProcessor $processor, array $replacements): void
+    {
+        foreach ($replacements as $placeholder => $replacementRaw) {
+            // `%{name}` placeholders are table array variables and are handled in OOXML pass.
+            if (str_starts_with(trim($placeholder), '%{')) {
+                continue;
+            }
+            $normalized = trim($placeholder);
+            if ($normalized === '') {
+                continue;
+            }
+            if (str_starts_with($normalized, '${') && str_ends_with($normalized, '}')) {
+                $normalized = substr($normalized, 2, -1);
+            }
+            if (str_starts_with($normalized, '%{') && str_ends_with($normalized, '}')) {
+                continue;
+            }
+            if ($normalized === '') {
+                continue;
+            }
+            if (is_array($replacementRaw)) {
+                continue;
+            }
+            $replacement = (string) $replacementRaw;
+
+            // Custom variables are user-defined: preserve exact placeholder spelling and value casing.
+            $processor->setValue($normalized, $replacement);
+            // PhpWord cloneRow()/cloneRowAndSetValues() appends #<n> to placeholders in cloned rows.
+            // Fill a practical range so custom placeholders inside cloned rows are also replaced.
+            for ($i = 1; $i <= 500; $i++) {
+                $processor->setValue($normalized . '#' . $i, $replacement);
             }
         }
+    }
+
+    /**
+     * `%{name}` placeholders are treated as row arrays inside tables.
+     * If the same placeholder-row is already duplicated (e.g. by `${pareigybes}` cloneRow),
+     * values are filled sequentially and remaining rows stay empty.
+     *
+     * @param array<string, mixed> $replacements
+     */
+    private function applyArrayCustomVariablesInDocx(string $docxPath, array $replacements): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $arrayValues = [];
+        foreach ($replacements as $rawKey => $rawValue) {
+            $key = trim((string) $rawKey);
+            if ($key === '') {
+                continue;
+            }
+            $isPercentKey = false;
+            if (str_starts_with($key, '%{') && str_ends_with($key, '}')) {
+                $key = trim((string) substr($key, 2, -1));
+                $isPercentKey = true;
+            } elseif (str_starts_with($key, '${') && str_ends_with($key, '}')) {
+                // Requisite variables stay unchanged, only `%{...}` is array custom variable syntax.
+                continue;
+            }
+            if ($key === '') {
+                continue;
+            }
+            if (! is_array($rawValue) && ! $isPercentKey) {
+                continue;
+            }
+
+            $normalizedValues = [];
+            if (is_array($rawValue)) {
+                foreach ($rawValue as $entry) {
+                    $normalizedValues[] = is_scalar($entry) ? (string) $entry : '';
+                }
+            } else {
+                $parts = preg_split('/(?:\r\n|\r|\n|,)/u', (string) $rawValue) ?: [];
+                foreach ($parts as $part) {
+                    $normalizedValues[] = trim((string) $part);
+                }
+            }
+            $arrayValues[mb_strtolower($key, 'UTF-8')] = $normalizedValues;
+        }
+        if ($arrayValues === []) {
+            return;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        if (! is_string($xml) || $xml === '') {
+            $zip->close();
+
+            return;
+        }
+
+        $updated = preg_replace_callback(
+            '#<w:tbl\b[^>]*>.*?</w:tbl>#su',
+            function (array $tblMatch) use ($arrayValues): string {
+                $tableXml = $tblMatch[0];
+                $rowCount = preg_match_all('#<w:tr\b[^>]*>.*?</w:tr>#su', $tableXml, $rowMatch, PREG_OFFSET_CAPTURE);
+                if ($rowCount === false || $rowCount < 1) {
+                    return $tableXml;
+                }
+                /** @var array<int, array{0:string,1:int}> $rowsWithOffsets */
+                $rowsWithOffsets = $rowMatch[0];
+                $rows = array_map(static fn (array $m): string => $m[0], $rowsWithOffsets);
+                $rebuiltTable = '';
+                $cursor = 0;
+                $i = 0;
+                $count = count($rows);
+                while ($i < $count) {
+                    $rowXml = $rows[$i];
+                    $rowStart = $rowsWithOffsets[$i][1];
+                    $rowEnd = $rowStart + strlen($rowXml);
+                    if ($rowStart > $cursor) {
+                        $rebuiltTable .= substr($tableXml, $cursor, $rowStart - $cursor);
+                    }
+                    $vars = $this->extractPercentVariableMarkersFromRow($rowXml);
+                    if ($vars === []) {
+                        $rebuiltTable .= $rowXml;
+                        $cursor = $rowEnd;
+                        $i++;
+
+                        continue;
+                    }
+                    $normalizedNames = array_values(array_unique(array_map(
+                        static fn (array $v): string => mb_strtolower($v['name'], 'UTF-8'),
+                        $vars
+                    )));
+                    $baseSets = [];
+                    foreach ($normalizedNames as $name) {
+                        $baseSets[$name] = $arrayValues[$name] ?? [];
+                    }
+                    $maxLen = 0;
+                    foreach ($baseSets as $set) {
+                        $maxLen = max($maxLen, count($set));
+                    }
+                    $runLength = 1;
+                    for ($j = $i + 1; $j < $count; $j++) {
+                        $nextVars = $this->extractPercentVariableMarkersFromRow($rows[$j]);
+                        if ($nextVars === []) {
+                            break;
+                        }
+                        $nextNames = array_values(array_unique(array_map(
+                            static fn (array $v): string => mb_strtolower($v['name'], 'UTF-8'),
+                            $nextVars
+                        )));
+                        sort($nextNames);
+                        $thisNames = $normalizedNames;
+                        sort($thisNames);
+                        if ($nextNames !== $thisNames) {
+                            break;
+                        }
+                        $runLength++;
+                    }
+                    if ($runLength > 1) {
+                        for ($k = 0; $k < $runLength; $k++) {
+                            $rebuiltTable .= $this->replacePercentVariablesInRowByIndex($rows[$i + $k], $arrayValues, $k);
+                        }
+                        $lastRowXml = $rows[$i + $runLength - 1];
+                        $lastRowStart = $rowsWithOffsets[$i + $runLength - 1][1];
+                        $cursor = $lastRowStart + strlen($lastRowXml);
+                        $i += $runLength;
+
+                        continue;
+                    }
+                    $repeat = max(1, $maxLen);
+                    for ($k = 0; $k < $repeat; $k++) {
+                        $filledRow = $this->replacePercentVariablesInRowByIndex($rowXml, $arrayValues, $k);
+                        if ($k > 0) {
+                            $filledRow = $this->sanitizeClonedPercentRowXml($filledRow);
+                        }
+                        $rebuiltTable .= $filledRow;
+                    }
+                    $cursor = $rowEnd;
+                    $i++;
+                }
+                if ($cursor < strlen($tableXml)) {
+                    $rebuiltTable .= substr($tableXml, $cursor);
+                }
+
+                return $rebuiltTable;
+            },
+            $xml
+        ) ?? $xml;
+        $updated = $this->applyPercentVariablesOutsideTables($updated, $arrayValues);
+
+        if ($updated !== $xml) {
+            $zip->deleteName('word/document.xml');
+            $zip->addFromString('word/document.xml', $updated);
+        }
+        $zip->close();
+    }
+
+    /**
+     * @return list<array{name:string,index:int|null}>
+     */
+    private function extractPercentVariableMarkersFromRow(string $rowXml): array
+    {
+        if (preg_match_all('/%\{([^}]+)\}/u', $rowXml, $matches, PREG_SET_ORDER) !== false) {
+            $result = [];
+            foreach ($matches as $match) {
+                $inner = trim((string) ($match[1] ?? ''));
+                if ($inner === '') {
+                    continue;
+                }
+                $index = null;
+                $name = $inner;
+                if (preg_match('/^(.+?)\s*#\s*(\d+)$/u', $inner, $parts) === 1) {
+                    $name = trim((string) $parts[1]);
+                    $index = max(0, ((int) $parts[2]) - 1);
+                }
+                if ($name === '') {
+                    continue;
+                }
+                $result[] = ['name' => $name, 'index' => $index];
+            }
+
+            return $result;
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string, list<string>> $arrayValues
+     */
+    private function replacePercentVariablesInRowByIndex(string $rowXml, array $arrayValues, int $rowIndex): string
+    {
+        return preg_replace_callback(
+            '/%\{([^}]+)\}/u',
+            function (array $match) use ($arrayValues, $rowIndex): string {
+                $inner = trim((string) ($match[1] ?? ''));
+                if ($inner === '') {
+                    return '';
+                }
+                $index = $rowIndex;
+                $name = $inner;
+                if (preg_match('/^(.+?)\s*#\s*(\d+)$/u', $inner, $parts) === 1) {
+                    $name = trim((string) $parts[1]);
+                    $index = max(0, ((int) $parts[2]) - 1);
+                }
+                $values = $arrayValues[mb_strtolower($name, 'UTF-8')] ?? [];
+
+                return (string) ($values[$index] ?? '');
+            },
+            $rowXml
+        ) ?? $rowXml;
+    }
+
+    /**
+     * Row cloning in raw OOXML can duplicate Word-internal IDs.
+     * Remove volatile IDs/bookmarks from cloned rows to keep documents openable.
+     */
+    private function sanitizeClonedPercentRowXml(string $rowXml): string
+    {
+        $clean = preg_replace('/\s+w14:paraId="[^"]*"/u', '', $rowXml) ?? $rowXml;
+        $clean = preg_replace('/\s+w14:textId="[^"]*"/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/\s+w:rsid[A-Za-z0-9]*="[^"]*"/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:bookmarkStart\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:bookmarkEnd\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:commentRangeStart\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:commentRangeEnd\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:commentReference\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:permStart\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:permEnd\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:moveFromRangeStart\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:moveFromRangeEnd\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:moveToRangeStart\b[^>]*\/>/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/<w:moveToRangeEnd\b[^>]*\/>/u', '', $clean) ?? $clean;
+
+        return $clean;
+    }
+
+    /**
+     * `%{name}` outside table rows is rendered as multiline text: item1\nitem2\nitem3.
+     *
+     * @param array<string, list<string>> $arrayValues
+     */
+    private function applyPercentVariablesOutsideTables(string $xml, array $arrayValues): string
+    {
+        $parts = preg_split('#(<w:tbl\b[^>]*>.*?</w:tbl>)#su', $xml, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (! is_array($parts) || $parts === []) {
+            return $xml;
+        }
+
+        $rebuilt = '';
+        foreach ($parts as $part) {
+            if (preg_match('#^<w:tbl\b[^>]*>.*</w:tbl>$#su', $part) === 1) {
+                $rebuilt .= $part;
+                continue;
+            }
+            $rebuilt .= preg_replace_callback(
+                '/%\{([^}]+)\}/u',
+                static function (array $match) use ($arrayValues): string {
+                    $inner = trim((string) ($match[1] ?? ''));
+                    if ($inner === '') {
+                        return '';
+                    }
+                    $index = null;
+                    $name = $inner;
+                    if (preg_match('/^(.+?)\s*#\s*(\d+)$/u', $inner, $parts) === 1) {
+                        $name = trim((string) $parts[1]);
+                        $index = max(0, ((int) $parts[2]) - 1);
+                    }
+                    $values = $arrayValues[mb_strtolower($name, 'UTF-8')] ?? [];
+                    if ($values === []) {
+                        return '';
+                    }
+                    $resolved = $index === null ? implode("\n", $values) : (string) ($values[$index] ?? '');
+
+                    return htmlspecialchars($resolved, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+                },
+                $part
+            ) ?? $part;
+        }
+
+        return $rebuilt;
     }
 
     /**
@@ -1080,10 +1447,14 @@ final class CreateFile
         $lower = mb_strtolower($placeholder, 'UTF-8');
         $upper = mb_strtoupper($placeholder, 'UTF-8');
         $title = mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8');
+        $lowerValue = mb_strtolower($value, 'UTF-8');
+        if (in_array($lower, ['kompanija', 'imone', 'companyname'], true)) {
+            $lowerValue = $value;
+        }
 
         $variants = [
             $upper => mb_strtoupper($value, 'UTF-8'),
-            $lower => mb_strtolower($value, 'UTF-8'),
+            $lower => $lowerValue,
             $title => $value,
         ];
         if ($placeholder !== $upper && $placeholder !== $lower && $placeholder !== $title) {
@@ -1108,6 +1479,282 @@ final class CreateFile
             static fn(string $k): bool => $k !== '',
             ARRAY_FILTER_USE_KEY
         );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<int, array{eilNr:string, pareigybes:string, pareigybe:string}>
+     */
+    private function buildAssignedWorkerTableRows(array $data): array
+    {
+        $rawCompanyId = $data['companyId'] ?? null;
+        $companyId = null;
+        if (is_int($rawCompanyId)) {
+            $companyId = $rawCompanyId;
+        } elseif (is_string($rawCompanyId) && ctype_digit($rawCompanyId)) {
+            $companyId = (int) $rawCompanyId;
+        }
+        if ($companyId === null || $companyId <= 0) {
+            return [];
+        }
+
+        $company = $this->em->getRepository(CompanyRequisite::class)->find($companyId);
+        if (! $company instanceof CompanyRequisite) {
+            return [];
+        }
+
+        $workers = [];
+        foreach ($company->getCompanyWorkers() as $companyWorker) {
+            if (! $companyWorker instanceof CompanyWorker) {
+                continue;
+            }
+            $worker = $companyWorker->getWorker();
+            if (! $worker instanceof Worker) {
+                continue;
+            }
+            $name = trim($worker->getName());
+            if ($name === '') {
+                continue;
+            }
+            $workers[] = $name;
+        }
+        if ($workers === []) {
+            return [];
+        }
+        natcasesort($workers);
+        $workers = array_values(array_unique($workers));
+
+        $rows = [];
+        foreach ($workers as $index => $workerName) {
+            $rows[] = [
+                'eilNr' => (string) ($index + 1),
+                'pareigybes' => $workerName,
+                'pareigybe' => $workerName,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<int, array{eilNr:string, pareigybes:string, pareigybe:string}> $rows
+     */
+    private function applyAssignedWorkerRowsToOutput(TemplateProcessor $processor, array $rows): bool
+    {
+        $baseMarkers = ['pareigybes', 'pareigybe'];
+        $rowMarkers = [];
+        foreach ($baseMarkers as $marker) {
+            $rowMarkers[] = $marker;
+            $rowMarkers[] = mb_strtolower($marker, 'UTF-8');
+            $rowMarkers[] = mb_strtoupper($marker, 'UTF-8');
+            $rowMarkers[] = mb_convert_case($marker, MB_CASE_TITLE, 'UTF-8');
+        }
+        $rowMarkers = array_values(array_unique($rowMarkers));
+
+        try {
+            if (method_exists($processor, 'cloneRowAndSetValues')) {
+                foreach ($rowMarkers as $marker) {
+                    try {
+                        $processor->cloneRowAndSetValues($marker, $rows);
+                        $this->applyIndexedWorkerRowsWithCaseVariants($processor, $rows);
+
+                        return true;
+                    } catch (\Throwable) {
+                    }
+                }
+            }
+
+            foreach ($rowMarkers as $marker) {
+                try {
+                    $processor->cloneRow($marker, count($rows));
+                    $idx = 1;
+                    foreach ($rows as $row) {
+                        $this->setIndexedPlaceholderWithCaseVariants($processor, 'eilNr', $idx, $row['eilNr']);
+                        $this->setIndexedPlaceholderWithCaseVariants($processor, 'pareigybes', $idx, $row['pareigybes']);
+                        $this->setIndexedPlaceholderWithCaseVariants($processor, 'pareigybe', $idx, $row['pareigybe']);
+                        $idx++;
+                    }
+
+                    return true;
+                } catch (\Throwable) {
+                }
+            }
+
+            return false;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function applySequentialEilNrPlaceholdersInDocx(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if ($xml === false || $xml === '') {
+            $zip->close();
+
+            return;
+        }
+
+        $fixed = $xml;
+
+        // Indexed placeholders produced by cloneRow*: ${eilNr#1} -> 1, ${EILNR#2} -> 2.
+        $fixed = preg_replace_callback(
+            '/\$\{(?:eilNr|EILNR|Eilnr)\s*#\s*(\d+)\s*\}/u',
+            static fn (array $m): string => (string) ((int) $m[1]),
+            $fixed
+        ) ?? $fixed;
+        // Legacy double-index form: ${eilNr#1#2} -> 2.
+        $fixed = preg_replace_callback(
+            '/\$\{(?:eilNr|EILNR|Eilnr)\s*#\s*\d+\s*#\s*(\d+)\s*\}/u',
+            static fn (array $m): string => (string) ((int) $m[1]),
+            $fixed
+        ) ?? $fixed;
+
+        // Plain ${eilNr} in tables: restart numbering from 1 for each table.
+        $fixed = preg_replace_callback(
+            '#<w:tbl\b[^>]*>.*?</w:tbl>#su',
+            static function (array $tableMatch): string {
+                $tableXml = $tableMatch[0];
+                $seqInTable = 0;
+
+                return preg_replace_callback(
+                    '#<w:tr\b[^>]*>.*?</w:tr>#su',
+                    static function (array $rowMatch) use (&$seqInTable): string {
+                        $rowXml = $rowMatch[0];
+                        $plainPattern = '/\$\{(?:eilNr|EILNR|Eilnr)\s*\}/u';
+                        if (preg_match($plainPattern, $rowXml) !== 1) {
+                            return $rowXml;
+                        }
+                        $seqInTable++;
+
+                        return preg_replace($plainPattern, (string) $seqInTable, $rowXml) ?? $rowXml;
+                    },
+                    $tableXml
+                ) ?? $tableXml;
+            },
+            $fixed
+        ) ?? $fixed;
+
+        $seqOutsideTables = 0;
+        // Remaining plain placeholders outside tables (or in unexpected structures): sequential fallback.
+        $fixed = preg_replace_callback(
+            '/\$\{(?:eilNr|EILNR|Eilnr)\s*\}/u',
+            static function () use (&$seqOutsideTables): string {
+                $seqOutsideTables++;
+
+                return (string) $seqOutsideTables;
+            },
+            $fixed
+        ) ?? $fixed;
+
+        if ($fixed === $xml) {
+            $zip->close();
+
+            return;
+        }
+
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $fixed);
+        $zip->close();
+    }
+
+    private function ensureXmlSpacePreserveForEdgeWhitespaceTextRuns(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! is_readable($docxPath)) {
+            return;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $part = $zip->getNameIndex($i);
+            if ($part === false || ! preg_match('#^word/(document\\d*\\.xml|header\\d*\\.xml|footer\\d*\\.xml)$#', $part)) {
+                continue;
+            }
+            $content = $zip->getFromIndex($i);
+            if ($content === false || $content === '') {
+                continue;
+            }
+
+            $updated = preg_replace_callback(
+                '#<w:t(?=[\\s>])([^>]*)>(.*?)</w:t>#su',
+                static function (array $m): string {
+                    $attrs = $m[1];
+                    $text = $m[2];
+                    if ($text === '') {
+                        return $m[0];
+                    }
+                    if (preg_match('/^\\s|\\s$/u', $text) !== 1) {
+                        return $m[0];
+                    }
+                    if (preg_match('/\\bxml:space\\s*=\\s*"preserve"/u', $attrs) === 1) {
+                        return $m[0];
+                    }
+
+                    return '<w:t' . $attrs . ' xml:space="preserve">' . $text . '</w:t>';
+                },
+                $content
+            );
+
+            if (is_string($updated) && $updated !== $content) {
+                $zip->addFromString($part, $updated);
+            }
+        }
+
+        $zip->close();
+    }
+
+
+    /**
+     * @param array<int, array{eilNr:string, pareigybes:string, pareigybe:string}> $rows
+     */
+    private function applyIndexedWorkerRowsWithCaseVariants(TemplateProcessor $processor, array $rows): void
+    {
+        $idx = 1;
+        foreach ($rows as $row) {
+            $this->setIndexedPlaceholderWithCaseVariants($processor, 'eilNr', $idx, $row['eilNr']);
+            $this->setIndexedPlaceholderWithCaseVariants($processor, 'pareigybes', $idx, $row['pareigybes']);
+            $this->setIndexedPlaceholderWithCaseVariants($processor, 'pareigybe', $idx, $row['pareigybe']);
+            $idx++;
+        }
+    }
+
+    private function setIndexedPlaceholderWithCaseVariants(
+        TemplateProcessor $processor,
+        string $placeholder,
+        int $index,
+        string $value
+    ): void {
+        $variants = [
+            $placeholder,
+            mb_strtolower($placeholder, 'UTF-8'),
+            mb_strtoupper($placeholder, 'UTF-8'),
+            mb_convert_case($placeholder, MB_CASE_TITLE, 'UTF-8'),
+        ];
+        foreach (array_unique($variants) as $variant) {
+            $processor->setValue($variant . '#' . $index, $this->indexedVariantValue($value, $variant));
+        }
+    }
+
+    private function indexedVariantValue(string $value, string $variant): string
+    {
+        if ($variant !== '' && $variant === mb_strtoupper($variant, 'UTF-8')) {
+            return mb_strtoupper($value, 'UTF-8');
+        }
+
+        return $value;
     }
 
     /**
@@ -1459,5 +2106,47 @@ final class CreateFile
         $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
 
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
+    /**
+     * @param array<string, mixed> $replacementPairs
+     */
+    private function buildStandardDocumentDataJson(string $directory, string $template, array $replacementPairs): string
+    {
+        $custom = [];
+        foreach ($replacementPairs as $rawKey => $rawValue) {
+            $normalizedKey = trim((string) $rawKey);
+            if ($normalizedKey === '') {
+                continue;
+            }
+            if (
+                (str_starts_with($normalizedKey, '${') || str_starts_with($normalizedKey, '%{'))
+                && str_ends_with($normalizedKey, '}')
+            ) {
+                $normalizedKey = trim((string) substr($normalizedKey, 2, -1));
+            }
+            if ($normalizedKey === '') {
+                continue;
+            }
+            if (is_array($rawValue)) {
+                $custom[$normalizedKey] = array_values(array_map(
+                    static fn(mixed $v): string => is_scalar($v) ? (string) $v : '',
+                    $rawValue
+                ));
+                continue;
+            }
+            $custom[$normalizedKey] = (string) $rawValue;
+        }
+
+        $templatePath = trim(
+            ($directory !== '' ? trim(str_replace('\\', '/', $directory), '/') . '/' : '') . $template,
+            '/'
+        );
+        $payload = [
+            'templatePath' => $templatePath,
+            'custom' => $custom,
+        ];
+
+        return json_encode($payload, JSON_UNESCAPED_UNICODE) ?: '{}';
     }
 }

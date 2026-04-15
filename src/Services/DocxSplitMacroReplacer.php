@@ -85,6 +85,6 @@ final class DocxSplitMacroReplacer
         }
         $quoted = array_map(static fn (string $s): string => preg_quote($s, '/'), $segments);
 
-        return '/\$\{' . $quoted[0] . '(?:<[^>]+>)*' . implode('(?:<[^>]+>)*', array_slice($quoted, 1)) . '\}/u';
+        return '/\$\{' . $quoted[0] . '(?:<[^>]+>)*' . implode('(?:<[^>]+>)*', array_slice($quoted, 1)) . '(?:<[^>]+>)*\}/u';
     }
 }
